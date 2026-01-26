@@ -36,6 +36,11 @@
           "format": "email",
           "description": "The teacher's email address."
         },
+        "contractType": {
+            "type": "string",
+            "enum": ["Tiempo Completo", "Medio Tiempo", "Por Horas"],
+            "description": "The teacher's contract type."
+        },
         "maxWeeklyHours": {
           "type": "number",
           "description": "The maximum number of hours the teacher can work in a week."
@@ -45,7 +50,7 @@
           "items": {
             "type": "string"
           },
-          "description": "An array of course IDs that the teacher specializes in."
+          "description": "An array of module IDs that the teacher specializes in."
         },
         "availability": {
           "type": "array",
@@ -64,11 +69,11 @@
           "description": "The current status of the teacher."
         }
       },
-      "required": ["name", "email", "status"]
+      "required": ["name", "email", "status", "contractType"]
     },
     "Course": {
-      "title": "Course",
-      "description": "A course offered by the institution.",
+      "title": "Módulo",
+      "description": "Un módulo o materia ofrecida por la institución.",
       "type": "object",
       "properties": {
         "name": {
@@ -149,7 +154,7 @@
     },
     "/courses/{courseId}": {
       "schema": { "$ref": "#/entities/Course" },
-      "description": "Stores course information. Spanish: Carreras/Materias"
+      "description": "Stores course information. Spanish: Módulos/Materias"
     },
     "/classrooms/{classroomId}": {
       "schema": { "$ref": "#/entities/Classroom" },

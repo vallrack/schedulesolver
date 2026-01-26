@@ -19,11 +19,15 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { ScrollArea } from '../ui/scroll-area';
 import { Checkbox } from '../ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 const teacherSchema = z.object({
   name: z.string().min(1, { message: 'El nombre es obligatorio.' }),
   email: z.string().email({ message: 'Por favor, introduce un correo válido.' }),
+  contractType: z.enum(['Tiempo Completo', 'Medio Tiempo', 'Por Horas'], {
+    required_error: 'Debes seleccionar un tipo de contrato.',
+  }),
   maxWeeklyHours: z.coerce.number().min(1, { message: 'Debe ser un número positivo.' }),
 });
 
@@ -50,6 +54,7 @@ export function TeacherForm({ teacher, courses, onSuccess }: TeacherFormProps) {
     defaultValues: {
       name: '',
       email: '',
+      contractType: undefined,
       maxWeeklyHours: 0,
     },
   });
@@ -59,12 +64,14 @@ export function TeacherForm({ teacher, courses, onSuccess }: TeacherFormProps) {
         form.reset({
             name: teacher.name,
             email: teacher.email,
+            contractType: teacher.contractType,
             maxWeeklyHours: teacher.maxWeeklyHours,
         });
     } else {
         form.reset({
             name: '',
             email: '',
+            contractType: undefined,
             maxWeeklyHours: 0,
         });
     }
@@ -133,10 +140,32 @@ export function TeacherForm({ teacher, courses, onSuccess }: TeacherFormProps) {
         />
         <FormField
           control={form.control}
+          name="contractType"
+          render={({ field }) => (
+            <FormItem>
+                <FormLabel>Tipo de Contrato</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Selecciona un tipo" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        <SelectItem value="Tiempo Completo">Tiempo Completo</SelectItem>
+                        <SelectItem value="Medio Tiempo">Medio Tiempo</SelectItem>
+                        <SelectItem value="Por Horas">Por Horas</SelectItem>
+                    </SelectContent>
+                </Select>
+                <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
           name="maxWeeklyHours"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Horas Máximas por Semana</FormLabel>
+              <FormLabel>Cantidad de Horas Semanales</FormLabel>
               <FormControl><Input type="number" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
@@ -144,12 +173,12 @@ export function TeacherForm({ teacher, courses, onSuccess }: TeacherFormProps) {
         />
 
         <FormItem>
-            <FormLabel>Especialidades</FormLabel>
+            <FormLabel>Módulos Asignados</FormLabel>
             <Popover>
                 <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between">
                         <span className="truncate">
-                        {selectedSpecialties.length > 0 ? `${selectedSpecialties.length} seleccionada(s)` : "Seleccionar especialidades..."}
+                        {selectedSpecialties.length > 0 ? `${selectedSpecialties.length} seleccionado(s)` : "Seleccionar módulos..."}
                         </span>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>

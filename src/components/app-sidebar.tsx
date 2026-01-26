@@ -7,7 +7,7 @@ import { LayoutDashboard, Users, Book, School, Puzzle } from 'lucide-react';
 const menuItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/teachers', label: 'Docentes', icon: Users },
-    { href: '/courses', label: 'Materias', icon: Book },
+    { href: '/courses', label: 'Módulos', icon: Book },
     { href: '/classrooms', label: 'Aulas', icon: School },
     { href: '/conflict-analyzer', label: 'Analizador de Conflictos', icon: Puzzle },
 ]

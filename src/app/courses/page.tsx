@@ -28,40 +28,40 @@ export default function CoursesPage() {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold font-headline tracking-tight">Catálogo de Materias</h1>
+            <h1 className="text-3xl font-bold font-headline tracking-tight">Catálogo de Módulos</h1>
             <Dialog>
                 <DialogTrigger asChild>
                     <Button>
                         <PlusCircle className="mr-2 h-4 w-4" />
-                        Añadir Materia
+                        Añadir Módulo
                     </Button>
                 </DialogTrigger>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Añadir Nueva Materia</DialogTitle>
+                        <DialogTitle>Añadir Nuevo Módulo</DialogTitle>
                         <DialogDescription>
-                            Rellena los detalles de la nueva materia. Este formulario es un placeholder.
+                            Rellena los detalles del nuevo módulo. Este formulario es un placeholder.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-8 text-center text-muted-foreground">
-                      (El formulario para materias estaría aquí)
+                      (El formulario para módulos estaría aquí)
                     </div>
                     <DialogFooter>
-                      <Button type="submit">Guardar Materia</Button>
+                      <Button type="submit">Guardar Módulo</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Materias Disponibles</CardTitle>
-            <CardDescription>Gestiona los detalles de las materias, incluyendo duración y carga horaria.</CardDescription>
+            <CardTitle>Módulos Disponibles</CardTitle>
+            <CardDescription>Gestiona los detalles de los módulos, incluyendo duración y carga horaria.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre de la Materia</TableHead>
+                  <TableHead>Nombre del Módulo</TableHead>
                   <TableHead>Carrera</TableHead>
                   <TableHead className="hidden sm:table-cell">Semestre</TableHead>
                   <TableHead className="hidden md:table-cell">Duración (Semanas)</TableHead>
@@ -89,9 +89,9 @@ export default function CoursesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                          <DropdownMenuItem>Editar Materia</DropdownMenuItem>
+                          <DropdownMenuItem>Editar Módulo</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">Eliminar Materia</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">Eliminar Módulo</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

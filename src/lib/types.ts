@@ -9,6 +9,7 @@ export type Teacher = {
   id: string;
   name: string;
   email: string;
+  contractType: 'Tiempo Completo' | 'Medio Tiempo' | 'Por Horas';
   maxWeeklyHours: number;
   specialties: string[]; // array of course IDs
   availability: { day: string; startTime: string; endTime: string }[];

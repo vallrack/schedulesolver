@@ -94,19 +94,21 @@ export default function TeachersPage() {
       <TableHeader>
         <TableRow>
           <TableHead>Nombre</TableHead>
-          <TableHead className="hidden md:table-cell">Email</TableHead>
-          <TableHead>Especialidades</TableHead>
+          <TableHead className="hidden lg:table-cell">Email</TableHead>
+          <TableHead>Tipo de Contrato</TableHead>
+          <TableHead>Módulos Asignados</TableHead>
           <TableHead className="hidden sm:table-cell">Estado</TableHead>
           <TableHead><span className="sr-only">Acciones</span></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {loading && <TableRow><TableCell colSpan={5} className="text-center">Cargando...</TableCell></TableRow>}
-        {error && <TableRow><TableCell colSpan={5} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
+        {loading && <TableRow><TableCell colSpan={6} className="text-center">Cargando...</TableCell></TableRow>}
+        {error && <TableRow><TableCell colSpan={6} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
         {teacherList?.map(teacher => (
           <TableRow key={teacher.id}>
             <TableCell className="font-medium">{teacher.name}</TableCell>
-            <TableCell className="hidden md:table-cell">{teacher.email}</TableCell>
+            <TableCell className="hidden lg:table-cell">{teacher.email}</TableCell>
+            <TableCell>{teacher.contractType}</TableCell>
             <TableCell>
               <div className="flex flex-wrap gap-1">
                 {teacher.specialties?.map((specId: string) => {
