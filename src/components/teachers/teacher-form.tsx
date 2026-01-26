@@ -72,7 +72,7 @@ export function TeacherForm({ teacher, subjects, onSuccess }: TeacherFormProps) 
             name: '',
             email: '',
             contractType: undefined,
-            maxWeeklyHours: 0,
+            maxWeeklyHours: 40,
         });
     }
   }, [teacher, form]);
@@ -165,7 +165,7 @@ export function TeacherForm({ teacher, subjects, onSuccess }: TeacherFormProps) 
           name="maxWeeklyHours"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Cantidad de Horas Semanales</FormLabel>
+              <FormLabel>Horas Semanales Máximas</FormLabel>
               <FormControl><Input type="number" {...field} /></FormControl>
               <FormMessage />
             </FormItem>

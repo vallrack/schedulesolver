@@ -81,7 +81,7 @@
           "description": "The current status of the teacher."
         }
       },
-      "required": ["name", "email", "status", "contractType"]
+      "required": ["name", "email", "status", "contractType", "maxWeeklyHours"]
     },
     "Subject": {
       "title": "Módulo",

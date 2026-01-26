@@ -12,12 +12,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCollection } from "@/firebase/firestore/use-collection";
 import { useFirestore } from "@/firebase";
 import { collection, doc, updateDoc, deleteDoc } from "firebase/firestore";
-import type { Subject, Teacher } from "@/lib/types";
+import type { Subject, Teacher, ScheduleEvent } from "@/lib/types";
 import AppLayout from "@/components/app-layout";
 import { TeacherForm } from '@/components/teachers/teacher-form';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Progress } from '@/components/ui/progress';
 
 
 export default function TeachersPage() {
@@ -33,16 +34,49 @@ export default function TeachersPage() {
   const subjectsCollection = useMemo(() => firestore ? collection(firestore, 'subjects') : null, [firestore]);
   const { data: subjects, loading: loadingSubjects, error: errorSubjects } = useCollection<Subject>(subjectsCollection);
 
-  const { activeTeachers, inactiveTeachers } = useMemo(() => {
-    if (!teachers) return { activeTeachers: [], inactiveTeachers: [] };
-    return {
-      activeTeachers: teachers.filter(t => t.status === 'active'),
-      inactiveTeachers: teachers.filter(t => t.status === 'inactive'),
-    };
-  }, [teachers]);
+  const schedulesCollection = useMemo(() => firestore ? collection(firestore, 'schedules') : null, [firestore]);
+  const { data: scheduleEvents, loading: loadingSchedules, error: errorSchedules } = useCollection<ScheduleEvent>(schedulesCollection);
 
-  const loading = loadingTeachers || loadingSubjects;
-  const error = errorTeachers || errorSubjects;
+  const teacherWithHours = useMemo(() => {
+    if (!teachers) return [];
+    if (!scheduleEvents) return teachers.map(t => ({...t, assignedHours: 0}));
+
+    const timeToMinutes = (time: string): number => {
+        if (!time) return 0;
+        const [hours, minutes] = time.split(':').map(Number);
+        return (hours || 0) * 60 + (minutes || 0);
+    };
+
+    return teachers.map(teacher => {
+        const assignedMinutes = scheduleEvents
+            .filter(event => event.teacherId === teacher.id)
+            .reduce((total, event) => {
+                const start = timeToMinutes(event.startTime);
+                const end = timeToMinutes(event.endTime);
+                if (end > start) {
+                  return total + (end - start);
+                }
+                return total;
+            }, 0);
+        const assignedHours = assignedMinutes / 60;
+        return {
+            ...teacher,
+            assignedHours: Math.round(assignedHours * 100) / 100,
+        };
+    });
+  }, [teachers, scheduleEvents]);
+
+
+  const { activeTeachers, inactiveTeachers } = useMemo(() => {
+    if (!teacherWithHours) return { activeTeachers: [], inactiveTeachers: [] };
+    return {
+      activeTeachers: teacherWithHours.filter(t => t.status === 'active'),
+      inactiveTeachers: teacherWithHours.filter(t => t.status === 'inactive'),
+    };
+  }, [teacherWithHours]);
+
+  const loading = loadingTeachers || loadingSubjects || loadingSchedules;
+  const error = errorTeachers || errorSubjects || errorSchedules;
 
   const handleAddNew = () => {
     setEditingTeacher(undefined);
@@ -89,28 +123,36 @@ export default function TeachersPage() {
   };
 
 
-  const renderTable = (teacherList: Teacher[]) => (
+  type TeacherWithHours = Teacher & { assignedHours?: number };
+  const renderTable = (teacherList: TeacherWithHours[]) => (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Nombre</TableHead>
           <TableHead className="hidden lg:table-cell">Email</TableHead>
-          <TableHead>Tipo de Contrato</TableHead>
+          <TableHead className="hidden md:table-cell">Tipo de Contrato</TableHead>
+          <TableHead>Horas Semanales</TableHead>
           <TableHead>Módulos Asignados</TableHead>
           <TableHead className="hidden sm:table-cell">Estado</TableHead>
           <TableHead><span className="sr-only">Acciones</span></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {loading && <TableRow><TableCell colSpan={6} className="text-center">Cargando...</TableCell></TableRow>}
-        {error && <TableRow><TableCell colSpan={6} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
+        {loading && <TableRow><TableCell colSpan={7} className="text-center">Cargando...</TableCell></TableRow>}
+        {error && <TableRow><TableCell colSpan={7} className="text-center text-destructive">Error: {error?.message}</TableCell></TableRow>}
         {teacherList?.map(teacher => (
           <TableRow key={teacher.id}>
             <TableCell className="font-medium">{teacher.name}</TableCell>
             <TableCell className="hidden lg:table-cell">{teacher.email}</TableCell>
-            <TableCell>{teacher.contractType}</TableCell>
+            <TableCell className="hidden md:table-cell">{teacher.contractType}</TableCell>
+             <TableCell>
+              <div className='w-28'>
+                <Progress value={((teacher.assignedHours ?? 0) / teacher.maxWeeklyHours) * 100} className="h-2" />
+                <span className="text-xs text-muted-foreground">{teacher.assignedHours ?? 0} / {teacher.maxWeeklyHours}h</span>
+              </div>
+            </TableCell>
             <TableCell>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1 max-w-xs">
                 {teacher.specialties?.map((specId: string) => {
                   const subject = subjects?.find(s => s.id === specId);
                   return <Badge key={specId} variant="secondary">{subject?.name ?? 'Desconocido'}</Badge>;
