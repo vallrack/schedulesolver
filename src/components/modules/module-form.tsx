@@ -11,7 +11,7 @@ import type { Module } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection, doc, setDoc } from 'firebase/firestore';
 import { Textarea } from '@/components/ui/textarea';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -32,26 +32,32 @@ export function ModuleForm({ module, onSuccess }: ModuleFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const defaultValues = useMemo(() => {
-    return module ? {
-      name: module.name,
-      description: module.description,
-      totalHours: module.totalHours,
-    } : {
+  const form = useForm<ModuleFormValues>({
+    resolver: zodResolver(moduleSchema),
+    defaultValues: {
       name: '',
       description: '',
       totalHours: 40,
-    }
-  }, [module]);
-
-  const form = useForm<ModuleFormValues>({
-    resolver: zodResolver(moduleSchema),
-    defaultValues,
+    },
   });
+  
+  const { reset } = form;
 
   useEffect(() => {
-    form.reset(defaultValues);
-  }, [module, defaultValues, form]);
+    if (module) {
+        reset({
+            name: module.name || '',
+            description: module.description || '',
+            totalHours: module.totalHours || 40,
+        });
+    } else {
+        reset({
+            name: '',
+            description: '',
+            totalHours: 40
+        });
+    }
+  }, [module, reset]);
 
   const onSubmit = async (data: ModuleFormValues) => {
     if (!firestore) return;
