@@ -2,24 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { onSnapshot, Query, DocumentData, FirestoreError } from 'firebase/firestore';
-import { useMemo } from 'react';
 
 export function useCollection<T>(query: Query<DocumentData> | null) {
   const [data, setData] = useState<T[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<FirestoreError | null>(null);
 
-  const memoizedQuery = useMemo(() => query, [query]);
-
   useEffect(() => {
-    if (!memoizedQuery) {
+    if (!query) {
       setLoading(false);
       return;
     }
 
     setLoading(true);
     const unsubscribe = onSnapshot(
-      memoizedQuery,
+      query,
       (snapshot) => {
         const docs = snapshot.docs.map((doc) => ({
           id: doc.id,
@@ -36,7 +33,7 @@ export function useCollection<T>(query: Query<DocumentData> | null) {
     );
 
     return () => unsubscribe();
-  }, [memoizedQuery]);
+  }, [query]);
 
   return { data, loading, error };
 }
