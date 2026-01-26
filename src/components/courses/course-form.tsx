@@ -11,15 +11,15 @@ import type { Career, Course, Group, Module } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection, doc, setDoc } from 'firebase/firestore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const courseSchema = z.object({
   moduleId: z.string().min(1, { message: 'El módulo es obligatorio.' }),
@@ -46,6 +46,11 @@ interface CourseFormProps {
 export function CourseForm({ course, modules, groups, careers, onSuccess }: CourseFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
+  
+  const [moduleSearch, setModuleSearch] = useState('');
+  const [groupSearch, setGroupSearch] = useState('');
+  const [modulePopoverOpen, setModulePopoverOpen] = useState(false);
+  const [groupPopoverOpen, setGroupPopoverOpen] = useState(false);
 
   const defaultValues = useMemo(() => {
     return course ? {
@@ -82,6 +87,16 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
         }
     })
   }, [groups, careers]);
+
+  const filteredModules = useMemo(() => {
+    if (!modules) return [];
+    return modules.filter(m => m.name.toLowerCase().includes(moduleSearch.toLowerCase()));
+  }, [modules, moduleSearch]);
+
+  const filteredGroupOptions = useMemo(() => {
+    if (!groupOptions) return [];
+    return groupOptions.filter(g => g.label.toLowerCase().includes(groupSearch.toLowerCase()));
+  }, [groupOptions, groupSearch]);
 
 
   const onSubmit = async (data: CourseFormValues) => {
@@ -123,26 +138,65 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
               control={form.control}
               name="moduleId"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Módulo</FormLabel>
-                    <Select onValueChange={(value) => {
-                        field.onChange(value);
-                        const selectedModule = modules.find(m => m.id === value);
-                        if (selectedModule) {
-                            form.setValue('totalHours', selectedModule.totalHours, { shouldValidate: true });
-                        }
-                    }} defaultValue={field.value}>
-                        <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecciona un módulo" />
-                            </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            {modules.map(option => (
-                                <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                  <Popover open={modulePopoverOpen} onOpenChange={setModulePopoverOpen} modal={true}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          <span className="truncate">
+                          {field.value
+                            ? modules.find(
+                                (module) => module.id === field.value
+                              )?.name
+                            : "Selecciona un módulo"}
+                          </span>
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" >
+                      <Input 
+                        placeholder="Buscar módulo..."
+                        className="h-9 rounded-b-none"
+                        value={moduleSearch}
+                        onChange={(e) => setModuleSearch(e.target.value)}
+                        autoFocus
+                      />
+                      <ScrollArea className="h-48">
+                        <div className='p-1'>
+                        {filteredModules.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No se encontró el módulo.</p>}
+                        {filteredModules.map((module) => (
+                          <Button
+                            variant="ghost"
+                            key={module.id}
+                            onClick={() => {
+                              field.onChange(module.id);
+                              const selectedModule = modules.find(m => m.id === module.id);
+                              if (selectedModule) {
+                                  form.setValue('totalHours', selectedModule.totalHours, { shouldValidate: true });
+                              }
+                              setModulePopoverOpen(false);
+                            }}
+                            className={cn(
+                              "w-full text-left justify-start",
+                              field.value === module.id && "bg-accent text-accent-foreground"
+                            )}
+                          >
+                            {module.name}
+                          </Button>
+                        ))}
+                        </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
@@ -151,20 +205,61 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
               control={form.control}
               name="groupId"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Grupo</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecciona un grupo" />
-                            </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            {groupOptions.map(option => (
-                                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                  <Popover open={groupPopoverOpen} onOpenChange={setGroupPopoverOpen} modal={true}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          <span className="truncate">
+                          {field.value
+                            ? groupOptions.find(
+                                (group) => group.value === field.value
+                              )?.label
+                            : "Selecciona un grupo"}
+                          </span>
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Input 
+                            placeholder="Buscar grupo..."
+                            className="h-9 rounded-b-none"
+                            value={groupSearch}
+                            onChange={(e) => setGroupSearch(e.target.value)}
+                            autoFocus
+                        />
+                        <ScrollArea className="h-48">
+                          <div className='p-1'>
+                          {filteredGroupOptions.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No se encontró el grupo.</p>}
+                          {filteredGroupOptions.map((group) => (
+                            <Button
+                              variant="ghost"
+                              key={group.value}
+                              onClick={() => {
+                                field.onChange(group.value);
+                                setGroupPopoverOpen(false);
+                              }}
+                              className={cn(
+                                "w-full text-left justify-start h-auto py-2",
+                                field.value === group.value && "bg-accent text-accent-foreground"
+                              )}
+                            >
+                             <span className="whitespace-normal">{group.label}</span>
+                            </Button>
+                          ))}
+                          </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
