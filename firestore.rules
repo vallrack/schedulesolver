@@ -28,13 +28,32 @@ service cloud.firestore {
       allow read: if isSignedIn();
     }
 
-    // REGLA PARA DOCENTES, GRUPOS Y CARRERAS
-    match /{coleccion}/{documentoId} {
-      allow write: if isSignedIn() && (getRole() == "super_admin" || getRole() == "admin");
-      allow read: if isSignedIn();
-      
-      // Restricción: Solo el super_admin puede borrar datos maestros (Docentes o Carreras)
+    // REGLA PARA DOCENTES (teachers)
+    match /teachers/{teacherId} {
+      // Admins y super_admins pueden crear y actualizar.
+      allow create, update: if isSignedIn() && (getRole() == "super_admin" || getRole() == "admin");
+      // Solo super_admin puede borrar.
       allow delete: if isSignedIn() && getRole() == "super_admin";
+      // Todo usuario autenticado puede leer.
+      allow read: if isSignedIn();
+    }
+    
+    // REGLA PARA MÓDULOS (courses)
+    match /courses/{courseId} {
+      // Admins y super_admins pueden crear y actualizar.
+      allow create, update: if isSignedIn() && (getRole() == "super_admin" || getRole() == "admin");
+      // Solo super_admin puede borrar.
+      allow delete: if isSignedIn() && getRole() == "super_admin";
+      // Todo usuario autenticado puede leer.
+      allow read: if isSignedIn();
+    }
+    
+    // REGLA PARA AULAS (classrooms)
+    match /classrooms/{classroomId} {
+      // Admins y super_admins pueden escribir.
+      allow write: if isSignedIn() && (getRole() == "super_admin" || getRole() == "admin");
+      // Todo usuario autenticado puede leer.
+      allow read: if isSignedIn();
     }
   }
 }
