@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
 
 
 export default function TeachersPage() {
@@ -27,6 +28,7 @@ export default function TeachersPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | undefined>(undefined);
+  const [filterText, setFilterText] = useState('');
 
   const teachersCollection = useMemo(() => firestore ? collection(firestore, 'teachers') : null, [firestore]);
   const { data: teachers, loading: loadingTeachers, error: errorTeachers } = useCollection<Teacher>(teachersCollection);
@@ -69,11 +71,16 @@ export default function TeachersPage() {
 
   const { activeTeachers, inactiveTeachers } = useMemo(() => {
     if (!teacherWithHours) return { activeTeachers: [], inactiveTeachers: [] };
+    const filteredList = teacherWithHours.filter(teacher =>
+        teacher.name.toLowerCase().includes(filterText.toLowerCase()) ||
+        teacher.email.toLowerCase().includes(filterText.toLowerCase()) ||
+        teacher.contractType.toLowerCase().includes(filterText.toLowerCase())
+    );
     return {
-      activeTeachers: teacherWithHours.filter(t => t.status === 'active'),
-      inactiveTeachers: teacherWithHours.filter(t => t.status === 'inactive'),
+      activeTeachers: filteredList.filter(t => t.status === 'active'),
+      inactiveTeachers: filteredList.filter(t => t.status === 'inactive'),
     };
-  }, [teacherWithHours]);
+  }, [teacherWithHours, filterText]);
 
   const loading = loadingTeachers || loadingModules || loadingSchedules;
   const error = errorTeachers || errorModules || errorSchedules;
@@ -254,6 +261,14 @@ export default function TeachersPage() {
           <CardHeader>
             <CardTitle>Listado de Docentes</CardTitle>
             <CardDescription>Gestiona los perfiles, especializaciones y disponibilidad de los docentes.</CardDescription>
+            <div className="pt-4">
+              <Input 
+                placeholder="Filtrar por nombre, email o contrato..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="active">

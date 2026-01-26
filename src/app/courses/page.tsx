@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { Input } from "@/components/ui/input";
 
 
 export default function CoursesPage() {
@@ -32,6 +33,7 @@ export default function CoursesPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | undefined>(undefined);
+  const [filterText, setFilterText] = useState('');
 
   const coursesCollection = useMemo(() => firestore ? collection(firestore, 'courses') : null, [firestore]);
   const { data: courses, loading: loadingCourses, error: errorCourses } = useCollection<Course>(coursesCollection);
@@ -63,6 +65,14 @@ export default function CoursesPage() {
         }
     }).filter(Boolean);
   }, [courses, modules, groups, careers]);
+
+  const filteredCourses = useMemo(() => {
+    if (!coursesWithDetails) return [];
+    return coursesWithDetails.filter(course =>
+      (course.moduleName && course.moduleName.toLowerCase().includes(filterText.toLowerCase())) ||
+      (course.groupInfo && course.groupInfo.toLowerCase().includes(filterText.toLowerCase()))
+    );
+  }, [coursesWithDetails, filterText]);
 
 
   const handleAddNew = () => {
@@ -128,6 +138,14 @@ export default function CoursesPage() {
           <CardHeader>
             <CardTitle>Cursos Disponibles</CardTitle>
             <CardDescription>Gestiona los cursos programados para cada grupo, incluyendo duración, fechas y carga horaria.</CardDescription>
+            <div className="pt-4">
+              <Input 
+                placeholder="Filtrar por módulo o grupo..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
@@ -145,7 +163,7 @@ export default function CoursesPage() {
               <TableBody>
                 {loading && <TableRow><TableCell colSpan={7} className="text-center">Cargando...</TableCell></TableRow>}
                 {error && <TableRow><TableCell colSpan={7} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {coursesWithDetails?.map(course => (
+                {filteredCourses?.map(course => (
                   <TableRow key={course.id}>
                     <TableCell className="font-medium">{course.moduleName}</TableCell>
                     <TableCell>{course.groupInfo}</TableCell>

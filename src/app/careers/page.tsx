@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CareerForm } from "@/components/careers/career-form";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { Input } from "@/components/ui/input";
 
 
 export default function CareersPage() {
@@ -30,9 +31,18 @@ export default function CareersPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCareer, setEditingCareer] = useState<Career | undefined>(undefined);
+  const [filterText, setFilterText] = useState('');
 
   const careersCollection = useMemo(() => firestore ? collection(firestore, 'careers') : null, [firestore]);
   const { data: careers, loading, error } = useCollection<Career>(careersCollection);
+
+  const filteredCareers = useMemo(() => {
+    if (!careers) return [];
+    return careers.filter(career =>
+      career.name.toLowerCase().includes(filterText.toLowerCase())
+    );
+  }, [careers, filterText]);
+
 
   const handleAddNew = () => {
     setEditingCareer(undefined);
@@ -94,6 +104,14 @@ export default function CareersPage() {
           <CardHeader>
             <CardTitle>Carreras Ofrecidas</CardTitle>
             <CardDescription>Gestiona las carreras disponibles en la institución.</CardDescription>
+            <div className="pt-4">
+              <Input 
+                placeholder="Filtrar carreras..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
@@ -106,7 +124,7 @@ export default function CareersPage() {
               <TableBody>
                 {loading && <TableRow><TableCell colSpan={2} className="text-center">Cargando...</TableCell></TableRow>}
                 {error && <TableRow><TableCell colSpan={2} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {careers?.map(career => (
+                {filteredCareers?.map(career => (
                   <TableRow key={career.id}>
                     <TableCell className="font-medium">{career.name}</TableCell>
                     <TableCell className="text-right">

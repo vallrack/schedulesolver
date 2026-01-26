@@ -23,6 +23,7 @@ import { ClassroomForm } from "@/components/classrooms/classroom-form";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { Input } from "@/components/ui/input";
 
 export default function ClassroomsPage() {
   const firestore = useFirestore();
@@ -30,9 +31,18 @@ export default function ClassroomsPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClassroom, setEditingClassroom] = useState<Classroom | undefined>(undefined);
+  const [filterText, setFilterText] = useState('');
 
   const classroomsCollection = useMemo(() => firestore ? collection(firestore, 'classrooms') : null, [firestore]);
   const { data: classrooms, loading, error } = useCollection<Classroom>(classroomsCollection);
+
+  const filteredClassrooms = useMemo(() => {
+    if (!classrooms) return [];
+    return classrooms.filter(classroom =>
+      classroom.name.toLowerCase().includes(filterText.toLowerCase()) ||
+      classroom.type.toLowerCase().includes(filterText.toLowerCase())
+    );
+  }, [classrooms, filterText]);
 
   const handleAddNew = () => {
     setEditingClassroom(undefined);
@@ -95,6 +105,14 @@ export default function ClassroomsPage() {
           <CardHeader>
             <CardTitle>Aulas y Laboratorios</CardTitle>
             <CardDescription>Gestiona todas las salas disponibles y sus capacidades.</CardDescription>
+            <div className="pt-4">
+              <Input 
+                placeholder="Filtrar por nombre o tipo..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
@@ -109,7 +127,7 @@ export default function ClassroomsPage() {
               <TableBody>
                 {loading && <TableRow><TableCell colSpan={4} className="text-center">Cargando...</TableCell></TableRow>}
                 {error && <TableRow><TableCell colSpan={4} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {classrooms?.map(classroom => (
+                {filteredClassrooms?.map(classroom => (
                   <TableRow key={classroom.id}>
                     <TableCell className="font-medium">{classroom.name}</TableCell>
                     <TableCell><Badge variant={classroom.type === 'lab' ? 'default' : 'secondary'}>{classroom.type}</Badge></TableCell>

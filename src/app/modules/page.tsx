@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ModuleForm } from "@/components/modules/module-form";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { Input } from "@/components/ui/input";
 
 
 export default function ModulesPage() {
@@ -30,9 +31,19 @@ export default function ModulesPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<Module | undefined>(undefined);
+  const [filterText, setFilterText] = useState('');
 
   const modulesCollection = useMemo(() => firestore ? collection(firestore, 'modules') : null, [firestore]);
   const { data: modules, loading, error } = useCollection<Module>(modulesCollection);
+
+  const filteredModules = useMemo(() => {
+    if (!modules) return [];
+    return modules.filter(module =>
+      module.name.toLowerCase().includes(filterText.toLowerCase()) ||
+      (module.description && module.description.toLowerCase().includes(filterText.toLowerCase()))
+    );
+  }, [modules, filterText]);
+
 
   const handleAddNew = () => {
     setEditingModule(undefined);
@@ -94,6 +105,14 @@ export default function ModulesPage() {
           <CardHeader>
             <CardTitle>Módulos Disponibles</CardTitle>
             <CardDescription>Gestiona las plantillas de las materias o módulos que se pueden impartir.</CardDescription>
+            <div className="pt-4">
+              <Input 
+                placeholder="Filtrar por nombre o descripción..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
@@ -108,7 +127,7 @@ export default function ModulesPage() {
               <TableBody>
                 {loading && <TableRow><TableCell colSpan={4} className="text-center">Cargando...</TableCell></TableRow>}
                 {error && <TableRow><TableCell colSpan={4} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {modules?.map(module => (
+                {filteredModules?.map(module => (
                   <TableRow key={module.id}>
                     <TableCell className="font-medium">{module.name}</TableCell>
                     <TableCell className="hidden sm:table-cell">{module.totalHours}</TableCell>

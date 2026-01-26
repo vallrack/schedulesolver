@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { GroupForm } from "@/components/groups/group-form";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { Input } from "@/components/ui/input";
 
 export default function GroupsPage() {
   const firestore = useFirestore();
@@ -29,6 +30,7 @@ export default function GroupsPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | undefined>(undefined);
+  const [filterText, setFilterText] = useState('');
 
   const groupsCollection = useMemo(() => firestore ? collection(firestore, 'groups') : null, [firestore]);
   const { data: groups, loading: loadingGroups, error: errorGroups } = useCollection<Group>(groupsCollection);
@@ -49,6 +51,16 @@ export default function GroupsPage() {
       }
     })
   }, [groups, careers]);
+
+  const filteredGroups = useMemo(() => {
+    if (!groupsWithCareer) return [];
+    return groupsWithCareer.filter(group =>
+      group.careerName.toLowerCase().includes(filterText.toLowerCase()) ||
+      group.name.toLowerCase().includes(filterText.toLowerCase()) ||
+      String(group.semester).includes(filterText)
+    );
+  }, [groupsWithCareer, filterText]);
+
 
   const handleAddNew = () => {
     setEditingGroup(undefined);
@@ -111,6 +123,14 @@ export default function GroupsPage() {
           <CardHeader>
             <CardTitle>Grupos de Estudiantes</CardTitle>
             <CardDescription>Gestiona los grupos de estudiantes por carrera y semestre.</CardDescription>
+            <div className="pt-4">
+              <Input 
+                placeholder="Filtrar por carrera, semestre o grupo..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
@@ -126,7 +146,7 @@ export default function GroupsPage() {
               <TableBody>
                 {loading && <TableRow><TableCell colSpan={5} className="text-center">Cargando...</TableCell></TableRow>}
                 {error && <TableRow><TableCell colSpan={5} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {groupsWithCareer?.map(group => (
+                {filteredGroups?.map(group => (
                   <TableRow key={group.id}>
                     <TableCell className="font-medium">{group.careerName}</TableCell>
                     <TableCell>{group.semester}</TableCell>
