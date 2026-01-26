@@ -227,7 +227,7 @@ export function CourseForm({ subject, careers, onSuccess }: CourseFormProps) {
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Fecha de Inicio</FormLabel>
-                <Popover>
+                <Popover modal={true}>
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
@@ -252,7 +252,6 @@ export function CourseForm({ subject, careers, onSuccess }: CourseFormProps) {
                       selected={field.value}
                       onSelect={field.onChange}
                       disabled={(date) => date < new Date("1900-01-01")}
-                      initialFocus
                     />
                   </PopoverContent>
                 </Popover>
@@ -266,7 +265,7 @@ export function CourseForm({ subject, careers, onSuccess }: CourseFormProps) {
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Fecha de Fin</FormLabel>
-                <Popover>
+                <Popover modal={true}>
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
@@ -291,7 +290,6 @@ export function CourseForm({ subject, careers, onSuccess }: CourseFormProps) {
                       selected={field.value}
                       onSelect={field.onChange}
                       disabled={(date) => date < (form.getValues("startDate") || new Date("1900-01-01"))}
-                      initialFocus
                     />
                   </PopoverContent>
                 </Popover>
