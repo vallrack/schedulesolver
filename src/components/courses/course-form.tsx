@@ -162,39 +162,52 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" >
-                      <Input 
-                        placeholder="Buscar módulo..."
-                        className="h-9 rounded-b-none"
-                        value={moduleSearch}
-                        onChange={(e) => setModuleSearch(e.target.value)}
-                      />
-                      <ScrollArea className="h-48">
-                        <div className='p-1'>
-                        {filteredModules.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No se encontró el módulo.</p>}
-                        {filteredModules.map((module) => (
-                          <Button
-                            variant="ghost"
-                            key={module.id}
-                            type="button"
-                            onClick={() => {
-                              field.onChange(module.id);
-                              const selectedModule = modules.find(m => m.id === module.id);
-                              if (selectedModule) {
-                                  form.setValue('totalHours', selectedModule.totalHours, { shouldValidate: true });
-                              }
-                              setModulePopoverOpen(false);
-                            }}
-                            className={cn(
-                              "w-full text-left justify-start h-auto py-2",
-                              field.value === module.id && "bg-accent text-accent-foreground"
-                            )}
-                          >
-                            <span className="whitespace-normal">{module.name}</span>
-                          </Button>
-                        ))}
-                        </div>
-                      </ScrollArea>
+                    <PopoverContent 
+                      className="w-[--radix-popover-trigger-width] p-0"
+                      onOpenAutoFocus={(e) => e.preventDefault()}
+                    >
+                      <div onPointerDownOutside={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.closest('[role="combobox"]')) {
+                          e.preventDefault();
+                        }
+                      }}>
+                        <Input 
+                          placeholder="Buscar módulo..."
+                          className="h-9 rounded-b-none border-0 focus-visible:ring-0"
+                          value={moduleSearch}
+                          onChange={(e) => setModuleSearch(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                        <ScrollArea className="h-48">
+                          <div className='p-1'>
+                          {filteredModules.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No se encontró el módulo.</p>}
+                          {filteredModules.map((module) => (
+                            <Button
+                              variant="ghost"
+                              key={module.id}
+                              type="button"
+                              onClick={() => {
+                                field.onChange(module.id);
+                                const selectedModule = modules.find(m => m.id === module.id);
+                                if (selectedModule) {
+                                    form.setValue('totalHours', selectedModule.totalHours, { shouldValidate: true });
+                                }
+                                setModulePopoverOpen(false);
+                                setModuleSearch('');
+                              }}
+                              className={cn(
+                                "w-full text-left justify-start h-auto py-2",
+                                field.value === module.id && "bg-accent text-accent-foreground"
+                              )}
+                            >
+                              <span className="whitespace-normal">{module.name}</span>
+                            </Button>
+                          ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
                     </PopoverContent>
                   </Popover>
                   <FormMessage />
@@ -229,12 +242,23 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <PopoverContent 
+                      className="w-[--radix-popover-trigger-width] p-0"
+                      onOpenAutoFocus={(e) => e.preventDefault()}
+                    >
+                      <div onPointerDownOutside={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.closest('[role="combobox"]')) {
+                          e.preventDefault();
+                        }
+                      }}>
                         <Input 
                             placeholder="Buscar grupo..."
-                            className="h-9 rounded-b-none"
+                            className="h-9 rounded-b-none border-0 focus-visible:ring-0"
                             value={groupSearch}
                             onChange={(e) => setGroupSearch(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
                         />
                         <ScrollArea className="h-48">
                           <div className='p-1'>
@@ -247,6 +271,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                               onClick={() => {
                                 field.onChange(group.value);
                                 setGroupPopoverOpen(false);
+                                setGroupSearch('');
                               }}
                               className={cn(
                                 "w-full text-left justify-start h-auto py-2",
@@ -258,6 +283,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                           ))}
                           </div>
                       </ScrollArea>
+                      </div>
                     </PopoverContent>
                   </Popover>
                   <FormMessage />
