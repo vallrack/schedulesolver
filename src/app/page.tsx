@@ -23,9 +23,6 @@ export default function LandingPage() {
             <Button asChild size="lg" className="w-full sm:w-auto">
               <Link href="/login">Iniciar Sesión</Link>
             </Button>
-            <Button asChild size="lg" variant="secondary" className="w-full sm:w-auto">
-              <Link href="/register">Registrar Super Admin</Link>
-            </Button>
           </div>
         </CardContent>
       </Card>
