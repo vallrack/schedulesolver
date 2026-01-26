@@ -158,6 +158,7 @@ export default function CoursesPage() {
                 </DialogHeader>
                 <CourseForm 
                     course={editingCourse} 
+                    allCourses={courses || []}
                     modules={modules || []}
                     groups={groups || []}
                     careers={careers || []}

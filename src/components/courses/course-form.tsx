@@ -11,15 +11,16 @@ import type { Career, Course, Group, Module } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection, doc, setDoc } from 'firebase/firestore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronsUpDown } from 'lucide-react';
+import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 const courseSchema = z.object({
   moduleId: z.string().min(1, { message: 'El módulo es obligatorio.' }),
@@ -37,18 +38,16 @@ type CourseFormValues = z.infer<typeof courseSchema>;
 
 interface CourseFormProps {
   course?: Course;
+  allCourses: Course[];
   modules: Module[];
   groups: Group[];
   careers: Career[];
   onSuccess: () => void;
 }
 
-export function CourseForm({ course, modules, groups, careers, onSuccess }: CourseFormProps) {
+export function CourseForm({ course, allCourses, modules, groups, careers, onSuccess }: CourseFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  
-  const [modulePopoverOpen, setModulePopoverOpen] = useState(false);
-  const [groupPopoverOpen, setGroupPopoverOpen] = useState(false);
 
   const defaultValues = useMemo(() => {
     return course ? {
@@ -97,6 +96,41 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
 
   const onSubmit = async (data: CourseFormValues) => {
     if (!firestore) return;
+
+    // --- VALIDATION LOGIC ---
+    const newCourseStartDate = data.startDate;
+    const newCourseEndDate = data.endDate;
+    const newCourseGroupId = data.groupId;
+
+    const overlappingCourse = allCourses.find(existingCourse => {
+        // Don't check against the course we are currently editing
+        if (course && existingCourse.id === course.id) {
+            return false;
+        }
+
+        if (existingCourse.groupId === newCourseGroupId) {
+            const existingStartDate = new Date(existingCourse.startDate);
+            const existingEndDate = new Date(existingCourse.endDate);
+
+            // Check for overlap: (StartA <= EndB) and (StartB <= EndA)
+            if (newCourseStartDate <= existingEndDate && existingStartDate <= newCourseEndDate) {
+                return true; // Found an overlap
+            }
+        }
+        return false;
+    });
+
+    if (overlappingCourse) {
+        const module = modules.find(m => m.id === overlappingCourse.moduleId);
+        toast({
+            variant: "destructive",
+            title: "Conflicto de Horario Detectado",
+            description: `El grupo ya tiene el curso "${module?.name || 'Desconocido'}" programado durante ese período de tiempo.`,
+        });
+        return; // Stop submission
+    }
+    // --- END VALIDATION LOGIC ---
+
     const courseData = { 
         ...data,
         startDate: data.startDate.toISOString(),
@@ -136,57 +170,28 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Módulo</FormLabel>
-                  <Popover open={modulePopoverOpen} onOpenChange={setModulePopoverOpen} modal={true}>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className={cn(
-                            "w-full justify-between",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          <span className="truncate">
-                          {field.value
-                            ? sortedModules.find(
-                                (module) => module.id === field.value
-                              )?.name
-                            : "Selecciona un módulo"}
-                          </span>
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <Select onValueChange={(value) => {
+                      field.onChange(value);
+                      const selectedModule = modules.find(m => m.id === value);
+                      if (selectedModule) {
+                          form.setValue('totalHours', selectedModule.totalHours, { shouldValidate: true });
+                      }
+                  }} value={field.value}>
+                    <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Selecciona un módulo" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
                       <ScrollArea className="h-48">
-                        <div className='p-1'>
-                        {sortedModules.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No hay módulos.</p>}
-                        {sortedModules.map((module) => (
-                          <Button
-                            variant="ghost"
-                            key={module.id}
-                            type="button"
-                            onClick={() => {
-                              field.onChange(module.id);
-                              const selectedModule = modules.find(m => m.id === module.id);
-                              if (selectedModule) {
-                                  form.setValue('totalHours', selectedModule.totalHours, { shouldValidate: true });
-                              }
-                              setModulePopoverOpen(false);
-                            }}
-                            className={cn(
-                              "w-full text-left justify-start h-auto py-2",
-                              field.value === module.id && "bg-accent text-accent-foreground"
-                            )}
-                          >
-                            <span className="whitespace-normal">{module.name}</span>
-                          </Button>
-                        ))}
-                        </div>
+                          {sortedModules.map((module) => (
+                              <SelectItem key={module.id} value={module.id}>
+                                  <span className="whitespace-normal">{module.name}</span>
+                              </SelectItem>
+                          ))}
                       </ScrollArea>
-                    </PopoverContent>
-                  </Popover>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -197,53 +202,22 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Grupo</FormLabel>
-                  <Popover open={groupPopoverOpen} onOpenChange={setGroupPopoverOpen} modal={true}>
-                    <PopoverTrigger asChild>
+                  <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className={cn(
-                            "w-full justify-between",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          <span className="truncate">
-                          {field.value
-                            ? groupOptions.find(
-                                (group) => group.value === field.value
-                              )?.label
-                            : "Selecciona un grupo"}
-                          </span>
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
+                          <SelectTrigger>
+                              <SelectValue placeholder="Selecciona un grupo" />
+                          </SelectTrigger>
                       </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                      <ScrollArea className="h-48">
-                        <div className='p-1'>
-                        {groupOptions.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No hay grupos.</p>}
-                        {groupOptions.map((group) => (
-                          <Button
-                            variant="ghost"
-                            key={group.value}
-                            type="button"
-                            onClick={() => {
-                              field.onChange(group.value);
-                              setGroupPopoverOpen(false);
-                            }}
-                            className={cn(
-                              "w-full text-left justify-start h-auto py-2",
-                              field.value === group.value && "bg-accent text-accent-foreground"
-                            )}
-                          >
-                           <span className="whitespace-normal">{group.label}</span>
-                          </Button>
-                        ))}
-                        </div>
-                      </ScrollArea>
-                    </PopoverContent>
-                  </Popover>
+                      <SelectContent>
+                        <ScrollArea className="h-48">
+                          {groupOptions.map((group) => (
+                              <SelectItem key={group.value} value={group.value}>
+                                <span className="whitespace-normal">{group.label}</span>
+                              </SelectItem>
+                          ))}
+                        </ScrollArea>
+                      </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
