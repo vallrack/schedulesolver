@@ -35,7 +35,7 @@ export default function Header() {
     const handleLogout = async () => {
         try {
             await signOut(auth);
-            router.push('/login');
+            router.push('/');
             toast({
                 title: 'Sesión Cerrada',
                 description: 'Has cerrado sesión correctamente.',
