@@ -186,11 +186,11 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                               setModulePopoverOpen(false);
                             }}
                             className={cn(
-                              "w-full text-left justify-start",
+                              "w-full text-left justify-start h-auto py-2",
                               field.value === module.id && "bg-accent text-accent-foreground"
                             )}
                           >
-                            {module.name}
+                            <span className="whitespace-normal">{module.name}</span>
                           </Button>
                         ))}
                         </div>
