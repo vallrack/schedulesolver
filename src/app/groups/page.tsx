@@ -91,7 +91,7 @@ export default function GroupsPage() {
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>{editingGroup ? 'Editar Grupo' : 'Añadir Nuevo Grupo'}</DialogTitle>
                     <DialogDescription>
@@ -119,17 +119,19 @@ export default function GroupsPage() {
                   <TableHead>Carrera</TableHead>
                   <TableHead>Semestre</TableHead>
                   <TableHead>Grupo</TableHead>
+                  <TableHead>Estudiantes</TableHead>
                   <TableHead><span className="sr-only">Acciones</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading && <TableRow><TableCell colSpan={4} className="text-center">Cargando...</TableCell></TableRow>}
-                {error && <TableRow><TableCell colSpan={4} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
+                {loading && <TableRow><TableCell colSpan={5} className="text-center">Cargando...</TableCell></TableRow>}
+                {error && <TableRow><TableCell colSpan={5} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
                 {groupsWithCareer?.map(group => (
                   <TableRow key={group.id}>
                     <TableCell className="font-medium">{group.careerName}</TableCell>
                     <TableCell>{group.semester}</TableCell>
                     <TableCell>{group.name}</TableCell>
+                    <TableCell>{group.studentCount}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

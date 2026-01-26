@@ -19,6 +19,7 @@ const groupSchema = z.object({
   name: z.string().min(1, { message: 'El nombre del grupo es obligatorio (ej: A, B, C).' }),
   careerId: z.string().min(1, { message: 'Debes seleccionar una carrera.' }),
   semester: z.coerce.number().min(1, 'El semestre debe ser mayor a 0.'),
+  studentCount: z.coerce.number().min(1, 'Debe haber al menos 1 estudiante.'),
 });
 
 type GroupFormValues = z.infer<typeof groupSchema>;
@@ -35,14 +36,14 @@ export function GroupForm({ group, careers, onSuccess }: GroupFormProps) {
 
   const form = useForm<GroupFormValues>({
     resolver: zodResolver(groupSchema),
-    defaultValues: group || { name: '', careerId: '', semester: 1 },
+    defaultValues: group || { name: '', careerId: '', semester: 1, studentCount: 20 },
   });
 
   useEffect(() => {
     if (group) {
         form.reset(group);
     } else {
-        form.reset({ name: '', careerId: '', semester: 1 });
+        form.reset({ name: '', careerId: '', semester: 1, studentCount: 20 });
     }
   }, [group, form]);
 
@@ -74,7 +75,7 @@ export function GroupForm({ group, careers, onSuccess }: GroupFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
         <FormField
           control={form.control}
           name="careerId"
@@ -97,28 +98,41 @@ export function GroupForm({ group, careers, onSuccess }: GroupFormProps) {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="semester"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Semestre</FormLabel>
-              <FormControl><Input type="number" {...field} placeholder="Ej: 1" /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nombre del Grupo</FormLabel>
-              <FormControl><Input {...field} placeholder="Ej: A, B, C..." /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-3 gap-4">
+            <FormField
+            control={form.control}
+            name="semester"
+            render={({ field }) => (
+                <FormItem className="col-span-1">
+                <FormLabel>Semestre</FormLabel>
+                <FormControl><Input type="number" {...field} placeholder="Ej: 1" /></FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+            <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+                <FormItem className="col-span-1">
+                <FormLabel>Grupo</FormLabel>
+                <FormControl><Input {...field} placeholder="Ej: A" /></FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+             <FormField
+            control={form.control}
+            name="studentCount"
+            render={({ field }) => (
+                <FormItem className="col-span-1">
+                <FormLabel>Estudiantes</FormLabel>
+                <FormControl><Input type="number" {...field} placeholder="Ej: 25" /></FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+        </div>
 
         <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
           {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Grupo'}

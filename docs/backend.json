@@ -99,9 +99,13 @@
         "semester": {
           "type": "number",
           "description": "The semester number for this group."
+        },
+        "studentCount": {
+          "type": "number",
+          "description": "The number of students in the group."
         }
       },
-      "required": ["name", "careerId", "semester"]
+      "required": ["name", "careerId", "semester", "studentCount"]
     },
     "Subject": {
       "title": "Módulo",

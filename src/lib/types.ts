@@ -21,6 +21,7 @@ export type Group = {
   name: string;
   careerId: string;
   semester: number;
+  studentCount: number;
 };
 
 export type Subject = {

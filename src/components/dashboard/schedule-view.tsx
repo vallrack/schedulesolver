@@ -91,10 +91,11 @@ export default function ScheduleView() {
         subjects: JSON.stringify(subjects),
         teachers: JSON.stringify(teachers),
         classrooms: JSON.stringify(classrooms),
+        groups: JSON.stringify(groups),
         constraints: JSON.stringify([
           'Un profesor no puede estar en dos lugares a la vez.',
           'Un grupo no puede tener dos clases al mismo tiempo.',
-          'No exceder la capacidad del aula.',
+          'No exceder la capacidad del aula. Compara la capacidad del aula (`capacity`) con la cantidad de estudiantes del grupo (`studentCount`).',
           'Respetar la duración exacta de la materia.',
           'Evitar huecos excesivos para profesores y alumnos.',
           'Preferir turnos de mañana/tarde cuando sea posible.',
