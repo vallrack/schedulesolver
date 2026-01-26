@@ -168,7 +168,6 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                         className="h-9 rounded-b-none"
                         value={moduleSearch}
                         onChange={(e) => setModuleSearch(e.target.value)}
-                        autoFocus
                       />
                       <ScrollArea className="h-48">
                         <div className='p-1'>
@@ -177,6 +176,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                           <Button
                             variant="ghost"
                             key={module.id}
+                            type="button"
                             onClick={() => {
                               field.onChange(module.id);
                               const selectedModule = modules.find(m => m.id === module.id);
@@ -235,7 +235,6 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                             className="h-9 rounded-b-none"
                             value={groupSearch}
                             onChange={(e) => setGroupSearch(e.target.value)}
-                            autoFocus
                         />
                         <ScrollArea className="h-48">
                           <div className='p-1'>
@@ -244,6 +243,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                             <Button
                               variant="ghost"
                               key={group.value}
+                              type="button"
                               onClick={() => {
                                 field.onChange(group.value);
                                 setGroupPopoverOpen(false);
