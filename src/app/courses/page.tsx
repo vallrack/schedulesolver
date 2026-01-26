@@ -25,10 +25,13 @@ import { es } from "date-fns/locale";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { Input } from "@/components/ui/input";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 type CourseWithDetails = Course & {
     moduleName: string;
     groupInfo: string;
+    careerId: string;
+    careerName: string;
 };
 
 type SortableCourseKeys = keyof CourseWithDetails;
@@ -69,6 +72,8 @@ export default function CoursesPage() {
             ...course,
             moduleName: module.name,
             groupInfo: `${career?.name || '...'} - Sem ${group.semester} - G ${group.name}`,
+            careerId: career?.id || 'unknown',
+            careerName: career?.name || 'Carrera Desconocida',
         }
     }).filter((c): c is CourseWithDetails => c !== null);
   }, [courses, modules, groups, careers]);
@@ -106,6 +111,17 @@ export default function CoursesPage() {
     }
     return sortableItems;
   }, [filteredCourses, sortConfig]);
+
+  const coursesByCareer = useMemo(() => {
+    return sortedCourses.reduce((acc, course) => {
+        const { careerName } = course;
+        if (!acc[careerName]) {
+            acc[careerName] = [];
+        }
+        acc[careerName].push(course);
+        return acc;
+    }, {} as Record<string, CourseWithDetails[]>);
+  }, [sortedCourses]);
 
 
   const handleAddNew = () => {
@@ -170,8 +186,8 @@ export default function CoursesPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Cursos Disponibles</CardTitle>
-            <CardDescription>Gestiona los cursos programados para cada grupo, incluyendo duración, fechas y carga horaria.</CardDescription>
+            <CardTitle>Cursos por Carrera</CardTitle>
+            <CardDescription>Gestiona los cursos programados para cada grupo, organizados por carrera.</CardDescription>
             <div className="pt-4">
               <Input 
                 placeholder="Filtrar por módulo o grupo..."
@@ -182,68 +198,88 @@ export default function CoursesPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead><Button variant="ghost" onClick={() => requestSort('moduleName')}>Módulo <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                  <TableHead><Button variant="ghost" onClick={() => requestSort('groupInfo')}>Grupo <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                  <TableHead><Button variant="ghost" onClick={() => requestSort('durationWeeks')}>Semanas <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                  <TableHead><Button variant="ghost" onClick={() => requestSort('totalHours')}>Horas <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                  <TableHead><Button variant="ghost" onClick={() => requestSort('startDate')}>Fecha Inicio <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                  <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')}>Fecha Fin <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                  <TableHead className="text-right"><span className="sr-only">Acciones</span></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading && <TableRow><TableCell colSpan={7} className="text-center">Cargando...</TableCell></TableRow>}
-                {error && <TableRow><TableCell colSpan={7} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {sortedCourses?.map(course => (
-                  <TableRow key={course.id}>
-                    <TableCell className="font-medium">{course.moduleName}</TableCell>
-                    <TableCell>{course.groupInfo}</TableCell>
-                    <TableCell>{course.durationWeeks}</TableCell>
-                    <TableCell>{course.totalHours}</TableCell>
-                    <TableCell>{format(new Date(course.startDate), "d MMM, yyyy", { locale: es })}</TableCell>
-                    <TableCell>{format(new Date(course.endDate), "d MMM, yyyy", { locale: es })}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Abrir menú</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEdit(course)}>Editar Curso</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Eliminar
-                                  </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                      <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                          Esta acción no se puede deshacer. Esto eliminará permanentemente el curso programado.
-                                      </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDelete(course.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-                                  </AlertDialogFooter>
-                              </AlertDialogContent>
-                          </AlertDialog>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            {loading && <div className="text-center py-10">Cargando...</div>}
+            {error && <div className="text-center py-10 text-destructive">Error: {error.message}</div>}
+            {!loading && !error && (
+                 <Accordion type="multiple" className="w-full space-y-2">
+                    {Object.keys(coursesByCareer).sort().map((careerName) => (
+                        <AccordionItem value={careerName} key={careerName} className="border rounded-lg px-4 bg-background">
+                            <AccordionTrigger className="hover:no-underline">
+                                <h3 className="text-lg font-semibold">{careerName} <span className="text-sm font-normal text-muted-foreground">({coursesByCareer[careerName].length} cursos)</span></h3>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                        <TableHead><Button variant="ghost" onClick={() => requestSort('moduleName')}>Módulo <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                        <TableHead><Button variant="ghost" onClick={() => requestSort('groupInfo')}>Grupo <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                        <TableHead><Button variant="ghost" onClick={() => requestSort('durationWeeks')}>Semanas <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                        <TableHead><Button variant="ghost" onClick={() => requestSort('totalHours')}>Horas <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                        <TableHead><Button variant="ghost" onClick={() => requestSort('startDate')}>Fecha Inicio <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                        <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')}>Fecha Fin <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                                        <TableHead className="text-right"><span className="sr-only">Acciones</span></TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                    {coursesByCareer[careerName].map(course => (
+                                    <TableRow key={course.id}>
+                                        <TableCell className="font-medium">{course.moduleName}</TableCell>
+                                        <TableCell>{course.groupInfo}</TableCell>
+                                        <TableCell>{course.durationWeeks}</TableCell>
+                                        <TableCell>{course.totalHours}</TableCell>
+                                        <TableCell>{format(new Date(course.startDate), "d MMM, yyyy", { locale: es })}</TableCell>
+                                        <TableCell>{format(new Date(course.endDate), "d MMM, yyyy", { locale: es })}</TableCell>
+                                        <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                                <span className="sr-only">Abrir menú</span>
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                            <DropdownMenuItem onClick={() => handleEdit(course)}>Editar Curso</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Eliminar
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Esta acción no se puede deshacer. Esto eliminará permanentemente el curso programado.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDelete(course.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                    ))}
+                                </TableBody>
+                                </Table>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    ))}
+                    {Object.keys(coursesByCareer).length === 0 && (
+                        <div className="text-center py-10 text-muted-foreground">
+                            <p>No se encontraron cursos que coincidan con el filtro.</p>
+                        </div>
+                    )}
+                 </Accordion>
+            )}
           </CardContent>
         </Card>
       </div>
