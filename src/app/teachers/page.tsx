@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCollection } from "@/firebase/firestore/use-collection";
 import { useFirestore } from "@/firebase";
 import { collection, doc, updateDoc, deleteDoc } from "firebase/firestore";
-import type { Subject, Teacher, ScheduleEvent } from "@/lib/types";
+import type { Module, Teacher, ScheduleEvent } from "@/lib/types";
 import AppLayout from "@/components/app-layout";
 import { TeacherForm } from '@/components/teachers/teacher-form';
 import { useToast } from '@/hooks/use-toast';
@@ -31,8 +31,8 @@ export default function TeachersPage() {
   const teachersCollection = useMemo(() => firestore ? collection(firestore, 'teachers') : null, [firestore]);
   const { data: teachers, loading: loadingTeachers, error: errorTeachers } = useCollection<Teacher>(teachersCollection);
 
-  const subjectsCollection = useMemo(() => firestore ? collection(firestore, 'subjects') : null, [firestore]);
-  const { data: subjects, loading: loadingSubjects, error: errorSubjects } = useCollection<Subject>(subjectsCollection);
+  const modulesCollection = useMemo(() => firestore ? collection(firestore, 'modules') : null, [firestore]);
+  const { data: modules, loading: loadingModules, error: errorModules } = useCollection<Module>(modulesCollection);
 
   const schedulesCollection = useMemo(() => firestore ? collection(firestore, 'schedules') : null, [firestore]);
   const { data: scheduleEvents, loading: loadingSchedules, error: errorSchedules } = useCollection<ScheduleEvent>(schedulesCollection);
@@ -75,8 +75,8 @@ export default function TeachersPage() {
     };
   }, [teacherWithHours]);
 
-  const loading = loadingTeachers || loadingSubjects || loadingSchedules;
-  const error = errorTeachers || errorSubjects || errorSchedules;
+  const loading = loadingTeachers || loadingModules || loadingSchedules;
+  const error = errorTeachers || errorModules || errorSchedules;
 
   const handleAddNew = () => {
     setEditingTeacher(undefined);
@@ -158,8 +158,8 @@ export default function TeachersPage() {
             <TableCell>
               <div className="flex flex-wrap gap-1 max-w-xs">
                 {teacher.specialties?.map((specId: string) => {
-                  const subject = subjects?.find(s => s.id === specId);
-                  return <Badge key={specId} variant="secondary">{subject?.name ?? 'Desconocido'}</Badge>;
+                  const module = modules?.find(s => s.id === specId);
+                  return <Badge key={specId} variant="secondary">{module?.name ?? 'Desconocido'}</Badge>;
                 })}
               </div>
             </TableCell>
@@ -243,7 +243,7 @@ export default function TeachersPage() {
                 <div className="py-4">
                     <TeacherForm 
                         teacher={editingTeacher} 
-                        subjects={subjects || []} 
+                        modules={modules || []} 
                         onSuccess={() => setDialogOpen(false)} 
                     />
                 </div>
