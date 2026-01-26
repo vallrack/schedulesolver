@@ -3,78 +3,75 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // --- FUNCIONES DE APOYO ---
+    // --- FUNCIONES DE APOYO OPTIMIZADAS ---
     
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Función para obtener los datos del usuario. El `get` se evalúa con los permisos del solicitante.
-    // Para que esto funcione, debe haber una regla que permita al usuario leer su propio documento de usuario.
+    // Obtenemos los datos del usuario de forma segura
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    // Verifica si el usuario tiene un documento en /users/ con role 'super_admin'
+    // El Super Admin es Dios: Si esta función es true, se salta el resto de validaciones
     function isSuperAdmin() {
       return isSignedIn() && getUserData().role == "super_admin";
     }
 
-    // Verifica si el usuario es un 'admin' estándar
+    // El Admin estándar tiene permisos elevados pero no totales
     function isAdmin() {
       return isSignedIn() && getUserData().role == "admin";
     }
 
-    // --- REGLAS POR COLECCIÓN ---
+    // --- LA REGLA MAESTRA ---
+    // Si eres Super Admin, tienes acceso total a CUALQUIER documento del sistema
+    // sin importar las reglas de abajo.
+    match /{document=**} {
+      allow read, write, delete: if isSuperAdmin();
+    }
 
-    // Colección de Usuarios (Gestión de permisos)
+    // --- REGLAS PARA OTROS USUARIOS (Admins y Personal) ---
+
+    // Gestión de Usuarios
     match /users/{userId} {
-      // REGLA CRÍTICA: Un usuario DEBE poder leer su propio perfil para que las funciones de rol (isSuperAdmin, isAdmin) funcionen sin recursión.
+      // Necesario para que el sistema lea el rol al iniciar sesión
       allow read: if isSignedIn() && request.auth.uid == userId;
-      // Admins y Super Admins pueden leer cualquier otro perfil.
-      allow read: if isAdmin() || isSuperAdmin();
-      // Solo Super Admins pueden crear/editar perfiles (para asignar roles).
-      allow write: if isSuperAdmin();
+      // Los Admins pueden ver la lista de usuarios pero no editarlos (eso lo hace Dios)
+      allow read: if isAdmin();
     }
 
-    // Colección de Docentes (teachers)
-    match /teachers/{teacherId} {
-      // Cualquier usuario autenticado puede leer la lista de docentes.
+    // Colecciones Académicas (Solo para lectura o edición por Admin estándar)
+    // Nota: El Super Admin ya tiene permiso por la "Regla Maestra" arriba.
+    
+    match /teachers/{id} {
       allow read: if isSignedIn();
-      // Admins y Super Admins pueden crear y actualizar docentes.
-      allow create, update: if isAdmin() || isSuperAdmin();
-      // Solo Super Admins pueden eliminar docentes.
-      allow delete: if isSuperAdmin();
+      allow create, update: if isAdmin();
     }
 
-    // Colección de Horarios (schedules)
-    match /schedules/{scheduleId} {
+    match /schedules/{id} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin() || isSuperAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    // Colección de Módulos (subjects)
-    match /subjects/{subjectId} {
+    match /subjects/{id} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin() || isSuperAdmin();
+      allow create, update, delete: if isAdmin();
     }
     
-    // Colección de Aulas (classrooms)
-    match /classrooms/{classroomId} {
+    match /classrooms/{id} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin() || isSuperAdmin();
+      allow create, update, delete: if isAdmin();
     }
     
-    // Colección de Carreras (careers)
-    match /careers/{careerId} {
+    match /careers/{id} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin() || isSuperAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    // Colección de Grupos (groups)
-    match /groups/{groupId} {
+    match /groups/{id} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin() || isSuperAdmin();
+      allow create, update, delete: if isAdmin();
     }
   }
 }
