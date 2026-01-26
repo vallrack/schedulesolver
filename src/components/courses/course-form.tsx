@@ -88,7 +88,7 @@ export function CourseForm({ subject, careers, onSuccess }: CourseFormProps) {
     }
   }, [subject, form]);
 
-  const onSubmit = (data: CourseFormValues) => {
+  const onSubmit = async (data: CourseFormValues) => {
     if (!firestore) return;
     const subjectData = { 
         ...data,
@@ -96,30 +96,27 @@ export function CourseForm({ subject, careers, onSuccess }: CourseFormProps) {
         endDate: data.endDate.toISOString(),
     };
 
-    if (subject) {
-      const subjectRef = doc(firestore, 'subjects', subject.id);
-      setDoc(subjectRef, subjectData, { merge: true }).catch(async (serverError) => {
-           const permissionError = new FirestorePermissionError({
-              path: subjectRef.path,
-              operation: 'update',
-              requestResourceData: subjectData,
-           });
-           errorEmitter.emit('permission-error', permissionError);
-      });
-      toast({ title: 'Módulo Actualizado', description: `Se ha actualizado el módulo ${data.name}.` });
-    } else {
-      const collectionRef = collection(firestore, 'subjects');
-      addDoc(collectionRef, subjectData).catch(async (serverError) => {
-          const permissionError = new FirestorePermissionError({
-              path: collectionRef.path,
-              operation: 'create',
-              requestResourceData: subjectData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-      });
-      toast({ title: 'Módulo Añadido', description: `Se ha añadido el módulo ${data.name}.` });
+    try {
+        if (subject) {
+          const subjectRef = doc(firestore, 'subjects', subject.id);
+          await setDoc(subjectRef, subjectData, { merge: true });
+          toast({ title: 'Módulo Actualizado', description: `Se ha actualizado el módulo ${data.name}.` });
+        } else {
+          const collectionRef = collection(firestore, 'subjects');
+          await addDoc(collectionRef, subjectData);
+          toast({ title: 'Módulo Añadido', description: `Se ha añadido el módulo ${data.name}.` });
+        }
+        onSuccess();
+    } catch(e) {
+        const path = subject ? `subjects/${subject.id}` : 'subjects';
+        const operation = subject ? 'update' : 'create';
+        const permissionError = new FirestorePermissionError({
+            path,
+            operation,
+            requestResourceData: subjectData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
     }
-    onSuccess();
   };
 
   return (

@@ -44,21 +44,23 @@ export default function CareersPage() {
     setDialogOpen(true);
   };
 
-  const handleDelete = (careerId: string) => {
+  const handleDelete = async (careerId: string) => {
     if (!firestore) return;
     const careerRef = doc(firestore, 'careers', careerId);
-    deleteDoc(careerRef).catch(async (serverError) => {
+    try {
+        await deleteDoc(careerRef);
+        toast({
+          variant: 'destructive',
+          title: 'Carrera Eliminada',
+          description: `La carrera ha sido eliminada.`,
+        });
+    } catch (e) {
         const permissionError = new FirestorePermissionError({
             path: careerRef.path,
             operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
-    });
-    toast({
-      variant: 'destructive',
-      title: 'Carrera Eliminada',
-      description: `La carrera ha sido eliminada permanentemente.`,
-    });
+    }
   };
 
   return (

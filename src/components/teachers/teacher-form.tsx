@@ -77,7 +77,7 @@ export function TeacherForm({ teacher, subjects, onSuccess }: TeacherFormProps) 
     }
   }, [teacher, form]);
 
-  const onSubmit = (data: TeacherFormValues) => {
+  const onSubmit = async (data: TeacherFormValues) => {
     if (!firestore) return;
     const teacherData = { 
         ...data,
@@ -85,32 +85,29 @@ export function TeacherForm({ teacher, subjects, onSuccess }: TeacherFormProps) 
         status: teacher?.status || 'active' 
     };
 
-    if (teacher) {
-      // Update existing teacher
-      const teacherRef = doc(firestore, 'teachers', teacher.id);
-      setDoc(teacherRef, teacherData, { merge: true }).catch(async (serverError) => {
-           const permissionError = new FirestorePermissionError({
-              path: teacherRef.path,
-              operation: 'update',
-              requestResourceData: teacherData,
-           });
-           errorEmitter.emit('permission-error', permissionError);
-      });
-      toast({ title: 'Docente Actualizado', description: `Se ha actualizado a ${data.name}.` });
-    } else {
-      // Create new teacher
-      const collectionRef = collection(firestore, 'teachers');
-      addDoc(collectionRef, teacherData).catch(async (serverError) => {
-          const permissionError = new FirestorePermissionError({
-              path: collectionRef.path,
-              operation: 'create',
-              requestResourceData: teacherData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-      });
-      toast({ title: 'Docente Añadido', description: `Se ha añadido a ${data.name}.` });
+    try {
+        if (teacher) {
+          // Update existing teacher
+          const teacherRef = doc(firestore, 'teachers', teacher.id);
+          await setDoc(teacherRef, teacherData, { merge: true });
+          toast({ title: 'Docente Actualizado', description: `Se ha actualizado a ${data.name}.` });
+        } else {
+          // Create new teacher
+          const collectionRef = collection(firestore, 'teachers');
+          await addDoc(collectionRef, teacherData);
+          toast({ title: 'Docente Añadido', description: `Se ha añadido a ${data.name}.` });
+        }
+        onSuccess();
+    } catch (e) {
+        const path = teacher ? `teachers/${teacher.id}` : 'teachers';
+        const operation = teacher ? 'update' : 'create';
+        const permissionError = new FirestorePermissionError({
+            path,
+            operation,
+            requestResourceData: teacherData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
     }
-    onSuccess();
   };
 
   return (

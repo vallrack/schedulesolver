@@ -42,34 +42,31 @@ export function CareerForm({ career, onSuccess }: CareerFormProps) {
     }
   }, [career, form]);
 
-  const onSubmit = (data: CareerFormValues) => {
+  const onSubmit = async (data: CareerFormValues) => {
     if (!firestore) return;
     const careerData = { name: data.name };
 
-    if (career) {
-      const careerRef = doc(firestore, 'careers', career.id);
-      setDoc(careerRef, careerData, { merge: true }).catch(async (serverError) => {
-           const permissionError = new FirestorePermissionError({
-              path: careerRef.path,
-              operation: 'update',
-              requestResourceData: careerData,
-           });
-           errorEmitter.emit('permission-error', permissionError);
-      });
-      toast({ title: 'Carrera Actualizada', description: `Se ha actualizado la carrera ${data.name}.` });
-    } else {
-      const collectionRef = collection(firestore, 'careers');
-      addDoc(collectionRef, careerData).catch(async (serverError) => {
-          const permissionError = new FirestorePermissionError({
-              path: collectionRef.path,
-              operation: 'create',
-              requestResourceData: careerData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-      });
-      toast({ title: 'Carrera Añadida', description: `Se ha añadido la carrera ${data.name}.` });
+    try {
+        if (career) {
+          const careerRef = doc(firestore, 'careers', career.id);
+          await setDoc(careerRef, careerData, { merge: true });
+          toast({ title: 'Carrera Actualizada', description: `Se ha actualizado la carrera ${data.name}.` });
+        } else {
+          const collectionRef = collection(firestore, 'careers');
+          await addDoc(collectionRef, careerData);
+          toast({ title: 'Carrera Añadida', description: `Se ha añadido la carrera ${data.name}.` });
+        }
+        onSuccess();
+    } catch (e) {
+        const path = career ? `careers/${career.id}` : 'careers';
+        const operation = career ? 'update' : 'create';
+        const permissionError = new FirestorePermissionError({
+            path: path,
+            operation,
+            requestResourceData: careerData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
     }
-    onSuccess();
   };
 
   return (

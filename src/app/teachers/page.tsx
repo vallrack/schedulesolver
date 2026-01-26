@@ -88,38 +88,42 @@ export default function TeachersPage() {
     setDialogOpen(true);
   };
   
-  const handleSetStatus = (teacher: Teacher, status: 'active' | 'inactive') => {
+  const handleSetStatus = async (teacher: Teacher, status: 'active' | 'inactive') => {
     if (!firestore) return;
     const teacherRef = doc(firestore, 'teachers', teacher.id);
-    updateDoc(teacherRef, { status }).catch(async (serverError) => {
+    try {
+        await updateDoc(teacherRef, { status });
+        toast({
+          title: `Docente ${status === 'active' ? 'Activado' : 'Inactivado'}`,
+          description: `${teacher.name} ha sido marcado como ${status === 'active' ? 'activo' : 'inactivo'}.`,
+        });
+    } catch(e) {
         const permissionError = new FirestorePermissionError({
             path: teacherRef.path,
             operation: 'update',
             requestResourceData: { status },
         });
         errorEmitter.emit('permission-error', permissionError);
-    });
-    toast({
-      title: `Docente ${status === 'active' ? 'Activado' : 'Inactivado'}`,
-      description: `${teacher.name} ha sido marcado como ${status === 'active' ? 'activo' : 'inactivo'}.`,
-    });
+    }
   };
 
-  const handleDelete = (teacherId: string) => {
+  const handleDelete = async (teacherId: string) => {
     if (!firestore) return;
     const teacherRef = doc(firestore, 'teachers', teacherId);
-    deleteDoc(teacherRef).catch(async (serverError) => {
+    try {
+        await deleteDoc(teacherRef);
+        toast({
+          variant: 'destructive',
+          title: 'Docente Eliminado',
+          description: `El docente ha sido eliminado permanentemente.`,
+        });
+    } catch (e) {
         const permissionError = new FirestorePermissionError({
             path: teacherRef.path,
             operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
-    });
-    toast({
-      variant: 'destructive',
-      title: 'Docente Eliminado',
-      description: `El docente ha sido eliminado permanentemente.`,
-    });
+    }
   };
 
 

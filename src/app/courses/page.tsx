@@ -53,21 +53,23 @@ export default function CoursesPage() {
     setDialogOpen(true);
   };
 
-  const handleDelete = (subjectId: string) => {
+  const handleDelete = async (subjectId: string) => {
     if (!firestore) return;
     const subjectRef = doc(firestore, 'subjects', subjectId);
-    deleteDoc(subjectRef).catch(async (serverError) => {
+    try {
+        await deleteDoc(subjectRef);
+        toast({
+          variant: 'destructive',
+          title: 'Módulo Eliminado',
+          description: `El módulo ha sido eliminado.`,
+        });
+    } catch(e) {
         const permissionError = new FirestorePermissionError({
             path: subjectRef.path,
             operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
-    });
-    toast({
-      variant: 'destructive',
-      title: 'Módulo Eliminado',
-      description: `El módulo ha sido eliminado permanentemente.`,
-    });
+    }
   };
 
   return (
