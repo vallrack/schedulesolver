@@ -70,5 +70,11 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin() || isSuperAdmin();
     }
+
+    // Colección de Grupos (groups)
+    match /groups/{groupId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin() || isSuperAdmin();
+    }
   }
 }

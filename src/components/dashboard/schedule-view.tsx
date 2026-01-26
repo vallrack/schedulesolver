@@ -7,27 +7,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { ScheduleEvent, Teacher, Subject, Classroom } from '@/lib/types';
+import type { ScheduleEvent, Teacher, Subject, Classroom, Group, Career } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection } from 'firebase/firestore';
 import { ScheduleCalendar } from './schedule-calendar';
 
-const getResourceName = (resource: Teacher | Subject | Classroom, viewMode: 'teacher' | 'group' | 'classroom') => {
-    if (viewMode === 'group') {
-        const subject = resource as Subject;
-        return `${subject.career} S${subject.semester} G${subject.group}`;
-    }
-    return (resource as Teacher | Classroom).name;
-};
-
-const getResourceId = (resource: Teacher | Subject | Classroom, viewMode: 'teacher' | 'group' | 'classroom') => {
-    if(viewMode === 'group') {
-        const subject = resource as Subject;
-        return `${subject.career}-${subject.semester}-${subject.group}`;
-    }
-    return resource.id;
-}
 
 export default function ScheduleView() {
   const [schedule, setSchedule] = useState<ScheduleEvent[]>([]);
@@ -39,11 +24,16 @@ export default function ScheduleView() {
   const subjectsCollection = useMemo(() => (firestore ? collection(firestore, 'subjects') : null), [firestore]);
   const classroomsCollection = useMemo(() => (firestore ? collection(firestore, 'classrooms') : null), [firestore]);
   const schedulesCollection = useMemo(() => (firestore ? collection(firestore, 'schedules') : null), [firestore]);
+  const groupsCollection = useMemo(() => (firestore ? collection(firestore, 'groups') : null), [firestore]);
+  const careersCollection = useMemo(() => (firestore ? collection(firestore, 'careers') : null), [firestore]);
+
 
   const { data: teachers, loading: loadingTeachers } = useCollection<Teacher>(teachersCollection);
   const { data: subjects, loading: loadingSubjects } = useCollection<Subject>(subjectsCollection);
   const { data: classrooms, loading: loadingClassrooms } = useCollection<Classroom>(classroomsCollection);
   const { data: scheduleEvents, loading: loadingSchedule, error: errorSchedule } = useCollection<ScheduleEvent>(schedulesCollection);
+  const { data: groups, loading: loadingGroups } = useCollection<Group>(groupsCollection);
+  const { data: careers, loading: loadingCareers } = useCollection<Career>(careersCollection);
   
   const [selectedTeacher, setSelectedTeacher] = useState<string | undefined>(undefined);
   const [selectedGroup, setSelectedGroup] = useState<string | undefined>(undefined);
@@ -55,10 +45,16 @@ export default function ScheduleView() {
     }
   }, [scheduleEvents]);
 
-  const uniqueGroups = useMemo(() => {
-    if (!subjects) return [];
-    return [...new Map(subjects.map(s => [`${s.career}-${s.semester}-${s.group}`, s])).values()];
-  }, [subjects]);
+  const groupOptions = useMemo(() => {
+    if (!groups || !careers) return [];
+    return groups.map(group => {
+        const career = careers.find(c => c.id === group.careerId);
+        return {
+            id: group.id,
+            name: `${career?.name || '...'} - Sem ${group.semester} - G ${group.name}`
+        }
+    })
+  }, [groups, careers]);
 
   useEffect(() => {
       if (teachers && teachers.length > 0 && !selectedTeacher) {
@@ -67,10 +63,10 @@ export default function ScheduleView() {
   }, [teachers, selectedTeacher]);
 
   useEffect(() => {
-      if (uniqueGroups && uniqueGroups.length > 0 && !selectedGroup) {
-          setSelectedGroup(getResourceId(uniqueGroups[0], 'group'));
+      if (groupOptions && groupOptions.length > 0 && !selectedGroup) {
+          setSelectedGroup(groupOptions[0].id);
       }
-  }, [uniqueGroups, selectedGroup]);
+  }, [groupOptions, selectedGroup]);
 
   useEffect(() => {
       if (classrooms && classrooms.length > 0 && !selectedClassroom) {
@@ -113,7 +109,7 @@ export default function ScheduleView() {
     }
   };
   
-  const loading = loadingTeachers || loadingSubjects || loadingClassrooms || loadingSchedule;
+  const loading = loadingTeachers || loadingSubjects || loadingClassrooms || loadingSchedule || loadingGroups || loadingCareers;
 
   const teacherEvents = useMemo(() => {
     if (!selectedTeacher) return [];
@@ -122,7 +118,7 @@ export default function ScheduleView() {
 
   const groupEvents = useMemo(() => {
       if (!selectedGroup || !subjects) return [];
-      const groupSubjects = subjects.filter(s => getResourceId(s, 'group') === selectedGroup).map(c => c.id);
+      const groupSubjects = subjects.filter(s => s.groupId === selectedGroup).map(c => c.id);
       return schedule.filter(e => groupSubjects.includes(e.subjectId));
   }, [schedule, selectedGroup, subjects]);
 
@@ -178,7 +174,7 @@ export default function ScheduleView() {
                         <SelectValue placeholder="Selecciona un grupo..." />
                     </SelectTrigger>
                     <SelectContent>
-                        {uniqueGroups?.map(g => <SelectItem key={getResourceId(g, 'group')} value={getResourceId(g, 'group')}>{getResourceName(g, 'group')}</SelectItem>)}
+                        {groupOptions?.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
                     </SelectContent>
                  </Select>
                </div>

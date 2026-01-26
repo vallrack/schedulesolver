@@ -16,15 +16,20 @@ export type Teacher = {
   status: 'active' | 'inactive';
 };
 
+export type Group = {
+  id: string;
+  name: string;
+  careerId: string;
+  semester: number;
+};
+
 export type Subject = {
   id: string;
   name: string;
   description: string;
   durationWeeks: number;
   totalHours: number;
-  career: string;
-  semester: number;
-  group: string;
+  groupId: string;
   startDate: string; // Storing as ISO string or similar
   endDate: string; // Storing as ISO string or similar
 };

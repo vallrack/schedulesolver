@@ -17,7 +17,7 @@ import { useCollection } from "@/firebase/firestore/use-collection"
 import { useFirestore } from "@/firebase"
 import { collection, deleteDoc, doc } from "firebase/firestore"
 import AppLayout from "@/components/app-layout"
-import type { Career, Subject } from "@/lib/types";
+import type { Career, Subject, Group } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { CourseForm } from "@/components/courses/course-form";
 import { format } from "date-fns";
@@ -39,8 +39,25 @@ export default function CoursesPage() {
   const careersCollection = useMemo(() => firestore ? collection(firestore, 'careers') : null, [firestore]);
   const { data: careers, loading: loadingCareers, error: errorCareers } = useCollection<Career>(careersCollection);
 
-  const loading = loadingSubjects || loadingCareers;
-  const error = errorSubjects || errorCareers;
+  const groupsCollection = useMemo(() => firestore ? collection(firestore, 'groups') : null, [firestore]);
+  const { data: groups, loading: loadingGroups, error: errorGroups } = useCollection<Group>(groupsCollection);
+
+  const loading = loadingSubjects || loadingCareers || loadingGroups;
+  const error = errorSubjects || errorCareers || errorGroups;
+
+  const subjectsWithGroupInfo = useMemo(() => {
+    if (!subjects || !groups || !careers) return [];
+    return subjects.map(subject => {
+        const group = groups.find(g => g.id === subject.groupId);
+        if (!group) return { ...subject, groupInfo: 'Grupo no encontrado' };
+
+        const career = careers.find(c => c.id === group.careerId);
+        return {
+            ...subject,
+            groupInfo: `${career?.name || 'Carrera desconocida'} - Sem ${group.semester} - G ${group.name}`,
+        }
+    })
+  }, [subjects, groups, careers]);
 
 
   const handleAddNew = () => {
@@ -93,6 +110,7 @@ export default function CoursesPage() {
                 </DialogHeader>
                 <CourseForm 
                     subject={editingSubject} 
+                    groups={groups || []}
                     careers={careers || []}
                     onSuccess={() => setDialogOpen(false)} 
                 />
@@ -111,7 +129,7 @@ export default function CoursesPage() {
                 <TableRow>
                   <TableHead>Nombre</TableHead>
                   <TableHead className="hidden lg:table-cell">Descripción</TableHead>
-                  <TableHead className="hidden sm:table-cell">Carrera</TableHead>
+                  <TableHead className="hidden sm:table-cell">Grupo</TableHead>
                   <TableHead>Semanas</TableHead>
                   <TableHead className="hidden md:table-cell">Fecha Inicio</TableHead>
                   <TableHead className="hidden md:table-cell">Fecha Fin</TableHead>
@@ -121,11 +139,11 @@ export default function CoursesPage() {
               <TableBody>
                 {loading && <TableRow><TableCell colSpan={7} className="text-center">Cargando...</TableCell></TableRow>}
                 {error && <TableRow><TableCell colSpan={7} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {subjects?.map(subject => (
+                {subjectsWithGroupInfo?.map(subject => (
                   <TableRow key={subject.id}>
                     <TableCell className="font-medium">{subject.name}</TableCell>
                     <TableCell className="hidden lg:table-cell max-w-xs truncate">{subject.description}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{subject.career}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{subject.groupInfo}</TableCell>
                     <TableCell>{subject.durationWeeks}</TableCell>
                     <TableCell className="hidden md:table-cell">{format(new Date(subject.startDate), "d MMM, yyyy", { locale: es })}</TableCell>
                     <TableCell className="hidden md:table-cell">{format(new Date(subject.endDate), "d MMM, yyyy", { locale: es })}</TableCell>

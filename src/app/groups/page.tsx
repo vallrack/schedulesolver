@@ -13,78 +13,94 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge"
 import { useCollection } from "@/firebase/firestore/use-collection"
 import { useFirestore } from "@/firebase"
 import { collection, deleteDoc, doc } from "firebase/firestore"
 import AppLayout from "@/components/app-layout"
-import type { Classroom } from "@/lib/types";
-import { ClassroomForm } from "@/components/classrooms/classroom-form";
+import type { Career, Group } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { GroupForm } from "@/components/groups/group-form";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 
-export default function ClassroomsPage() {
+export default function GroupsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingClassroom, setEditingClassroom] = useState<Classroom | undefined>(undefined);
+  const [editingGroup, setEditingGroup] = useState<Group | undefined>(undefined);
 
-  const classroomsCollection = useMemo(() => firestore ? collection(firestore, 'classrooms') : null, [firestore]);
-  const { data: classrooms, loading, error } = useCollection<Classroom>(classroomsCollection);
+  const groupsCollection = useMemo(() => firestore ? collection(firestore, 'groups') : null, [firestore]);
+  const { data: groups, loading: loadingGroups, error: errorGroups } = useCollection<Group>(groupsCollection);
+  
+  const careersCollection = useMemo(() => firestore ? collection(firestore, 'careers') : null, [firestore]);
+  const { data: careers, loading: loadingCareers, error: errorCareers } = useCollection<Career>(careersCollection);
+
+  const loading = loadingGroups || loadingCareers;
+  const error = errorGroups || errorCareers;
+
+  const groupsWithCareer = useMemo(() => {
+    if (!groups || !careers) return [];
+    return groups.map(group => {
+      const career = careers.find(c => c.id === group.careerId);
+      return {
+        ...group,
+        careerName: career?.name || 'Desconocida'
+      }
+    })
+  }, [groups, careers]);
 
   const handleAddNew = () => {
-    setEditingClassroom(undefined);
+    setEditingGroup(undefined);
     setDialogOpen(true);
   };
 
-  const handleEdit = (classroom: Classroom) => {
-    setEditingClassroom(classroom);
+  const handleEdit = (group: Group) => {
+    setEditingGroup(group);
     setDialogOpen(true);
   };
 
-  const handleDelete = async (classroomId: string) => {
+  const handleDelete = async (groupId: string) => {
     if (!firestore) return;
-    const classroomRef = doc(firestore, 'classrooms', classroomId);
+    const groupRef = doc(firestore, 'groups', groupId);
     try {
-      await deleteDoc(classroomRef);
-      toast({
-        variant: 'destructive',
-        title: 'Aula Eliminada',
-        description: `El aula ha sido eliminada.`,
-      });
+        await deleteDoc(groupRef);
+        toast({
+          variant: 'destructive',
+          title: 'Grupo Eliminado',
+          description: `El grupo ha sido eliminado.`,
+        });
     } catch (e) {
-      const permissionError = new FirestorePermissionError({
-        path: classroomRef.path,
-        operation: 'delete',
-      });
-      errorEmitter.emit('permission-error', permissionError);
+        const permissionError = new FirestorePermissionError({
+            path: groupRef.path,
+            operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
     }
   };
-
 
   return (
     <AppLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold font-headline tracking-tight">Gestión de Infraestructura</h1>
-             <Button onClick={handleAddNew}>
+            <h1 className="text-3xl font-bold font-headline tracking-tight">Gestión de Grupos</h1>
+            <Button onClick={handleAddNew}>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Añadir Aula
+                Añadir Grupo
             </Button>
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>{editingClassroom ? 'Editar Aula' : 'Añadir Nueva Aula'}</DialogTitle>
+                    <DialogTitle>{editingGroup ? 'Editar Grupo' : 'Añadir Nuevo Grupo'}</DialogTitle>
                     <DialogDescription>
-                       {editingClassroom ? 'Actualiza los detalles del aula.' : 'Añade una nueva aula o laboratorio al sistema.'}
+                       {editingGroup ? 'Actualiza los detalles del grupo.' : 'Añade un nuevo grupo al sistema.'}
                     </DialogDescription>
                 </DialogHeader>
-                <ClassroomForm
-                    classroom={editingClassroom} 
+                <GroupForm
+                    group={editingGroup} 
+                    careers={careers || []}
                     onSuccess={() => setDialogOpen(false)} 
                 />
             </DialogContent>
@@ -93,27 +109,27 @@ export default function ClassroomsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Aulas y Laboratorios</CardTitle>
-            <CardDescription>Gestiona todas las salas disponibles y sus capacidades.</CardDescription>
+            <CardTitle>Grupos de Estudiantes</CardTitle>
+            <CardDescription>Gestiona los grupos de estudiantes por carrera y semestre.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Capacidad</TableHead>
+                  <TableHead>Carrera</TableHead>
+                  <TableHead>Semestre</TableHead>
+                  <TableHead>Grupo</TableHead>
                   <TableHead><span className="sr-only">Acciones</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading && <TableRow><TableCell colSpan={4} className="text-center">Cargando...</TableCell></TableRow>}
                 {error && <TableRow><TableCell colSpan={4} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {classrooms?.map(classroom => (
-                  <TableRow key={classroom.id}>
-                    <TableCell className="font-medium">{classroom.name}</TableCell>
-                    <TableCell><Badge variant={classroom.type === 'lab' ? 'default' : 'secondary'}>{classroom.type}</Badge></TableCell>
-                    <TableCell>{classroom.capacity}</TableCell>
+                {groupsWithCareer?.map(group => (
+                  <TableRow key={group.id}>
+                    <TableCell className="font-medium">{group.careerName}</TableCell>
+                    <TableCell>{group.semester}</TableCell>
+                    <TableCell>{group.name}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -124,9 +140,9 @@ export default function ClassroomsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEdit(classroom)}>Editar Aula</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEdit(group)}>Editar Grupo</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                           <AlertDialog>
+                          <AlertDialog>
                               <AlertDialogTrigger asChild>
                                   <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
                                       <Trash2 className="mr-2 h-4 w-4" />
@@ -137,12 +153,12 @@ export default function ClassroomsPage() {
                                   <AlertDialogHeader>
                                       <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
                                       <AlertDialogDescription>
-                                          Esta acción no se puede deshacer. Esto eliminará permanentemente el aula.
+                                          Esta acción no se puede deshacer. Esto eliminará permanentemente el grupo.
                                       </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDelete(classroom.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                      <AlertDialogAction onClick={() => handleDelete(group.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
                                   </AlertDialogFooter>
                               </AlertDialogContent>
                           </AlertDialog>

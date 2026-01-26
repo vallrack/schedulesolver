@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import type { Career, Subject } from '@/lib/types';
+import type { Career, Subject, Group } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection, doc, setDoc } from 'firebase/firestore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -17,7 +17,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Textarea } from '@/components/ui/textarea';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -25,9 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const courseSchema = z.object({
   name: z.string().min(1, { message: 'El nombre es obligatorio.' }),
   description: z.string().min(1, { message: 'La descripción es obligatoria.' }),
-  career: z.string().min(1, { message: 'La carrera es obligatoria.' }),
-  semester: z.coerce.number().min(1, 'El semestre debe ser mayor a 0.'),
-  group: z.string().min(1, { message: 'El grupo es obligatorio.' }),
+  groupId: z.string().min(1, { message: 'El grupo es obligatorio.' }),
   durationWeeks: z.coerce.number().min(1, 'La duración debe ser al menos 1 semana.'),
   totalHours: z.coerce.number().min(1, 'Las horas deben ser mayor a 0.'),
   startDate: z.date({ required_error: 'La fecha de inicio es obligatoria.' }),
@@ -41,52 +39,52 @@ type CourseFormValues = z.infer<typeof courseSchema>;
 
 interface CourseFormProps {
   subject?: Subject;
+  groups: Group[];
   careers: Career[];
   onSuccess: () => void;
 }
 
-export function CourseForm({ subject, careers, onSuccess }: CourseFormProps) {
+export function CourseForm({ subject, groups, careers, onSuccess }: CourseFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const form = useForm<CourseFormValues>({
-    resolver: zodResolver(courseSchema),
-    defaultValues: subject ? {
+  const defaultValues = useMemo(() => {
+    return subject ? {
       ...subject,
       startDate: new Date(subject.startDate),
       endDate: new Date(subject.endDate),
     } : {
       name: '',
       description: '',
-      career: '',
-      semester: 1,
-      group: '',
+      groupId: '',
       durationWeeks: 1,
       totalHours: 1,
-    },
+      startDate: undefined,
+      endDate: undefined,
+    }
+  }, [subject]);
+
+  const form = useForm<CourseFormValues>({
+    resolver: zodResolver(courseSchema),
+    defaultValues,
   });
 
   useEffect(() => {
-    if (subject) {
-        form.reset({
-            ...subject,
-            startDate: new Date(subject.startDate),
-            endDate: new Date(subject.endDate),
-        });
-    } else {
-        form.reset({
-            name: '',
-            description: '',
-            career: '',
-            semester: 1,
-            group: '',
-            durationWeeks: 1,
-            totalHours: 40,
-            startDate: undefined,
-            endDate: undefined,
-        });
-    }
-  }, [subject, form]);
+    form.reset(defaultValues);
+  }, [subject, defaultValues, form]);
+
+
+  const groupOptions = useMemo(() => {
+    if (!groups || !careers) return [];
+    return groups.map(group => {
+        const career = careers.find(c => c.id === group.careerId);
+        return {
+            value: group.id,
+            label: `${career?.name || '...'} - Sem ${group.semester} - G ${group.name}`
+        }
+    })
+  }, [groups, careers]);
+
 
   const onSubmit = async (data: CourseFormValues) => {
     if (!firestore) return;
@@ -136,19 +134,19 @@ export function CourseForm({ subject, careers, onSuccess }: CourseFormProps) {
             />
             <FormField
               control={form.control}
-              name="career"
+              name="groupId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Carrera</FormLabel>
+                  <FormLabel>Grupo</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                             <SelectTrigger>
-                                <SelectValue placeholder="Selecciona una carrera" />
+                                <SelectValue placeholder="Selecciona un grupo" />
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            {careers.map(career => (
-                                <SelectItem key={career.id} value={career.name}>{career.name}</SelectItem>
+                            {groupOptions.map(option => (
+                                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -169,31 +167,6 @@ export function CourseForm({ subject, careers, onSuccess }: CourseFormProps) {
             </FormItem>
           )}
         />
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
-            control={form.control}
-            name="semester"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Semestre</FormLabel>
-                <FormControl><Input type="number" {...field} /></FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-            <FormField
-            control={form.control}
-            name="group"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Grupo</FormLabel>
-                <FormControl><Input {...field} /></FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
@@ -246,7 +219,7 @@ export function CourseForm({ subject, careers, onSuccess }: CourseFormProps) {
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[100]" align="start">
                     <Calendar
                       mode="single"
                       selected={field.value}
@@ -284,7 +257,7 @@ export function CourseForm({ subject, careers, onSuccess }: CourseFormProps) {
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[100]" align="start">
                     <Calendar
                       mode="single"
                       selected={field.value}

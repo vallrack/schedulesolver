@@ -83,6 +83,26 @@
       },
       "required": ["name", "email", "status", "contractType", "maxWeeklyHours"]
     },
+    "Group": {
+      "title": "Group",
+      "description": "A student group for a specific career and semester.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name or identifier of the group (e.g., 'A', 'B')."
+        },
+        "careerId": {
+          "type": "string",
+          "description": "A reference to the career this group belongs to."
+        },
+        "semester": {
+          "type": "number",
+          "description": "The semester number for this group."
+        }
+      },
+      "required": ["name", "careerId", "semester"]
+    },
     "Subject": {
       "title": "Módulo",
       "description": "Un módulo o materia ofrecida por la institución.",
@@ -104,17 +124,9 @@
           "type": "number",
           "description": "The total hours for the course."
         },
-        "career": {
+        "groupId": {
           "type": "string",
-          "description": "The career path this course belongs to."
-        },
-        "semester": {
-          "type": "number",
-          "description": "The semester in which the course is offered."
-        },
-        "group": {
-          "type": "string",
-          "description": "The student group for this course."
+          "description": "The ID of the group this module is for."
         },
         "startDate": {
           "type": "string",
@@ -132,9 +144,7 @@
         "description",
         "durationWeeks",
         "totalHours",
-        "career",
-        "semester",
-        "group",
+        "groupId",
         "startDate",
         "endDate"
       ]
@@ -203,6 +213,10 @@
     "/careers/{careerId}": {
       "schema": { "$ref": "#/entities/Career" },
       "description": "Stores career information. Spanish: Carreras"
+    },
+    "/groups/{groupId}": {
+      "schema": { "$ref": "#/entities/Group" },
+      "description": "Stores student groups."
     }
   }
 }
