@@ -47,8 +47,6 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
   const firestore = useFirestore();
   const { toast } = useToast();
   
-  const [moduleSearch, setModuleSearch] = useState('');
-  const [groupSearch, setGroupSearch] = useState('');
   const [modulePopoverOpen, setModulePopoverOpen] = useState(false);
   const [groupPopoverOpen, setGroupPopoverOpen] = useState(false);
 
@@ -79,24 +77,22 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
 
   const groupOptions = useMemo(() => {
     if (!groups || !careers) return [];
-    return groups.map(group => {
+    const options = groups.map(group => {
         const career = careers.find(c => c.id === group.careerId);
         return {
             value: group.id,
             label: `${career?.name || '...'} - Sem ${group.semester} - G ${group.name}`
         }
-    })
+    });
+    // Sort alphabetically by label
+    return options.sort((a, b) => a.label.localeCompare(b.label));
   }, [groups, careers]);
 
-  const filteredModules = useMemo(() => {
+  const sortedModules = useMemo(() => {
     if (!modules) return [];
-    return modules.filter(m => m.name.toLowerCase().includes(moduleSearch.toLowerCase()));
-  }, [modules, moduleSearch]);
-
-  const filteredGroupOptions = useMemo(() => {
-    if (!groupOptions) return [];
-    return groupOptions.filter(g => g.label.toLowerCase().includes(groupSearch.toLowerCase()));
-  }, [groupOptions, groupSearch]);
+    // Sort alphabetically by name
+    return [...modules].sort((a, b) => a.name.localeCompare(b.name));
+  }, [modules]);
 
 
   const onSubmit = async (data: CourseFormValues) => {
@@ -140,7 +136,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Módulo</FormLabel>
-                  <Popover open={modulePopoverOpen} onOpenChange={setModulePopoverOpen}>
+                  <Popover open={modulePopoverOpen} onOpenChange={setModulePopoverOpen} modal={true}>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
@@ -153,7 +149,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                         >
                           <span className="truncate">
                           {field.value
-                            ? modules.find(
+                            ? sortedModules.find(
                                 (module) => module.id === field.value
                               )?.name
                             : "Selecciona un módulo"}
@@ -162,53 +158,33 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent 
-                      className="w-[--radix-popover-trigger-width] p-0"
-                      onOpenAutoFocus={(e) => e.preventDefault()}
-                      onPointerDownOutside={(e) => {
-                        const target = e.target as HTMLElement;
-                        if (target.closest('[role="combobox"]')) {
-                          e.preventDefault();
-                        }
-                      }}
-                    >
-                      <div>
-                        <Input 
-                          placeholder="Buscar módulo..."
-                          className="h-9 rounded-b-none border-0 focus-visible:ring-0"
-                          value={moduleSearch}
-                          onChange={(e) => setModuleSearch(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          onKeyDown={(e) => e.stopPropagation()}
-                        />
-                        <ScrollArea className="h-48">
-                          <div className='p-1'>
-                          {filteredModules.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No se encontró el módulo.</p>}
-                          {filteredModules.map((module) => (
-                            <Button
-                              variant="ghost"
-                              key={module.id}
-                              type="button"
-                              onClick={() => {
-                                field.onChange(module.id);
-                                const selectedModule = modules.find(m => m.id === module.id);
-                                if (selectedModule) {
-                                    form.setValue('totalHours', selectedModule.totalHours, { shouldValidate: true });
-                                }
-                                setModulePopoverOpen(false);
-                                setModuleSearch('');
-                              }}
-                              className={cn(
-                                "w-full text-left justify-start h-auto py-2",
-                                field.value === module.id && "bg-accent text-accent-foreground"
-                              )}
-                            >
-                              <span className="whitespace-normal">{module.name}</span>
-                            </Button>
-                          ))}
-                          </div>
-                        </ScrollArea>
-                      </div>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <ScrollArea className="h-48">
+                        <div className='p-1'>
+                        {sortedModules.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No hay módulos.</p>}
+                        {sortedModules.map((module) => (
+                          <Button
+                            variant="ghost"
+                            key={module.id}
+                            type="button"
+                            onClick={() => {
+                              field.onChange(module.id);
+                              const selectedModule = modules.find(m => m.id === module.id);
+                              if (selectedModule) {
+                                  form.setValue('totalHours', selectedModule.totalHours, { shouldValidate: true });
+                              }
+                              setModulePopoverOpen(false);
+                            }}
+                            className={cn(
+                              "w-full text-left justify-start h-auto py-2",
+                              field.value === module.id && "bg-accent text-accent-foreground"
+                            )}
+                          >
+                            <span className="whitespace-normal">{module.name}</span>
+                          </Button>
+                        ))}
+                        </div>
+                      </ScrollArea>
                     </PopoverContent>
                   </Popover>
                   <FormMessage />
@@ -221,7 +197,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Grupo</FormLabel>
-                  <Popover open={groupPopoverOpen} onOpenChange={setGroupPopoverOpen}>
+                  <Popover open={groupPopoverOpen} onOpenChange={setGroupPopoverOpen} modal={true}>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
@@ -243,49 +219,29 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent 
-                      className="w-[--radix-popover-trigger-width] p-0"
-                      onOpenAutoFocus={(e) => e.preventDefault()}
-                      onPointerDownOutside={(e) => {
-                        const target = e.target as HTMLElement;
-                        if (target.closest('[role="combobox"]')) {
-                          e.preventDefault();
-                        }
-                      }}
-                    >
-                      <div>
-                        <Input 
-                            placeholder="Buscar grupo..."
-                            className="h-9 rounded-b-none border-0 focus-visible:ring-0"
-                            value={groupSearch}
-                            onChange={(e) => setGroupSearch(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => e.stopPropagation()}
-                        />
-                        <ScrollArea className="h-48">
-                          <div className='p-1'>
-                          {filteredGroupOptions.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No se encontró el grupo.</p>}
-                          {filteredGroupOptions.map((group) => (
-                            <Button
-                              variant="ghost"
-                              key={group.value}
-                              type="button"
-                              onClick={() => {
-                                field.onChange(group.value);
-                                setGroupPopoverOpen(false);
-                                setGroupSearch('');
-                              }}
-                              className={cn(
-                                "w-full text-left justify-start h-auto py-2",
-                                field.value === group.value && "bg-accent text-accent-foreground"
-                              )}
-                            >
-                             <span className="whitespace-normal">{group.label}</span>
-                            </Button>
-                          ))}
-                          </div>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <ScrollArea className="h-48">
+                        <div className='p-1'>
+                        {groupOptions.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No hay grupos.</p>}
+                        {groupOptions.map((group) => (
+                          <Button
+                            variant="ghost"
+                            key={group.value}
+                            type="button"
+                            onClick={() => {
+                              field.onChange(group.value);
+                              setGroupPopoverOpen(false);
+                            }}
+                            className={cn(
+                              "w-full text-left justify-start h-auto py-2",
+                              field.value === group.value && "bg-accent text-accent-foreground"
+                            )}
+                          >
+                           <span className="whitespace-normal">{group.label}</span>
+                          </Button>
+                        ))}
+                        </div>
                       </ScrollArea>
-                      </div>
                     </PopoverContent>
                   </Popover>
                   <FormMessage />
@@ -345,17 +301,11 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent 
-                    className="w-auto p-0" 
-                    align="start"
-                    style={{ zIndex: 9999 }}
-                  >
+                  <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
                       selected={field.value}
-                      onSelect={(date) => {
-                        field.onChange(date);
-                      }}
+                      onSelect={field.onChange}
                       disabled={(date) => date < new Date("1900-01-01")}
                       initialFocus
                     />
@@ -390,17 +340,11 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent 
-                    className="w-auto p-0" 
-                    align="start"
-                    style={{ zIndex: 9999 }}
-                  >
+                  <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
                       selected={field.value}
-                      onSelect={(date) => {
-                        field.onChange(date);
-                      }}
+                      onSelect={field.onChange}
                       disabled={(date) => date < (form.getValues("startDate") || new Date("1900-01-01"))}
                       initialFocus
                     />
