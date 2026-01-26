@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, PlusCircle, Trash2 } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Trash2, ArrowUpDown } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,7 @@ export default function ClassroomsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClassroom, setEditingClassroom] = useState<Classroom | undefined>(undefined);
   const [filterText, setFilterText] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Classroom; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
 
   const classroomsCollection = useMemo(() => firestore ? collection(firestore, 'classrooms') : null, [firestore]);
   const { data: classrooms, loading, error } = useCollection<Classroom>(classroomsCollection);
@@ -43,6 +44,32 @@ export default function ClassroomsPage() {
       classroom.type.toLowerCase().includes(filterText.toLowerCase())
     );
   }, [classrooms, filterText]);
+
+  const requestSort = (key: keyof Classroom) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedClassrooms = useMemo(() => {
+    let sortableItems = [...filteredClassrooms];
+    if (sortConfig !== null) {
+      sortableItems.sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+        if (aValue < bValue) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredClassrooms, sortConfig]);
 
   const handleAddNew = () => {
     setEditingClassroom(undefined);
@@ -118,16 +145,31 @@ export default function ClassroomsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Capacidad</TableHead>
-                  <TableHead><span className="sr-only">Acciones</span></TableHead>
+                  <TableHead>
+                    <Button variant="ghost" onClick={() => requestSort('name')}>
+                        Nombre
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button variant="ghost" onClick={() => requestSort('type')}>
+                        Tipo
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button variant="ghost" onClick={() => requestSort('capacity')}>
+                        Capacidad
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead className="text-right"><span className="sr-only">Acciones</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading && <TableRow><TableCell colSpan={4} className="text-center">Cargando...</TableCell></TableRow>}
                 {error && <TableRow><TableCell colSpan={4} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {filteredClassrooms?.map(classroom => (
+                {sortedClassrooms?.map(classroom => (
                   <TableRow key={classroom.id}>
                     <TableCell className="font-medium">{classroom.name}</TableCell>
                     <TableCell><Badge variant={classroom.type === 'lab' ? 'default' : 'secondary'}>{classroom.type}</Badge></TableCell>

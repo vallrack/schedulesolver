@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, PlusCircle, Trash2 } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Trash2, ArrowUpDown } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,8 @@ export default function CareersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCareer, setEditingCareer] = useState<Career | undefined>(undefined);
   const [filterText, setFilterText] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Career; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
+
 
   const careersCollection = useMemo(() => firestore ? collection(firestore, 'careers') : null, [firestore]);
   const { data: careers, loading, error } = useCollection<Career>(careersCollection);
@@ -42,6 +44,30 @@ export default function CareersPage() {
       career.name.toLowerCase().includes(filterText.toLowerCase())
     );
   }, [careers, filterText]);
+
+  const requestSort = (key: keyof Career) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedCareers = useMemo(() => {
+    let sortableItems = [...filteredCareers];
+    if (sortConfig !== null) {
+      sortableItems.sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredCareers, sortConfig]);
 
 
   const handleAddNew = () => {
@@ -117,14 +143,19 @@ export default function CareersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre de la Carrera</TableHead>
-                  <TableHead><span className="sr-only">Acciones</span></TableHead>
+                  <TableHead>
+                    <Button variant="ghost" onClick={() => requestSort('name')}>
+                        Nombre de la Carrera
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead className="text-right"><span className="sr-only">Acciones</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading && <TableRow><TableCell colSpan={2} className="text-center">Cargando...</TableCell></TableRow>}
                 {error && <TableRow><TableCell colSpan={2} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {filteredCareers?.map(career => (
+                {sortedCareers?.map(career => (
                   <TableRow key={career.id}>
                     <TableCell className="font-medium">{career.name}</TableCell>
                     <TableCell className="text-right">

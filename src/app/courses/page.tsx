@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, PlusCircle, Trash2 } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Trash2, ArrowUpDown } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,12 @@ import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { Input } from "@/components/ui/input";
 
+type CourseWithDetails = Course & {
+    moduleName: string;
+    groupInfo: string;
+};
+
+type SortableCourseKeys = keyof CourseWithDetails;
 
 export default function CoursesPage() {
   const firestore = useFirestore();
@@ -34,6 +40,7 @@ export default function CoursesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | undefined>(undefined);
   const [filterText, setFilterText] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: SortableCourseKeys; direction: 'ascending' | 'descending' } | null>({ key: 'moduleName', direction: 'ascending' });
 
   const coursesCollection = useMemo(() => firestore ? collection(firestore, 'courses') : null, [firestore]);
   const { data: courses, loading: loadingCourses, error: errorCourses } = useCollection<Course>(coursesCollection);
@@ -50,7 +57,7 @@ export default function CoursesPage() {
   const loading = loadingCourses || loadingModules || loadingCareers || loadingGroups;
   const error = errorCourses || errorModules || errorCareers || errorGroups;
 
-  const coursesWithDetails = useMemo(() => {
+  const coursesWithDetails: CourseWithDetails[] = useMemo(() => {
     if (!courses || !groups || !careers || !modules) return [];
     return courses.map(course => {
         const module = modules.find(m => m.id === course.moduleId);
@@ -63,7 +70,7 @@ export default function CoursesPage() {
             moduleName: module.name,
             groupInfo: `${career?.name || '...'} - Sem ${group.semester} - G ${group.name}`,
         }
-    }).filter(Boolean);
+    }).filter((c): c is CourseWithDetails => c !== null);
   }, [courses, modules, groups, careers]);
 
   const filteredCourses = useMemo(() => {
@@ -73,6 +80,32 @@ export default function CoursesPage() {
       (course.groupInfo && course.groupInfo.toLowerCase().includes(filterText.toLowerCase()))
     );
   }, [coursesWithDetails, filterText]);
+  
+  const requestSort = (key: SortableCourseKeys) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedCourses = useMemo(() => {
+    let sortableItems: CourseWithDetails[] = [...filteredCourses];
+    if (sortConfig !== null) {
+      sortableItems.sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+        if (aValue < bValue) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredCourses, sortConfig]);
 
 
   const handleAddNew = () => {
@@ -151,19 +184,19 @@ export default function CoursesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Módulo</TableHead>
-                  <TableHead>Grupo</TableHead>
-                  <TableHead>Semanas</TableHead>
-                  <TableHead>Horas</TableHead>
-                  <TableHead>Fecha Inicio</TableHead>
-                  <TableHead>Fecha Fin</TableHead>
-                  <TableHead><span className="sr-only">Acciones</span></TableHead>
+                  <TableHead><Button variant="ghost" onClick={() => requestSort('moduleName')}>Módulo <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                  <TableHead><Button variant="ghost" onClick={() => requestSort('groupInfo')}>Grupo <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                  <TableHead><Button variant="ghost" onClick={() => requestSort('durationWeeks')}>Semanas <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                  <TableHead><Button variant="ghost" onClick={() => requestSort('totalHours')}>Horas <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                  <TableHead><Button variant="ghost" onClick={() => requestSort('startDate')}>Fecha Inicio <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                  <TableHead><Button variant="ghost" onClick={() => requestSort('endDate')}>Fecha Fin <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                  <TableHead className="text-right"><span className="sr-only">Acciones</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading && <TableRow><TableCell colSpan={7} className="text-center">Cargando...</TableCell></TableRow>}
                 {error && <TableRow><TableCell colSpan={7} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {filteredCourses?.map(course => (
+                {sortedCourses?.map(course => (
                   <TableRow key={course.id}>
                     <TableCell className="font-medium">{course.moduleName}</TableCell>
                     <TableCell>{course.groupInfo}</TableCell>
@@ -171,7 +204,7 @@ export default function CoursesPage() {
                     <TableCell>{course.totalHours}</TableCell>
                     <TableCell>{format(new Date(course.startDate), "d MMM, yyyy", { locale: es })}</TableCell>
                     <TableCell>{format(new Date(course.endDate), "d MMM, yyyy", { locale: es })}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, PlusCircle, Trash2 } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Trash2, ArrowUpDown } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,8 @@ import { FirestorePermissionError } from "@/firebase/errors";
 import { Input } from "@/components/ui/input";
 
 
+type SortableModuleKeys = keyof Module;
+
 export default function ModulesPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -32,6 +34,7 @@ export default function ModulesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<Module | undefined>(undefined);
   const [filterText, setFilterText] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: SortableModuleKeys; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
 
   const modulesCollection = useMemo(() => firestore ? collection(firestore, 'modules') : null, [firestore]);
   const { data: modules, loading, error } = useCollection<Module>(modulesCollection);
@@ -43,6 +46,32 @@ export default function ModulesPage() {
       (module.description && module.description.toLowerCase().includes(filterText.toLowerCase()))
     );
   }, [modules, filterText]);
+
+  const requestSort = (key: SortableModuleKeys) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedModules = useMemo(() => {
+    let sortableItems: Module[] = [...filteredModules];
+    if (sortConfig !== null) {
+      sortableItems.sort((a, b) => {
+        const aValue = a[sortConfig.key] ?? '';
+        const bValue = b[sortConfig.key] ?? '';
+        if (aValue < bValue) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredModules, sortConfig]);
 
 
   const handleAddNew = () => {
@@ -118,21 +147,21 @@ export default function ModulesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead className="hidden sm:table-cell">Horas</TableHead>
-                  <TableHead className="hidden lg:table-cell">Descripción</TableHead>
-                  <TableHead><span className="sr-only">Acciones</span></TableHead>
+                  <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Nombre <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                  <TableHead className="hidden sm:table-cell"><Button variant="ghost" onClick={() => requestSort('totalHours')}>Horas <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                  <TableHead className="hidden lg:table-cell"><Button variant="ghost" onClick={() => requestSort('description')}>Descripción <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                  <TableHead className="text-right"><span className="sr-only">Acciones</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading && <TableRow><TableCell colSpan={4} className="text-center">Cargando...</TableCell></TableRow>}
                 {error && <TableRow><TableCell colSpan={4} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {filteredModules?.map(module => (
+                {sortedModules?.map(module => (
                   <TableRow key={module.id}>
                     <TableCell className="font-medium">{module.name}</TableCell>
                     <TableCell className="hidden sm:table-cell">{module.totalHours}</TableCell>
                     <TableCell className="hidden lg:table-cell max-w-xs truncate">{module.description}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">

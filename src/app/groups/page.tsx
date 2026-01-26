@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, PlusCircle, Trash2 } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Trash2, ArrowUpDown } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,11 @@ import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { Input } from "@/components/ui/input";
 
+
+type GroupWithCareer = Group & { careerName: string; };
+type SortableGroupKeys = keyof GroupWithCareer;
+
+
 export default function GroupsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -31,6 +36,7 @@ export default function GroupsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | undefined>(undefined);
   const [filterText, setFilterText] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: SortableGroupKeys; direction: 'ascending' | 'descending' } | null>({ key: 'careerName', direction: 'ascending' });
 
   const groupsCollection = useMemo(() => firestore ? collection(firestore, 'groups') : null, [firestore]);
   const { data: groups, loading: loadingGroups, error: errorGroups } = useCollection<Group>(groupsCollection);
@@ -41,7 +47,7 @@ export default function GroupsPage() {
   const loading = loadingGroups || loadingCareers;
   const error = errorGroups || errorCareers;
 
-  const groupsWithCareer = useMemo(() => {
+  const groupsWithCareer: GroupWithCareer[] = useMemo(() => {
     if (!groups || !careers) return [];
     return groups.map(group => {
       const career = careers.find(c => c.id === group.careerId);
@@ -60,6 +66,32 @@ export default function GroupsPage() {
       String(group.semester).includes(filterText)
     );
   }, [groupsWithCareer, filterText]);
+
+  const requestSort = (key: SortableGroupKeys) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedGroups = useMemo(() => {
+    let sortableItems: GroupWithCareer[] = [...filteredGroups];
+    if (sortConfig !== null) {
+      sortableItems.sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+        if (aValue < bValue) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredGroups, sortConfig]);
 
 
   const handleAddNew = () => {
@@ -136,17 +168,17 @@ export default function GroupsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Carrera</TableHead>
-                  <TableHead>Semestre</TableHead>
-                  <TableHead>Grupo</TableHead>
-                  <TableHead>Estudiantes</TableHead>
-                  <TableHead><span className="sr-only">Acciones</span></TableHead>
+                  <TableHead><Button variant="ghost" onClick={() => requestSort('careerName')}>Carrera <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                  <TableHead><Button variant="ghost" onClick={() => requestSort('semester')}>Semestre <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                  <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Grupo <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                  <TableHead><Button variant="ghost" onClick={() => requestSort('studentCount')}>Estudiantes <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                  <TableHead className="text-right"><span className="sr-only">Acciones</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading && <TableRow><TableCell colSpan={5} className="text-center">Cargando...</TableCell></TableRow>}
                 {error && <TableRow><TableCell colSpan={5} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {filteredGroups?.map(group => (
+                {sortedGroups?.map(group => (
                   <TableRow key={group.id}>
                     <TableCell className="font-medium">{group.careerName}</TableCell>
                     <TableCell>{group.semester}</TableCell>

@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, PlusCircle, Trash2, UserX, UserCheck } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash2, UserX, UserCheck, ArrowUpDown } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +22,9 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 
 
+type TeacherWithHours = Teacher & { assignedHours: number };
+type SortableTeacherKeys = keyof TeacherWithHours;
+
 export default function TeachersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -29,6 +32,7 @@ export default function TeachersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | undefined>(undefined);
   const [filterText, setFilterText] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: SortableTeacherKeys; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
 
   const teachersCollection = useMemo(() => firestore ? collection(firestore, 'teachers') : null, [firestore]);
   const { data: teachers, loading: loadingTeachers, error: errorTeachers } = useCollection<Teacher>(teachersCollection);
@@ -39,7 +43,7 @@ export default function TeachersPage() {
   const schedulesCollection = useMemo(() => firestore ? collection(firestore, 'schedules') : null, [firestore]);
   const { data: scheduleEvents, loading: loadingSchedules, error: errorSchedules } = useCollection<ScheduleEvent>(schedulesCollection);
 
-  const teacherWithHours = useMemo(() => {
+  const teacherWithHours: TeacherWithHours[] = useMemo(() => {
     if (!teachers) return [];
     if (!scheduleEvents) return teachers.map(t => ({...t, assignedHours: 0}));
 
@@ -69,18 +73,42 @@ export default function TeachersPage() {
   }, [teachers, scheduleEvents]);
 
 
+  const requestSort = (key: SortableTeacherKeys) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+
   const { activeTeachers, inactiveTeachers } = useMemo(() => {
     if (!teacherWithHours) return { activeTeachers: [], inactiveTeachers: [] };
-    const filteredList = teacherWithHours.filter(teacher =>
+    let filteredList = teacherWithHours.filter(teacher =>
         teacher.name.toLowerCase().includes(filterText.toLowerCase()) ||
         teacher.email.toLowerCase().includes(filterText.toLowerCase()) ||
         teacher.contractType.toLowerCase().includes(filterText.toLowerCase())
     );
+
+    if (sortConfig !== null) {
+      filteredList.sort((a, b) => {
+        const aValue = a[sortConfig.key] ?? 0;
+        const bValue = b[sortConfig.key] ?? 0;
+        if (aValue < bValue) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
     return {
       activeTeachers: filteredList.filter(t => t.status === 'active'),
       inactiveTeachers: filteredList.filter(t => t.status === 'inactive'),
     };
-  }, [teacherWithHours, filterText]);
+  }, [teacherWithHours, filterText, sortConfig]);
 
   const loading = loadingTeachers || loadingModules || loadingSchedules;
   const error = errorTeachers || errorModules || errorSchedules;
@@ -134,18 +162,17 @@ export default function TeachersPage() {
   };
 
 
-  type TeacherWithHours = Teacher & { assignedHours?: number };
   const renderTable = (teacherList: TeacherWithHours[]) => (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Nombre</TableHead>
-          <TableHead className="hidden lg:table-cell">Email</TableHead>
-          <TableHead className="hidden md:table-cell">Tipo de Contrato</TableHead>
-          <TableHead>Horas Semanales</TableHead>
+          <TableHead><Button variant="ghost" onClick={() => requestSort('name')}>Nombre <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+          <TableHead className="hidden lg:table-cell"><Button variant="ghost" onClick={() => requestSort('email')}>Email <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+          <TableHead className="hidden md:table-cell"><Button variant="ghost" onClick={() => requestSort('contractType')}>Tipo de Contrato <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+          <TableHead><Button variant="ghost" onClick={() => requestSort('assignedHours')}>Horas Semanales <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
           <TableHead>Módulos Asignados</TableHead>
-          <TableHead className="hidden sm:table-cell">Estado</TableHead>
-          <TableHead><span className="sr-only">Acciones</span></TableHead>
+          <TableHead className="hidden sm:table-cell"><Button variant="ghost" onClick={() => requestSort('status')}>Estado <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+          <TableHead className="text-right"><span className="sr-only">Acciones</span></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -175,7 +202,7 @@ export default function TeachersPage() {
                 {teacher.status === 'active' ? 'Activo' : 'Inactivo'}
               </Badge>
             </TableCell>
-            <TableCell>
+            <TableCell className="text-right">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-8 w-8 p-0">
