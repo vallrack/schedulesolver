@@ -126,8 +126,8 @@ export function CourseForm({ subject, groups, careers, onSuccess }: CourseFormPr
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nombre del Módulo (ej. ADS1)</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
+                  <FormLabel>Nombre de la Materia o Módulo</FormLabel>
+                  <FormControl><Input {...field} placeholder="Ej: Programación Orientada a Objetos" /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
