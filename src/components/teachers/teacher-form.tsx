@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import type { Subject, Teacher } from '@/lib/types';
+import type { Module, Teacher } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection, doc, setDoc } from 'firebase/firestore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -35,11 +35,11 @@ type TeacherFormValues = z.infer<typeof teacherSchema>;
 
 interface TeacherFormProps {
   teacher?: Teacher;
-  subjects: Subject[];
+  modules: Module[];
   onSuccess: () => void;
 }
 
-export function TeacherForm({ teacher, subjects, onSuccess }: TeacherFormProps) {
+export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
@@ -170,7 +170,7 @@ export function TeacherForm({ teacher, subjects, onSuccess }: TeacherFormProps) 
         />
 
         <FormItem>
-            <FormLabel>Módulos Asignados</FormLabel>
+            <FormLabel>Especialidades (Módulos)</FormLabel>
             <Popover>
                 <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between">
@@ -183,22 +183,22 @@ export function TeacherForm({ teacher, subjects, onSuccess }: TeacherFormProps) 
                 <PopoverContent className="w-full p-0">
                     <ScrollArea className="h-48">
                         <div className="p-4">
-                        {subjects.map((subject) => (
-                            <div key={subject.id} className="flex items-center space-x-2 mb-2">
+                        {modules.map((module) => (
+                            <div key={module.id} className="flex items-center space-x-2 mb-2">
                                 <Checkbox
-                                    id={`specialty-${subject.id}`}
-                                    checked={selectedSpecialties.includes(subject.id)}
+                                    id={`specialty-${module.id}`}
+                                    checked={selectedSpecialties.includes(module.id)}
                                     onCheckedChange={(checked) => {
                                         return checked
-                                            ? setSelectedSpecialties([...selectedSpecialties, subject.id])
-                                            : setSelectedSpecialties(selectedSpecialties.filter(id => id !== subject.id));
+                                            ? setSelectedSpecialties([...selectedSpecialties, module.id])
+                                            : setSelectedSpecialties(selectedSpecialties.filter(id => id !== module.id));
                                     }}
                                 />
                                 <label
-                                    htmlFor={`specialty-${subject.id}`}
+                                    htmlFor={`specialty-${module.id}`}
                                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                 >
-                                    {subject.name}
+                                    {module.name}
                                 </label>
                             </div>
                         ))}
@@ -208,8 +208,8 @@ export function TeacherForm({ teacher, subjects, onSuccess }: TeacherFormProps) 
             </Popover>
             <div className="pt-2 flex flex-wrap gap-1">
                 {selectedSpecialties.map(id => {
-                    const subject = subjects.find(s => s.id === id);
-                    return subject ? <Badge key={id} variant="secondary">{subject.name}</Badge> : null;
+                    const module = modules.find(s => s.id === id);
+                    return module ? <Badge key={id} variant="secondary">{module.name}</Badge> : null;
                 })}
             </div>
         </FormItem>

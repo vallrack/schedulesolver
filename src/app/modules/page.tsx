@@ -17,77 +17,46 @@ import { useCollection } from "@/firebase/firestore/use-collection"
 import { useFirestore } from "@/firebase"
 import { collection, deleteDoc, doc } from "firebase/firestore"
 import AppLayout from "@/components/app-layout"
-import type { Career, Course, Group, Module } from "@/lib/types";
+import type { Module } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { CourseForm } from "@/components/courses/course-form";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { ModuleForm } from "@/components/modules/module-form";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 
 
-export default function CoursesPage() {
+export default function ModulesPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingCourse, setEditingCourse] = useState<Course | undefined>(undefined);
-
-  const coursesCollection = useMemo(() => firestore ? collection(firestore, 'courses') : null, [firestore]);
-  const { data: courses, loading: loadingCourses, error: errorCourses } = useCollection<Course>(coursesCollection);
+  const [editingModule, setEditingModule] = useState<Module | undefined>(undefined);
 
   const modulesCollection = useMemo(() => firestore ? collection(firestore, 'modules') : null, [firestore]);
-  const { data: modules, loading: loadingModules, error: errorModules } = useCollection<Module>(modulesCollection);
-
-  const careersCollection = useMemo(() => firestore ? collection(firestore, 'careers') : null, [firestore]);
-  const { data: careers, loading: loadingCareers, error: errorCareers } = useCollection<Career>(careersCollection);
-
-  const groupsCollection = useMemo(() => firestore ? collection(firestore, 'groups') : null, [firestore]);
-  const { data: groups, loading: loadingGroups, error: errorGroups } = useCollection<Group>(groupsCollection);
-
-  const loading = loadingCourses || loadingModules || loadingCareers || loadingGroups;
-  const error = errorCourses || errorModules || errorCareers || errorGroups;
-
-  const coursesWithDetails = useMemo(() => {
-    if (!courses || !groups || !careers || !modules) return [];
-    return courses.map(course => {
-        const module = modules.find(m => m.id === course.moduleId);
-        const group = groups.find(g => g.id === course.groupId);
-        if (!group || !module) return null;
-
-        const career = careers.find(c => c.id === group.careerId);
-        return {
-            ...course,
-            moduleName: module.name,
-            groupInfo: `${career?.name || '...'} - Sem ${group.semester} - G ${group.name}`,
-        }
-    }).filter(Boolean);
-  }, [courses, modules, groups, careers]);
-
+  const { data: modules, loading, error } = useCollection<Module>(modulesCollection);
 
   const handleAddNew = () => {
-    setEditingCourse(undefined);
+    setEditingModule(undefined);
     setDialogOpen(true);
   };
 
-  const handleEdit = (course: Course) => {
-    setEditingCourse(course);
+  const handleEdit = (module: Module) => {
+    setEditingModule(module);
     setDialogOpen(true);
   };
 
-  const handleDelete = async (courseId: string) => {
+  const handleDelete = async (moduleId: string) => {
     if (!firestore) return;
-    const courseRef = doc(firestore, 'courses', courseId);
+    const moduleRef = doc(firestore, 'modules', moduleId);
     try {
-        await deleteDoc(courseRef);
+        await deleteDoc(moduleRef);
         toast({
           variant: 'destructive',
-          title: 'Curso Eliminado',
-          description: `El curso programado ha sido eliminado.`,
+          title: 'Módulo Eliminado',
+          description: `El módulo ha sido eliminado.`,
         });
     } catch(e) {
         const permissionError = new FirestorePermissionError({
-            path: courseRef.path,
+            path: moduleRef.path,
             operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
@@ -98,26 +67,23 @@ export default function CoursesPage() {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold font-headline tracking-tight">Cursos Programados</h1>
+            <h1 className="text-3xl font-bold font-headline tracking-tight">Catálogo de Módulos</h1>
             <Button onClick={handleAddNew}>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Añadir Curso
+                Añadir Módulo
             </Button>
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogContent className="sm:max-w-xl">
                 <DialogHeader>
-                    <DialogTitle>{editingCourse ? 'Editar Curso' : 'Añadir Nuevo Curso Programado'}</DialogTitle>
+                    <DialogTitle>{editingModule ? 'Editar Módulo' : 'Añadir Nuevo Módulo'}</DialogTitle>
                     <DialogDescription>
-                       {editingCourse ? 'Actualiza los detalles del curso.' : 'Rellena los detalles para programar un nuevo curso.'}
+                       {editingModule ? 'Actualiza los detalles del módulo.' : 'Añade un nuevo módulo genérico al catálogo del sistema.'}
                     </DialogDescription>
                 </DialogHeader>
-                <CourseForm 
-                    course={editingCourse} 
-                    modules={modules || []}
-                    groups={groups || []}
-                    careers={careers || []}
+                <ModuleForm
+                    module={editingModule} 
                     onSuccess={() => setDialogOpen(false)} 
                 />
             </DialogContent>
@@ -126,33 +92,25 @@ export default function CoursesPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Cursos Disponibles</CardTitle>
-            <CardDescription>Gestiona los cursos programados para cada grupo, incluyendo duración, fechas y carga horaria.</CardDescription>
+            <CardTitle>Módulos Disponibles</CardTitle>
+            <CardDescription>Gestiona las plantillas de las materias o módulos que se pueden impartir.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Módulo</TableHead>
-                  <TableHead>Grupo</TableHead>
-                  <TableHead>Semanas</TableHead>
-                  <TableHead>Horas</TableHead>
-                  <TableHead>Fecha Inicio</TableHead>
-                  <TableHead>Fecha Fin</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Descripción</TableHead>
                   <TableHead><span className="sr-only">Acciones</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading && <TableRow><TableCell colSpan={7} className="text-center">Cargando...</TableCell></TableRow>}
-                {error && <TableRow><TableCell colSpan={7} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {coursesWithDetails?.map(course => (
-                  <TableRow key={course.id}>
-                    <TableCell className="font-medium">{course.moduleName}</TableCell>
-                    <TableCell>{course.groupInfo}</TableCell>
-                    <TableCell>{course.durationWeeks}</TableCell>
-                    <TableCell>{course.totalHours}</TableCell>
-                    <TableCell>{format(new Date(course.startDate), "d MMM, yyyy", { locale: es })}</TableCell>
-                    <TableCell>{format(new Date(course.endDate), "d MMM, yyyy", { locale: es })}</TableCell>
+                {loading && <TableRow><TableCell colSpan={3} className="text-center">Cargando...</TableCell></TableRow>}
+                {error && <TableRow><TableCell colSpan={3} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
+                {modules?.map(module => (
+                  <TableRow key={module.id}>
+                    <TableCell className="font-medium">{module.name}</TableCell>
+                    <TableCell className="hidden lg:table-cell max-w-xs truncate">{module.description}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -163,7 +121,7 @@ export default function CoursesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEdit(course)}>Editar Curso</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEdit(module)}>Editar Módulo</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -176,12 +134,12 @@ export default function CoursesPage() {
                                   <AlertDialogHeader>
                                       <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
                                       <AlertDialogDescription>
-                                          Esta acción no se puede deshacer. Esto eliminará permanentemente el curso programado.
+                                          Esta acción no se puede deshacer. Esto eliminará permanentemente el módulo.
                                       </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDelete(course.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                      <AlertDialogAction onClick={() => handleDelete(module.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
                                   </AlertDialogFooter>
                               </AlertDialogContent>
                           </AlertDialog>

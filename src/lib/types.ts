@@ -24,13 +24,18 @@ export type Group = {
   studentCount: number;
 };
 
-export type Subject = {
+export type Module = {
   id: string;
   name: string;
   description: string;
+}
+
+export type Course = {
+  id: string;
+  moduleId: string;
+  groupId: string;
   durationWeeks: number;
   totalHours: number;
-  groupId: string;
   startDate: string; // Storing as ISO string or similar
   endDate: string; // Storing as ISO string or similar
 };
@@ -44,7 +49,7 @@ export type Classroom = {
 
 export type ScheduleEvent = {
   id: string;
-  subjectId: string;
+  courseId: string;
   teacherId: string;
   classroomId: string;
   day: string; // e.g., 'Monday'

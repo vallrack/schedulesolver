@@ -48,13 +48,18 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create, update: if isAdmin();
     }
-
-    match /schedules/{id} {
+    
+    match /modules/{id} {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();
     }
 
-    match /subjects/{id} {
+    match /courses/{id} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /schedules/{id} {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();
     }

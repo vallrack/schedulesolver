@@ -2,14 +2,15 @@
 import { usePathname } from 'next/navigation';
 import { SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import AppLogo from '@/components/app-logo';
-import { LayoutDashboard, Users, Book, School, Puzzle, GraduationCap, Group } from 'lucide-react';
+import { LayoutDashboard, Users, Book, School, Puzzle, GraduationCap, Group, Package, CalendarClock } from 'lucide-react';
 
 const menuItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/teachers', label: 'Docentes', icon: Users },
     { href: '/careers', label: 'Carreras', icon: GraduationCap },
     { href: '/groups', label: 'Grupos', icon: Group },
-    { href: '/courses', label: 'Módulos', icon: Book },
+    { href: '/modules', label: 'Módulos', icon: Package },
+    { href: '/courses', label: 'Cursos Programados', icon: CalendarClock },
     { href: '/classrooms', label: 'Aulas', icon: School },
     { href: '/conflict-analyzer', label: 'Analizador de Conflictos', icon: Puzzle },
 ]

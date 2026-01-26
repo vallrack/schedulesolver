@@ -3,7 +3,7 @@
 import React from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@/lib/utils';
-import type { ScheduleEvent, Teacher, Subject, Classroom } from '@/lib/types';
+import type { ScheduleEvent, Teacher, Module, Classroom, Course, Group } from '@/lib/types';
 
 const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const TIME_SLOTS = Array.from({ length: 16 }, (_, i) => `${(i + 7).toString().padStart(2, '0')}:00`); // 7 AM to 10 PM
@@ -15,16 +15,19 @@ const timeToMinutes = (time: string): number => {
 
 const EventCard = ({
   event,
-  subjects,
+  courses,
+  modules,
   teachers,
   classrooms,
 }: {
   event: ScheduleEvent;
-  subjects: Subject[];
+  courses: Course[];
+  modules: Module[];
   teachers: Teacher[];
   classrooms: Classroom[];
 }) => {
-  const subject = subjects.find((c) => c.id === event.subjectId);
+  const course = courses.find(c => c.id === event.courseId);
+  const module = modules.find((m) => m.id === course?.moduleId);
   const teacher = teachers.find((t) => t.id === event.teacherId);
   const classroom = classrooms.find((c) => c.id === event.classroomId);
 
@@ -44,8 +47,9 @@ const EventCard = ({
     'bg-pink-100 border-pink-300 text-pink-800',
     'bg-sky-100 border-sky-300 text-sky-800',
   ];
-  const colorIndex = subjects.findIndex((c) => c.id === event.subjectId) % colors.length;
-  const colorClasses = colors[colorIndex] || colors[0];
+  
+  const colorIndex = course ? modules.findIndex((m) => m.id === course.moduleId) % colors.length : -1;
+  const colorClasses = colorIndex !== -1 ? colors[colorIndex] : colors[0];
 
   return (
     <Popover>
@@ -57,18 +61,17 @@ const EventCard = ({
           )}
           style={{ top: `${topPosition}rem`, height: `${height}rem` }}
         >
-          <p className="font-bold truncate">{subject?.name ?? 'Evento'}</p>
+          <p className="font-bold truncate">{module?.name ?? 'Evento'}</p>
           <p className="truncate text-xs opacity-80">{teacher?.name}</p>
           <p className="truncate text-xs opacity-80">{classroom?.name}</p>
         </div>
       </PopoverTrigger>
       <PopoverContent>
         <div className="p-2 space-y-2 text-sm">
-            <h4 className="font-bold font-headline">{subject?.name ?? "Evento Desconocido"}</h4>
+            <h4 className="font-bold font-headline">{module?.name ?? "Evento Desconocido"}</h4>
             <p><strong>Docente:</strong> {teacher?.name ?? "N/A"}</p>
             <p><strong>Aula:</strong> {classroom?.name ?? "N/A"}</p>
             <p><strong>Horario:</strong> {event.day}, {event.startTime} - {event.endTime}</p>
-            <p><strong>Semanas:</strong> {event.startWeek} - {event.endWeek}</p>
         </div>
       </PopoverContent>
     </Popover>
@@ -77,12 +80,14 @@ const EventCard = ({
 
 interface ScheduleCalendarProps {
   events: ScheduleEvent[];
-  subjects: Subject[];
+  courses: Course[];
+  modules: Module[];
   teachers: Teacher[];
   classrooms: Classroom[];
+  groups: Group[];
 }
 
-export function ScheduleCalendar({ events, subjects, teachers, classrooms }: ScheduleCalendarProps) {
+export function ScheduleCalendar({ events, courses, modules, teachers, classrooms }: ScheduleCalendarProps) {
   return (
     <div className="mt-6 border rounded-xl overflow-hidden shadow-sm bg-card">
       <div className="grid grid-cols-[60px_repeat(6,1fr)]">
@@ -119,7 +124,8 @@ export function ScheduleCalendar({ events, subjects, teachers, classrooms }: Sch
                 <EventCard
                   key={event.id}
                   event={event}
-                  subjects={subjects}
+                  courses={courses}
+                  modules={modules}
                   teachers={teachers}
                   classrooms={classrooms}
                 />

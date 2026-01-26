@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import type { Career, Subject, Group } from '@/lib/types';
+import type { Career, Course, Group, Module } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection, doc, setDoc } from 'firebase/firestore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -16,15 +16,13 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
-import { Textarea } from '@/components/ui/textarea';
 import { useEffect, useMemo } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const courseSchema = z.object({
-  name: z.string().min(1, { message: 'El nombre es obligatorio.' }),
-  description: z.string().min(1, { message: 'La descripción es obligatoria.' }),
+  moduleId: z.string().min(1, { message: 'El módulo es obligatorio.' }),
   groupId: z.string().min(1, { message: 'El grupo es obligatorio.' }),
   durationWeeks: z.coerce.number().min(1, 'La duración debe ser al menos 1 semana.'),
   totalHours: z.coerce.number().min(1, 'Las horas deben ser mayor a 0.'),
@@ -38,31 +36,31 @@ const courseSchema = z.object({
 type CourseFormValues = z.infer<typeof courseSchema>;
 
 interface CourseFormProps {
-  subject?: Subject;
+  course?: Course;
+  modules: Module[];
   groups: Group[];
   careers: Career[];
   onSuccess: () => void;
 }
 
-export function CourseForm({ subject, groups, careers, onSuccess }: CourseFormProps) {
+export function CourseForm({ course, modules, groups, careers, onSuccess }: CourseFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const defaultValues = useMemo(() => {
-    return subject ? {
-      ...subject,
-      startDate: new Date(subject.startDate),
-      endDate: new Date(subject.endDate),
+    return course ? {
+      ...course,
+      startDate: new Date(course.startDate),
+      endDate: new Date(course.endDate),
     } : {
-      name: '',
-      description: '',
+      moduleId: '',
       groupId: '',
       durationWeeks: 1,
       totalHours: 1,
       startDate: undefined,
       endDate: undefined,
     }
-  }, [subject]);
+  }, [course]);
 
   const form = useForm<CourseFormValues>({
     resolver: zodResolver(courseSchema),
@@ -71,7 +69,7 @@ export function CourseForm({ subject, groups, careers, onSuccess }: CourseFormPr
 
   useEffect(() => {
     form.reset(defaultValues);
-  }, [subject, defaultValues, form]);
+  }, [course, defaultValues, form]);
 
 
   const groupOptions = useMemo(() => {
@@ -88,30 +86,30 @@ export function CourseForm({ subject, groups, careers, onSuccess }: CourseFormPr
 
   const onSubmit = async (data: CourseFormValues) => {
     if (!firestore) return;
-    const subjectData = { 
+    const courseData = { 
         ...data,
         startDate: data.startDate.toISOString(),
         endDate: data.endDate.toISOString(),
     };
 
     try {
-        if (subject) {
-          const subjectRef = doc(firestore, 'subjects', subject.id);
-          await setDoc(subjectRef, subjectData, { merge: true });
-          toast({ title: 'Módulo Actualizado', description: `Se ha actualizado el módulo ${data.name}.` });
+        if (course) {
+          const courseRef = doc(firestore, 'courses', course.id);
+          await setDoc(courseRef, courseData, { merge: true });
+          toast({ title: 'Curso Actualizado', description: `Se ha actualizado el curso programado.` });
         } else {
-          const collectionRef = collection(firestore, 'subjects');
-          await addDoc(collectionRef, subjectData);
-          toast({ title: 'Módulo Añadido', description: `Se ha añadido el módulo ${data.name}.` });
+          const collectionRef = collection(firestore, 'courses');
+          await addDoc(collectionRef, courseData);
+          toast({ title: 'Curso Añadido', description: `Se ha programado un nuevo curso.` });
         }
         onSuccess();
     } catch(e) {
-        const path = subject ? `subjects/${subject.id}` : 'subjects';
-        const operation = subject ? 'update' : 'create';
+        const path = course ? `courses/${course.id}` : 'courses';
+        const operation = course ? 'update' : 'create';
         const permissionError = new FirestorePermissionError({
             path,
             operation,
-            requestResourceData: subjectData,
+            requestResourceData: courseData,
         });
         errorEmitter.emit('permission-error', permissionError);
     }
@@ -121,13 +119,24 @@ export function CourseForm({ subject, groups, careers, onSuccess }: CourseFormPr
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
+             <FormField
               control={form.control}
-              name="name"
+              name="moduleId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nombre de la Materia o Módulo</FormLabel>
-                  <FormControl><Input {...field} placeholder="Ej: Programación Orientada a Objetos" /></FormControl>
+                  <FormLabel>Módulo</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecciona un módulo" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {modules.map(option => (
+                                <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -155,18 +164,6 @@ export function CourseForm({ subject, groups, careers, onSuccess }: CourseFormPr
               )}
             />
         </div>
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Descripción</FormLabel>
-              <FormControl><Textarea {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
@@ -273,7 +270,7 @@ export function CourseForm({ subject, groups, careers, onSuccess }: CourseFormPr
         </div>
 
         <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
-          {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Módulo'}
+          {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Curso'}
         </Button>
       </form>
     </Form>

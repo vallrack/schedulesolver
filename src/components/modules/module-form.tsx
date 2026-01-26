@@ -1,0 +1,115 @@
+'use client';
+
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useToast } from '@/hooks/use-toast';
+import type { Module } from '@/lib/types';
+import { useFirestore } from '@/firebase';
+import { addDoc, collection, doc, setDoc } from 'firebase/firestore';
+import { Textarea } from '@/components/ui/textarea';
+import { useEffect, useMemo } from 'react';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
+const moduleSchema = z.object({
+  name: z.string().min(1, { message: 'El nombre es obligatorio.' }),
+  description: z.string().min(1, { message: 'La descripción es obligatoria.' }),
+});
+
+type ModuleFormValues = z.infer<typeof moduleSchema>;
+
+interface ModuleFormProps {
+  module?: Module;
+  onSuccess: () => void;
+}
+
+export function ModuleForm({ module, onSuccess }: ModuleFormProps) {
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const defaultValues = useMemo(() => {
+    return module ? {
+      name: module.name,
+      description: module.description,
+    } : {
+      name: '',
+      description: '',
+    }
+  }, [module]);
+
+  const form = useForm<ModuleFormValues>({
+    resolver: zodResolver(moduleSchema),
+    defaultValues,
+  });
+
+  useEffect(() => {
+    form.reset(defaultValues);
+  }, [module, defaultValues, form]);
+
+  const onSubmit = async (data: ModuleFormValues) => {
+    if (!firestore) return;
+    const moduleData = { 
+        name: data.name,
+        description: data.description,
+    };
+
+    try {
+        if (module) {
+          const moduleRef = doc(firestore, 'modules', module.id);
+          await setDoc(moduleRef, moduleData, { merge: true });
+          toast({ title: 'Módulo Actualizado', description: `Se ha actualizado el módulo ${data.name}.` });
+        } else {
+          const collectionRef = collection(firestore, 'modules');
+          await addDoc(collectionRef, moduleData);
+          toast({ title: 'Módulo Añadido', description: `Se ha añadido el módulo ${data.name}.` });
+        }
+        onSuccess();
+    } catch(e) {
+        const path = module ? `modules/${module.id}` : 'modules';
+        const operation = module ? 'update' : 'create';
+        const permissionError = new FirestorePermissionError({
+            path,
+            operation,
+            requestResourceData: moduleData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nombre del Módulo</FormLabel>
+              <FormControl><Input {...field} placeholder="Ej: Fundamentos de Programación" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Descripción</FormLabel>
+              <FormControl><Textarea {...field} placeholder="Describe brevemente el contenido del módulo..."/></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
+          {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Módulo'}
+        </Button>
+      </form>
+    </Form>
+  );
+}

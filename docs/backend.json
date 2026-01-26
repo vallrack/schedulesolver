@@ -107,48 +107,59 @@
       },
       "required": ["name", "careerId", "semester", "studentCount"]
     },
-    "Subject": {
+    "Module": {
       "title": "Módulo",
-      "description": "Un módulo o materia ofrecida por la institución.",
+      "description": "Un módulo o materia genérica que se puede impartir en la institución.",
       "type": "object",
       "properties": {
         "name": {
           "type": "string",
-          "description": "The name of the course. E.g., 'ADS1'."
+          "description": "El nombre del módulo. E.g., 'Fundamentos de Programación'."
         },
         "description": {
           "type": "string",
-          "description": "A detailed description of the course. E.g., 'ASISTENTE EN DESARROLLO DE SOFTWARE PRIMER SEMESTRE'."
-        },
-        "durationWeeks": {
-          "type": "number",
-          "description": "The duration of the course in weeks."
-        },
-        "totalHours": {
-          "type": "number",
-          "description": "The total hours for the course."
+          "description": "Una descripción detallada del módulo."
+        }
+      },
+      "required": [ "name" ]
+    },
+    "Course": {
+      "title": "Curso Programado",
+      "description": "La instancia de un módulo asignado a un grupo específico, con fechas y horas.",
+      "type": "object",
+      "properties": {
+        "moduleId": {
+          "type": "string",
+          "description": "ID del módulo genérico que se imparte."
         },
         "groupId": {
           "type": "string",
-          "description": "The ID of the group this module is for."
+          "description": "ID del grupo al que se le imparte este curso."
+        },
+        "durationWeeks": {
+          "type": "number",
+          "description": "La duración del curso en semanas."
+        },
+        "totalHours": {
+          "type": "number",
+          "description": "Las horas totales para este curso."
         },
         "startDate": {
           "type": "string",
           "format": "date",
-          "description": "The start date of the module."
+          "description": "Fecha de inicio del curso."
         },
         "endDate": {
           "type": "string",
           "format": "date",
-          "description": "The end date of the module."
+          "description": "Fecha de finalización del curso."
         }
       },
       "required": [
-        "name",
-        "description",
+        "moduleId",
+        "groupId",
         "durationWeeks",
         "totalHours",
-        "groupId",
         "startDate",
         "endDate"
       ]
@@ -178,7 +189,7 @@
       "description": "An event in the schedule. Spanish: Horario",
       "type": "object",
       "properties": {
-        "subjectId": { "type": "string" },
+        "courseId": { "type": "string" },
         "teacherId": { "type": "string" },
         "classroomId": { "type": "string" },
         "day": { "type": "string" },
@@ -187,7 +198,7 @@
         "startWeek": { "type": "number" },
         "endWeek": { "type": "number" }
       },
-      "required": ["subjectId", "teacherId", "classroomId", "day", "startTime", "endTime", "startWeek", "endWeek"]
+      "required": ["courseId", "teacherId", "classroomId", "day", "startTime", "endTime", "startWeek", "endWeek"]
     }
   },
   "auth": {
@@ -202,9 +213,13 @@
       "schema": { "$ref": "#/entities/Teacher" },
       "description": "Stores teacher profiles. Spanish: Docentes"
     },
-    "/subjects/{subjectId}": {
-      "schema": { "$ref": "#/entities/Subject" },
-      "description": "Stores course information. Spanish: Módulos/Materias"
+    "/modules/{moduleId}": {
+      "schema": { "$ref": "#/entities/Module" },
+      "description": "Almacena los módulos o materias genéricas. Spanish: Módulos"
+    },
+    "/courses/{courseId}": {
+      "schema": { "$ref": "#/entities/Course" },
+      "description": "Almacena los cursos programados para grupos específicos. Spanish: Cursos Programados"
     },
     "/classrooms/{classroomId}": {
       "schema": { "$ref": "#/entities/Classroom" },
