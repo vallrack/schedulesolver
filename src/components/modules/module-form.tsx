@@ -17,7 +17,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 
 const moduleSchema = z.object({
   name: z.string().min(1, { message: 'El nombre es obligatorio.' }),
-  description: z.string().min(1, { message: 'La descripción es obligatoria.' }),
+  description: z.string().optional(),
   totalHours: z.coerce.number().min(1, 'Las horas deben ser mayor a 0.'),
 });
 
@@ -122,7 +122,7 @@ export function ModuleForm({ module, onSuccess }: ModuleFormProps) {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Descripción</FormLabel>
+              <FormLabel>Descripción (Opcional)</FormLabel>
               <FormControl><Textarea {...field} placeholder="Describe brevemente el contenido del módulo..."/></FormControl>
               <FormMessage />
             </FormItem>

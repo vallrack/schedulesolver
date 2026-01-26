@@ -125,7 +125,7 @@
           "description": "La cantidad total de horas que dura el módulo."
         }
       },
-      "required": [ "name", "description", "totalHours" ]
+      "required": [ "name", "totalHours" ]
     },
     "Course": {
       "title": "Curso Programado",
