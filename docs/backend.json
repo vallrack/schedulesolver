@@ -57,9 +57,14 @@
               "endTime": { "type": "string" }
             }
           }
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "inactive"],
+          "description": "The current status of the teacher."
         }
       },
-      "required": ["name", "email"]
+      "required": ["name", "email", "status"]
     },
     "Course": {
       "title": "Course",

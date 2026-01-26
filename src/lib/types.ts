@@ -12,6 +12,7 @@ export type Teacher = {
   maxWeeklyHours: number;
   specialties: string[]; // array of course IDs
   availability: { day: string; startTime: string; endTime: string }[];
+  status: 'active' | 'inactive';
 };
 
 export type Course = {
