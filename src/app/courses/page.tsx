@@ -1,85 +1,124 @@
 'use client'
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, PlusCircle } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Trash2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useCollection } from "@/firebase/firestore/use-collection"
 import { useFirestore } from "@/firebase"
-import { useMemo } from "react"
-import { collection } from "firebase/firestore"
+import { collection, deleteDoc, doc } from "firebase/firestore"
 import AppLayout from "@/components/app-layout"
 import type { Subject } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
+import { CourseForm } from "@/components/courses/course-form";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
+
 
 export default function CoursesPage() {
   const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<Subject | undefined>(undefined);
+
   const subjectsCollection = useMemo(() => firestore ? collection(firestore, 'subjects') : null, [firestore]);
   const { data: subjects, loading, error } = useCollection<Subject>(subjectsCollection);
+
+  const handleAddNew = () => {
+    setEditingSubject(undefined);
+    setDialogOpen(true);
+  };
+
+  const handleEdit = (subject: Subject) => {
+    setEditingSubject(subject);
+    setDialogOpen(true);
+  };
+
+  const handleDelete = (subjectId: string) => {
+    if (!firestore) return;
+    const subjectRef = doc(firestore, 'subjects', subjectId);
+    deleteDoc(subjectRef).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: subjectRef.path,
+            operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    });
+    toast({
+      variant: 'destructive',
+      title: 'Módulo Eliminado',
+      description: `El módulo ha sido eliminado permanentemente.`,
+    });
+  };
 
   return (
     <AppLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold font-headline tracking-tight">Catálogo de Módulos</h1>
-            <Dialog>
-                <DialogTrigger asChild>
-                    <Button>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Añadir Módulo
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Añadir Nuevo Módulo</DialogTitle>
-                        <DialogDescription>
-                            Rellena los detalles del nuevo módulo. Este formulario es un placeholder.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-8 text-center text-muted-foreground">
-                      (El formulario para módulos estaría aquí)
-                    </div>
-                    <DialogFooter>
-                      <Button type="submit">Guardar Módulo</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <Button onClick={handleAddNew}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Añadir Módulo
+            </Button>
         </div>
+
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>{editingSubject ? 'Editar Módulo' : 'Añadir Nuevo Módulo'}</DialogTitle>
+                    <DialogDescription>
+                       {editingSubject ? 'Actualiza los detalles del módulo.' : 'Rellena los detalles para el nuevo módulo.'}
+                    </DialogDescription>
+                </DialogHeader>
+                <CourseForm 
+                    subject={editingSubject} 
+                    onSuccess={() => setDialogOpen(false)} 
+                />
+            </DialogContent>
+        </Dialog>
+
+
         <Card>
           <CardHeader>
             <CardTitle>Módulos Disponibles</CardTitle>
-            <CardDescription>Gestiona los detalles de los módulos, incluyendo duración y carga horaria.</CardDescription>
+            <CardDescription>Gestiona los detalles de los módulos, incluyendo duración, fechas y carga horaria.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre del Módulo</TableHead>
-                  <TableHead>Carrera</TableHead>
-                  <TableHead className="hidden sm:table-cell">Semestre</TableHead>
-                  <TableHead className="hidden md:table-cell">Duración (Semanas)</TableHead>
-                  <TableHead className="hidden md:table-cell">Horas Totales</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead className="hidden lg:table-cell">Descripción</TableHead>
+                  <TableHead className="hidden sm:table-cell">Carrera</TableHead>
+                  <TableHead>Semanas</TableHead>
+                  <TableHead className="hidden md:table-cell">Fecha Inicio</TableHead>
+                  <TableHead className="hidden md:table-cell">Fecha Fin</TableHead>
                   <TableHead><span className="sr-only">Acciones</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading && <TableRow><TableCell colSpan={6} className="text-center">Cargando...</TableCell></TableRow>}
-                {error && <TableRow><TableCell colSpan={6} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
+                {loading && <TableRow><TableCell colSpan={7} className="text-center">Cargando...</TableCell></TableRow>}
+                {error && <TableRow><TableCell colSpan={7} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
                 {subjects?.map(subject => (
                   <TableRow key={subject.id}>
                     <TableCell className="font-medium">{subject.name}</TableCell>
-                    <TableCell>{subject.career}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{subject.semester}</TableCell>
-                    <TableCell className="hidden md:table-cell">{subject.durationWeeks}</TableCell>
-                    <TableCell className="hidden md:table-cell">{subject.totalHours}</TableCell>
+                    <TableCell className="hidden lg:table-cell max-w-xs truncate">{subject.description}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{subject.career}</TableCell>
+                    <TableCell>{subject.durationWeeks}</TableCell>
+                    <TableCell className="hidden md:table-cell">{format(new Date(subject.startDate), "d MMM, yyyy", { locale: es })}</TableCell>
+                    <TableCell className="hidden md:table-cell">{format(new Date(subject.endDate), "d MMM, yyyy", { locale: es })}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -90,9 +129,28 @@ export default function CoursesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                          <DropdownMenuItem>Editar Módulo</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEdit(subject)}>Editar Módulo</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">Eliminar Módulo</DropdownMenuItem>
+                          <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Eliminar
+                                  </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                          Esta acción no se puede deshacer. Esto eliminará permanentemente el módulo.
+                                      </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDelete(subject.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                  </AlertDialogFooter>
+                              </AlertDialogContent>
+                          </AlertDialog>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

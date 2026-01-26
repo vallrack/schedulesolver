@@ -78,7 +78,11 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "The name of the course."
+          "description": "The name of the course. E.g., 'ADS1'."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the course. E.g., 'ASISTENTE EN DESARROLLO DE SOFTWARE PRIMER SEMESTRE'."
         },
         "durationWeeks": {
           "type": "number",
@@ -99,9 +103,29 @@
         "group": {
           "type": "string",
           "description": "The student group for this course."
+        },
+        "startDate": {
+          "type": "string",
+          "format": "date",
+          "description": "The start date of the module."
+        },
+        "endDate": {
+          "type": "string",
+          "format": "date",
+          "description": "The end date of the module."
         }
       },
-      "required": ["name", "durationWeeks", "totalHours", "career", "semester", "group"]
+      "required": [
+        "name",
+        "description",
+        "durationWeeks",
+        "totalHours",
+        "career",
+        "semester",
+        "group",
+        "startDate",
+        "endDate"
+      ]
     },
     "Classroom": {
       "title": "Classroom",

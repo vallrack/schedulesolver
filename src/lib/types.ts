@@ -18,12 +18,15 @@ export type Teacher = {
 
 export type Subject = {
   id: string;
-  name:string;
+  name: string;
+  description: string;
   durationWeeks: number;
   totalHours: number;
   career: string;
   semester: number;
   group: string;
+  startDate: string; // Storing as ISO string or similar
+  endDate: string; // Storing as ISO string or similar
 };
 
 export type Classroom = {
