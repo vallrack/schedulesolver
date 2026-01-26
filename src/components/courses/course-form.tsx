@@ -140,7 +140,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Módulo</FormLabel>
-                  <Popover open={modulePopoverOpen} onOpenChange={setModulePopoverOpen} modal={true}>
+                  <Popover open={modulePopoverOpen} onOpenChange={setModulePopoverOpen}>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
@@ -207,7 +207,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Grupo</FormLabel>
-                  <Popover open={groupPopoverOpen} onOpenChange={setGroupPopoverOpen} modal={true}>
+                  <Popover open={groupPopoverOpen} onOpenChange={setGroupPopoverOpen}>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
@@ -298,7 +298,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Fecha de Inicio</FormLabel>
-                <Popover modal={true}>
+                <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
@@ -317,7 +317,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[100]" align="start">
+                  <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
                       selected={field.value}
@@ -336,7 +336,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Fecha de Fin</FormLabel>
-                <Popover modal={true}>
+                <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
@@ -355,7 +355,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[100]" align="start">
+                  <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
                       selected={field.value}
