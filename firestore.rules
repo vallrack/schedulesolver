@@ -1,9 +1,40 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read: if true;
-      allow write: if false;
+    
+    // Función auxiliar para verificar si el usuario está autenticado
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Función para obtener el rol del usuario actual
+    function getRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    // REGLA PARA USUARIOS
+    match /users/{userId} {
+      // El Super Admin puede crear y editar cualquier usuario (incluyendo otros admins)
+      allow write: if isSignedIn() && getRole() == "super_admin";
+      // Los usuarios pueden leer su propia info de perfil
+      allow read: if isSignedIn() && (request.auth.uid == userId || getRole() == "super_admin" || getRole() == "admin");
+    }
+
+    // REGLA PARA HORARIOS Y MATERIAS
+    match /horarios/{horarioId} {
+      // Solo admins y super_admins pueden crear o modificar horarios
+      allow write: if isSignedIn() && (getRole() == "super_admin" || getRole() == "admin");
+      // Todo usuario autenticado puede leer los horarios
+      allow read: if isSignedIn();
+    }
+
+    // REGLA PARA DOCENTES, GRUPOS Y CARRERAS
+    match /{coleccion}/{documentoId} {
+      allow write: if isSignedIn() && (getRole() == "super_admin" || getRole() == "admin");
+      allow read: if isSignedIn();
+      
+      // Restricción: Solo el super_admin puede borrar datos maestros (Docentes o Carreras)
+      allow delete: if isSignedIn() && getRole() == "super_admin";
     }
   }
 }

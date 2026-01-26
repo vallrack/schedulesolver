@@ -23,12 +23,12 @@ export default function ScheduleView() {
   const teachersCollection = useMemo(() => (firestore ? collection(firestore, 'teachers') : null), [firestore]);
   const coursesCollection = useMemo(() => (firestore ? collection(firestore, 'courses') : null), [firestore]);
   const classroomsCollection = useMemo(() => (firestore ? collection(firestore, 'classrooms') : null), [firestore]);
-  const scheduleEventsCollection = useMemo(() => (firestore ? collection(firestore, 'scheduleEvents') : null), [firestore]);
+  const horariosCollection = useMemo(() => (firestore ? collection(firestore, 'horarios') : null), [firestore]);
 
   const { data: teachers, loading: loadingTeachers } = useCollection<Teacher>(teachersCollection);
   const { data: courses, loading: loadingCourses } = useCollection<Course>(coursesCollection);
   const { data: classrooms, loading: loadingClassrooms } = useCollection<Classroom>(classroomsCollection);
-  const { data: scheduleEvents, loading: loadingSchedule, error: errorSchedule } = useCollection<ScheduleEvent>(scheduleEventsCollection);
+  const { data: scheduleEvents, loading: loadingSchedule, error: errorSchedule } = useCollection<ScheduleEvent>(horariosCollection);
 
   React.useEffect(() => {
     if (scheduleEvents) {

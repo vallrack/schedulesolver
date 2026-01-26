@@ -1,3 +1,10 @@
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: 'user' | 'admin' | 'super_admin';
+}
+
 export type Teacher = {
   id: string;
   name: string;
