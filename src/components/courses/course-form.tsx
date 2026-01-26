@@ -74,13 +74,14 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
 
   const groupOptions = useMemo(() => {
     if (!groups || !careers) return [];
-    return groups.map(group => {
+    const options = groups.map(group => {
         const career = careers.find(c => c.id === group.careerId);
         return {
             value: group.id,
             label: `${career?.name || '...'} - Sem ${group.semester} - G ${group.name}`
         }
-    })
+    });
+    return options.sort((a, b) => a.label.localeCompare(b.label));
   }, [groups, careers]);
 
 
@@ -141,7 +142,10 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                        {(modules || []).map(module => (
+                        {(modules || [])
+                            .slice()
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(module => (
                             <SelectItem key={module.id} value={module.id}>{module.name}</SelectItem>
                         ))}
                     </SelectContent>
