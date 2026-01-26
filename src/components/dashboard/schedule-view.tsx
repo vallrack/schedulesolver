@@ -44,24 +44,24 @@ export default function ScheduleView() {
         teachers: JSON.stringify(teachers),
         classrooms: JSON.stringify(classrooms),
         constraints: JSON.stringify([
-          'A teacher cannot be in two places at once.',
-          'A group cannot have two classes at the same time.',
-          'Do not exceed classroom capacity.',
-          'Respect the exact duration of the course.',
-          'Avoid excessive gaps for teachers and students.',
-          'Prefer morning/afternoon shifts where possible.',
+          'Un profesor no puede estar en dos lugares a la vez.',
+          'Un grupo no puede tener dos clases al mismo tiempo.',
+          'No exceder la capacidad del aula.',
+          'Respetar la duración exacta de la materia.',
+          'Evitar huecos excesivos para profesores y alumnos.',
+          'Preferir turnos de mañana/tarde cuando sea posible.',
         ]),
       });
       setSchedule(JSON.parse(result.schedule));
       toast({
-        title: 'Schedule Generated',
-        description: 'A new base schedule has been successfully generated.',
+        title: 'Horario Generado',
+        description: 'Se ha generado con éxito un nuevo horario base.',
       });
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Error Generating Schedule',
-        description: 'An unexpected error occurred. Please try again.',
+        title: 'Error al Generar Horario',
+        description: 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.',
       });
     } finally {
       setIsGenerating(false);
@@ -79,26 +79,26 @@ export default function ScheduleView() {
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <CardTitle className="font-headline">Class Schedule</CardTitle>
+          <CardTitle className="font-headline">Horario de Clases</CardTitle>
           <Button onClick={handleGenerateSchedule} disabled={isGenerating || loading} size="sm">
             {isGenerating ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Sparkles className="mr-2 h-4 w-4" />
             )}
-            Generate with AI
+            Generar con IA
           </Button>
         </div>
       </CardHeader>
       <CardContent>
         {loading && <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>}
-        {errorSchedule && <div className="text-destructive text-center">Error loading schedule: {errorSchedule.message}</div>}
+        {errorSchedule && <div className="text-destructive text-center">Error al cargar el horario: {errorSchedule.message}</div>}
         {!loading && !errorSchedule && (
           <Tabs defaultValue="teacher" className="w-full">
             <TabsList>
-              <TabsTrigger value="teacher">By Teacher</TabsTrigger>
-              <TabsTrigger value="group">By Group</TabsTrigger>
-              <TabsTrigger value="classroom">By Classroom</TabsTrigger>
+              <TabsTrigger value="teacher">Por Docente</TabsTrigger>
+              <TabsTrigger value="group">Por Grupo</TabsTrigger>
+              <TabsTrigger value="classroom">Por Aula</TabsTrigger>
             </TabsList>
             
             <TabsContent value="teacher">

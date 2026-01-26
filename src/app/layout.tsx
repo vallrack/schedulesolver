@@ -1,16 +1,13 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
-import AppSidebar from '@/components/app-sidebar';
-import Header from '@/components/header';
 import React from 'react';
 import { FirebaseProvider } from '@/firebase/provider';
 import FirebaseErrorListener from '@/components/FirebaseErrorListener';
 
 export const metadata: Metadata = {
   title: 'Schedulesolver',
-  description: 'Intelligent scheduling and conflict resolution.',
+  description: 'Planificación inteligente y resolución de conflictos de horarios.',
 };
 
 export default function RootLayout({
@@ -19,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
@@ -28,17 +25,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-background">
         <FirebaseProvider>
-          <SidebarProvider>
-              <Sidebar>
-                  <AppSidebar />
-              </Sidebar>
-              <SidebarInset>
-                  <Header />
-                  <div className="p-4 sm:p-6 lg:p-8">
-                      {children}
-                  </div>
-              </SidebarInset>
-          </SidebarProvider>
+          {children}
           <Toaster />
           <FirebaseErrorListener />
         </FirebaseProvider>

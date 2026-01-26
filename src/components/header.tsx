@@ -2,11 +2,18 @@
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { usePathname } from 'next/navigation';
 
+const titleMap: { [key: string]: string } = {
+  '/dashboard': 'Dashboard',
+  '/teachers': 'Gestión de Docentes',
+  '/courses': 'Catálogo de Materias',
+  '/classrooms': 'Gestión de Infraestructura',
+  '/conflict-analyzer': 'Analizador de Conflictos con IA',
+};
+
+
 const getTitleFromPathname = (pathname: string) => {
-  if (pathname === '/') return 'Dashboard';
-  const parts = pathname.split('/').filter(Boolean);
-  const title = parts[parts.length - 1];
-  return title.charAt(0).toUpperCase() + title.slice(1).replace('-', ' ');
+  const rootPath = '/' + pathname.split('/')[1];
+  return titleMap[rootPath] || 'Schedulesolver';
 }
 
 export default function Header() {
