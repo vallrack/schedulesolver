@@ -7,24 +7,24 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { ScheduleEvent, Teacher, Course, Classroom } from '@/lib/types';
+import type { ScheduleEvent, Teacher, Subject, Classroom } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection } from 'firebase/firestore';
 import { ScheduleCalendar } from './schedule-calendar';
 
-const getResourceName = (resource: Teacher | Course | Classroom, viewMode: 'teacher' | 'group' | 'classroom') => {
+const getResourceName = (resource: Teacher | Subject | Classroom, viewMode: 'teacher' | 'group' | 'classroom') => {
     if (viewMode === 'group') {
-        const course = resource as Course;
-        return `${course.career} S${course.semester} G${course.group}`;
+        const subject = resource as Subject;
+        return `${subject.career} S${subject.semester} G${subject.group}`;
     }
     return (resource as Teacher | Classroom).name;
 };
 
-const getResourceId = (resource: Teacher | Course | Classroom, viewMode: 'teacher' | 'group' | 'classroom') => {
+const getResourceId = (resource: Teacher | Subject | Classroom, viewMode: 'teacher' | 'group' | 'classroom') => {
     if(viewMode === 'group') {
-        const course = resource as Course;
-        return `${course.career}-${course.semester}-${course.group}`;
+        const subject = resource as Subject;
+        return `${subject.career}-${subject.semester}-${subject.group}`;
     }
     return resource.id;
 }
@@ -36,14 +36,14 @@ export default function ScheduleView() {
 
   const firestore = useFirestore();
   const teachersCollection = useMemo(() => (firestore ? collection(firestore, 'teachers') : null), [firestore]);
-  const coursesCollection = useMemo(() => (firestore ? collection(firestore, 'courses') : null), [firestore]);
+  const subjectsCollection = useMemo(() => (firestore ? collection(firestore, 'subjects') : null), [firestore]);
   const classroomsCollection = useMemo(() => (firestore ? collection(firestore, 'classrooms') : null), [firestore]);
-  const horariosCollection = useMemo(() => (firestore ? collection(firestore, 'horarios') : null), [firestore]);
+  const schedulesCollection = useMemo(() => (firestore ? collection(firestore, 'schedules') : null), [firestore]);
 
   const { data: teachers, loading: loadingTeachers } = useCollection<Teacher>(teachersCollection);
-  const { data: courses, loading: loadingCourses } = useCollection<Course>(coursesCollection);
+  const { data: subjects, loading: loadingSubjects } = useCollection<Subject>(subjectsCollection);
   const { data: classrooms, loading: loadingClassrooms } = useCollection<Classroom>(classroomsCollection);
-  const { data: scheduleEvents, loading: loadingSchedule, error: errorSchedule } = useCollection<ScheduleEvent>(horariosCollection);
+  const { data: scheduleEvents, loading: loadingSchedule, error: errorSchedule } = useCollection<ScheduleEvent>(schedulesCollection);
   
   const [selectedTeacher, setSelectedTeacher] = useState<string | undefined>(undefined);
   const [selectedGroup, setSelectedGroup] = useState<string | undefined>(undefined);
@@ -56,9 +56,9 @@ export default function ScheduleView() {
   }, [scheduleEvents]);
 
   const uniqueGroups = useMemo(() => {
-    if (!courses) return [];
-    return [...new Map(courses.map(c => [`${c.career}-${c.semester}-${c.group}`, c])).values()];
-  }, [courses]);
+    if (!subjects) return [];
+    return [...new Map(subjects.map(s => [`${s.career}-${s.semester}-${s.group}`, s])).values()];
+  }, [subjects]);
 
   useEffect(() => {
       if (teachers && teachers.length > 0 && !selectedTeacher) {
@@ -83,7 +83,7 @@ export default function ScheduleView() {
     setIsGenerating(true);
     try {
       const result = await generateInitialSchedule({
-        courses: JSON.stringify(courses),
+        subjects: JSON.stringify(subjects),
         teachers: JSON.stringify(teachers),
         classrooms: JSON.stringify(classrooms),
         constraints: JSON.stringify([
@@ -113,7 +113,7 @@ export default function ScheduleView() {
     }
   };
   
-  const loading = loadingTeachers || loadingCourses || loadingClassrooms || loadingSchedule;
+  const loading = loadingTeachers || loadingSubjects || loadingClassrooms || loadingSchedule;
 
   const teacherEvents = useMemo(() => {
     if (!selectedTeacher) return [];
@@ -121,10 +121,10 @@ export default function ScheduleView() {
   }, [schedule, selectedTeacher]);
 
   const groupEvents = useMemo(() => {
-      if (!selectedGroup || !courses) return [];
-      const groupCourses = courses.filter(c => getResourceId(c, 'group') === selectedGroup).map(c => c.id);
-      return schedule.filter(e => groupCourses.includes(e.courseId));
-  }, [schedule, selectedGroup, courses]);
+      if (!selectedGroup || !subjects) return [];
+      const groupSubjects = subjects.filter(s => getResourceId(s, 'group') === selectedGroup).map(c => c.id);
+      return schedule.filter(e => groupSubjects.includes(e.subjectId));
+  }, [schedule, selectedGroup, subjects]);
 
   const classroomEvents = useMemo(() => {
     if (!selectedClassroom) return [];
@@ -169,7 +169,7 @@ export default function ScheduleView() {
                     </SelectContent>
                  </Select>
                </div>
-               {selectedTeacher && <ScheduleCalendar events={teacherEvents} courses={courses || []} teachers={teachers || []} classrooms={classrooms || []} />}
+               {selectedTeacher && <ScheduleCalendar events={teacherEvents} subjects={subjects || []} teachers={teachers || []} classrooms={classrooms || []} />}
             </TabsContent>
             <TabsContent value="group" className="mt-4">
                <div className="max-w-sm">
@@ -182,7 +182,7 @@ export default function ScheduleView() {
                     </SelectContent>
                  </Select>
                </div>
-               {selectedGroup && <ScheduleCalendar events={groupEvents} courses={courses || []} teachers={teachers || []} classrooms={classrooms || []} />}
+               {selectedGroup && <ScheduleCalendar events={groupEvents} subjects={subjects || []} teachers={teachers || []} classrooms={classrooms || []} />}
             </TabsContent>
             <TabsContent value="classroom" className="mt-4">
               <div className="max-w-sm">
@@ -195,7 +195,7 @@ export default function ScheduleView() {
                     </SelectContent>
                  </Select>
                </div>
-               {selectedClassroom && <ScheduleCalendar events={classroomEvents} courses={courses || []} teachers={teachers || []} classrooms={classrooms || []} />}
+               {selectedClassroom && <ScheduleCalendar events={classroomEvents} subjects={subjects || []} teachers={teachers || []} classrooms={classrooms || []} />}
             </TabsContent>
           </Tabs>
         )}

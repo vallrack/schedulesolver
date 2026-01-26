@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import type { Course, Teacher } from '@/lib/types';
+import type { Subject, Teacher } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection, doc, setDoc } from 'firebase/firestore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -35,11 +35,11 @@ type TeacherFormValues = z.infer<typeof teacherSchema>;
 
 interface TeacherFormProps {
   teacher?: Teacher;
-  courses: Course[];
+  subjects: Subject[];
   onSuccess: () => void;
 }
 
-export function TeacherForm({ teacher, courses, onSuccess }: TeacherFormProps) {
+export function TeacherForm({ teacher, subjects, onSuccess }: TeacherFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
@@ -186,22 +186,22 @@ export function TeacherForm({ teacher, courses, onSuccess }: TeacherFormProps) {
                 <PopoverContent className="w-full p-0">
                     <ScrollArea className="h-48">
                         <div className="p-4">
-                        {courses.map((course) => (
-                            <div key={course.id} className="flex items-center space-x-2 mb-2">
+                        {subjects.map((subject) => (
+                            <div key={subject.id} className="flex items-center space-x-2 mb-2">
                                 <Checkbox
-                                    id={`specialty-${course.id}`}
-                                    checked={selectedSpecialties.includes(course.id)}
+                                    id={`specialty-${subject.id}`}
+                                    checked={selectedSpecialties.includes(subject.id)}
                                     onCheckedChange={(checked) => {
                                         return checked
-                                            ? setSelectedSpecialties([...selectedSpecialties, course.id])
-                                            : setSelectedSpecialties(selectedSpecialties.filter(id => id !== course.id));
+                                            ? setSelectedSpecialties([...selectedSpecialties, subject.id])
+                                            : setSelectedSpecialties(selectedSpecialties.filter(id => id !== subject.id));
                                     }}
                                 />
                                 <label
-                                    htmlFor={`specialty-${course.id}`}
+                                    htmlFor={`specialty-${subject.id}`}
                                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                 >
-                                    {course.name}
+                                    {subject.name}
                                 </label>
                             </div>
                         ))}
@@ -211,8 +211,8 @@ export function TeacherForm({ teacher, courses, onSuccess }: TeacherFormProps) {
             </Popover>
             <div className="pt-2 flex flex-wrap gap-1">
                 {selectedSpecialties.map(id => {
-                    const course = courses.find(c => c.id === id);
-                    return course ? <Badge key={id} variant="secondary">{course.name}</Badge> : null;
+                    const subject = subjects.find(s => s.id === id);
+                    return subject ? <Badge key={id} variant="secondary">{subject.name}</Badge> : null;
                 })}
             </div>
         </FormItem>

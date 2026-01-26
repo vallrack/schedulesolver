@@ -71,7 +71,7 @@
       },
       "required": ["name", "email", "status", "contractType"]
     },
-    "Course": {
+    "Subject": {
       "title": "Módulo",
       "description": "Un módulo o materia ofrecida por la institución.",
       "type": "object",
@@ -128,7 +128,7 @@
       "description": "An event in the schedule. Spanish: Horario",
       "type": "object",
       "properties": {
-        "courseId": { "type": "string" },
+        "subjectId": { "type": "string" },
         "teacherId": { "type": "string" },
         "classroomId": { "type": "string" },
         "day": { "type": "string" },
@@ -137,7 +137,7 @@
         "startWeek": { "type": "number" },
         "endWeek": { "type": "number" }
       },
-      "required": ["courseId", "teacherId", "classroomId", "day", "startTime", "endTime", "startWeek", "endWeek"]
+      "required": ["subjectId", "teacherId", "classroomId", "day", "startTime", "endTime", "startWeek", "endWeek"]
     }
   },
   "auth": {
@@ -152,15 +152,15 @@
       "schema": { "$ref": "#/entities/Teacher" },
       "description": "Stores teacher profiles. Spanish: Docentes"
     },
-    "/courses/{courseId}": {
-      "schema": { "$ref": "#/entities/Course" },
+    "/subjects/{subjectId}": {
+      "schema": { "$ref": "#/entities/Subject" },
       "description": "Stores course information. Spanish: Módulos/Materias"
     },
     "/classrooms/{classroomId}": {
       "schema": { "$ref": "#/entities/Classroom" },
       "description": "Stores classroom information."
     },
-    "/horarios/{horarioId}": {
+    "/schedules/{scheduleId}": {
       "schema": { "$ref": "#/entities/ScheduleEvent" },
       "description": "Stores individual schedule events. Spanish: Horarios"
     }

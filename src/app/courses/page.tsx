@@ -18,11 +18,12 @@ import { useFirestore } from "@/firebase"
 import { useMemo } from "react"
 import { collection } from "firebase/firestore"
 import AppLayout from "@/components/app-layout"
+import type { Subject } from "@/lib/types";
 
 export default function CoursesPage() {
   const firestore = useFirestore();
-  const coursesCollection = useMemo(() => firestore ? collection(firestore, 'courses') : null, [firestore]);
-  const { data: courses, loading, error } = useCollection(coursesCollection);
+  const subjectsCollection = useMemo(() => firestore ? collection(firestore, 'subjects') : null, [firestore]);
+  const { data: subjects, loading, error } = useCollection<Subject>(subjectsCollection);
 
   return (
     <AppLayout>
@@ -72,13 +73,13 @@ export default function CoursesPage() {
               <TableBody>
                 {loading && <TableRow><TableCell colSpan={6} className="text-center">Cargando...</TableCell></TableRow>}
                 {error && <TableRow><TableCell colSpan={6} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {courses?.map(course => (
-                  <TableRow key={course.id}>
-                    <TableCell className="font-medium">{course.name}</TableCell>
-                    <TableCell>{course.career}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{course.semester}</TableCell>
-                    <TableCell className="hidden md:table-cell">{course.durationWeeks}</TableCell>
-                    <TableCell className="hidden md:table-cell">{course.totalHours}</TableCell>
+                {subjects?.map(subject => (
+                  <TableRow key={subject.id}>
+                    <TableCell className="font-medium">{subject.name}</TableCell>
+                    <TableCell>{subject.career}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{subject.semester}</TableCell>
+                    <TableCell className="hidden md:table-cell">{subject.durationWeeks}</TableCell>
+                    <TableCell className="hidden md:table-cell">{subject.totalHours}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

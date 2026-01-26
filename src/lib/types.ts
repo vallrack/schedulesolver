@@ -11,12 +11,12 @@ export type Teacher = {
   email: string;
   contractType: 'Tiempo Completo' | 'Medio Tiempo' | 'Por Horas';
   maxWeeklyHours: number;
-  specialties: string[]; // array of course IDs
+  specialties: string[]; // array of subject IDs
   availability: { day: string; startTime: string; endTime: string }[];
   status: 'active' | 'inactive';
 };
 
-export type Course = {
+export type Subject = {
   id: string;
   name:string;
   durationWeeks: number;
@@ -35,7 +35,7 @@ export type Classroom = {
 
 export type ScheduleEvent = {
   id: string;
-  courseId: string;
+  subjectId: string;
   teacherId: string;
   classroomId: string;
   day: string; // e.g., 'Monday'

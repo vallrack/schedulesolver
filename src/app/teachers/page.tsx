@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCollection } from "@/firebase/firestore/use-collection";
 import { useFirestore } from "@/firebase";
 import { collection, doc, updateDoc, deleteDoc } from "firebase/firestore";
-import type { Course, Teacher } from "@/lib/types";
+import type { Subject, Teacher } from "@/lib/types";
 import AppLayout from "@/components/app-layout";
 import { TeacherForm } from '@/components/teachers/teacher-form';
 import { useToast } from '@/hooks/use-toast';
@@ -30,8 +30,8 @@ export default function TeachersPage() {
   const teachersCollection = useMemo(() => firestore ? collection(firestore, 'teachers') : null, [firestore]);
   const { data: teachers, loading: loadingTeachers, error: errorTeachers } = useCollection<Teacher>(teachersCollection);
 
-  const coursesCollection = useMemo(() => firestore ? collection(firestore, 'courses') : null, [firestore]);
-  const { data: courses, loading: loadingCourses, error: errorCourses } = useCollection<Course>(coursesCollection);
+  const subjectsCollection = useMemo(() => firestore ? collection(firestore, 'subjects') : null, [firestore]);
+  const { data: subjects, loading: loadingSubjects, error: errorSubjects } = useCollection<Subject>(subjectsCollection);
 
   const { activeTeachers, inactiveTeachers } = useMemo(() => {
     if (!teachers) return { activeTeachers: [], inactiveTeachers: [] };
@@ -41,8 +41,8 @@ export default function TeachersPage() {
     };
   }, [teachers]);
 
-  const loading = loadingTeachers || loadingCourses;
-  const error = errorTeachers || errorCourses;
+  const loading = loadingTeachers || loadingSubjects;
+  const error = errorTeachers || errorSubjects;
 
   const handleAddNew = () => {
     setEditingTeacher(undefined);
@@ -112,8 +112,8 @@ export default function TeachersPage() {
             <TableCell>
               <div className="flex flex-wrap gap-1">
                 {teacher.specialties?.map((specId: string) => {
-                  const course = courses?.find(c => c.id === specId);
-                  return <Badge key={specId} variant="secondary">{course?.name ?? 'Desconocido'}</Badge>;
+                  const subject = subjects?.find(s => s.id === specId);
+                  return <Badge key={specId} variant="secondary">{subject?.name ?? 'Desconocido'}</Badge>;
                 })}
               </div>
             </TableCell>
@@ -197,7 +197,7 @@ export default function TeachersPage() {
                 <div className="py-4">
                     <TeacherForm 
                         teacher={editingTeacher} 
-                        courses={courses || []} 
+                        subjects={subjects || []} 
                         onSuccess={() => setDialogOpen(false)} 
                     />
                 </div>
