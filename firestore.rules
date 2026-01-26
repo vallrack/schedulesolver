@@ -64,5 +64,11 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin() || isSuperAdmin();
     }
+    
+    // Colección de Carreras (careers)
+    match /careers/{careerId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin() || isSuperAdmin();
+    }
   }
 }

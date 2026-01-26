@@ -1,5 +1,17 @@
 {
   "entities": {
+    "Career": {
+      "title": "Carrera",
+      "description": "Una carrera ofrecida por la institución.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "El nombre completo de la carrera."
+        }
+      },
+      "required": ["name"]
+    },
     "User": {
       "title": "User",
       "description": "A user of the application, with roles.",
@@ -187,6 +199,10 @@
     "/schedules/{scheduleId}": {
       "schema": { "$ref": "#/entities/ScheduleEvent" },
       "description": "Stores individual schedule events. Spanish: Horarios"
+    },
+    "/careers/{careerId}": {
+      "schema": { "$ref": "#/entities/Career" },
+      "description": "Stores career information. Spanish: Carreras"
     }
   }
 }

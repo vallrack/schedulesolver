@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import type { Subject } from '@/lib/types';
+import type { Career, Subject } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection, doc, setDoc } from 'firebase/firestore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useEffect } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const courseSchema = z.object({
   name: z.string().min(1, { message: 'El nombre es obligatorio.' }),
@@ -40,10 +41,11 @@ type CourseFormValues = z.infer<typeof courseSchema>;
 
 interface CourseFormProps {
   subject?: Subject;
+  careers: Career[];
   onSuccess: () => void;
 }
 
-export function CourseForm({ subject, onSuccess }: CourseFormProps) {
+export function CourseForm({ subject, careers, onSuccess }: CourseFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -141,7 +143,18 @@ export function CourseForm({ subject, onSuccess }: CourseFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Carrera</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecciona una carrera" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {careers.map(career => (
+                                <SelectItem key={career.id} value={career.name}>{career.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                   <FormMessage />
                 </FormItem>
               )}

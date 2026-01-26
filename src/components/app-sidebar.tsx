@@ -2,11 +2,12 @@
 import { usePathname } from 'next/navigation';
 import { SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import AppLogo from '@/components/app-logo';
-import { LayoutDashboard, Users, Book, School, Puzzle } from 'lucide-react';
+import { LayoutDashboard, Users, Book, School, Puzzle, GraduationCap } from 'lucide-react';
 
 const menuItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/teachers', label: 'Docentes', icon: Users },
+    { href: '/careers', label: 'Carreras', icon: GraduationCap },
     { href: '/courses', label: 'Módulos', icon: Book },
     { href: '/classrooms', label: 'Aulas', icon: School },
     { href: '/conflict-analyzer', label: 'Analizador de Conflictos', icon: Puzzle },

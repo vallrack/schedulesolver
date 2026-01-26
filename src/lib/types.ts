@@ -47,3 +47,8 @@ export type ScheduleEvent = {
   startWeek: number;
   endWeek: number;
 };
+
+export type Career = {
+  id: string;
+  name: string;
+};

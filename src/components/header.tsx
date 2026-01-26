@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 const titleMap: { [key: string]: string } = {
   '/dashboard': 'Dashboard',
   '/teachers': 'Gestión de Docentes',
+  '/careers': 'Gestión de Carreras',
   '/courses': 'Catálogo de Módulos',
   '/classrooms': 'Gestión de Infraestructura',
   '/conflict-analyzer': 'Analizador de Conflictos con IA',

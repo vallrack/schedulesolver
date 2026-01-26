@@ -17,56 +17,47 @@ import { useCollection } from "@/firebase/firestore/use-collection"
 import { useFirestore } from "@/firebase"
 import { collection, deleteDoc, doc } from "firebase/firestore"
 import AppLayout from "@/components/app-layout"
-import type { Career, Subject } from "@/lib/types";
+import type { Career } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { CourseForm } from "@/components/courses/course-form";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { CareerForm } from "@/components/careers/career-form";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 
 
-export default function CoursesPage() {
+export default function CareersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingSubject, setEditingSubject] = useState<Subject | undefined>(undefined);
-
-  const subjectsCollection = useMemo(() => firestore ? collection(firestore, 'subjects') : null, [firestore]);
-  const { data: subjects, loading: loadingSubjects, error: errorSubjects } = useCollection<Subject>(subjectsCollection);
+  const [editingCareer, setEditingCareer] = useState<Career | undefined>(undefined);
 
   const careersCollection = useMemo(() => firestore ? collection(firestore, 'careers') : null, [firestore]);
-  const { data: careers, loading: loadingCareers, error: errorCareers } = useCollection<Career>(careersCollection);
-
-  const loading = loadingSubjects || loadingCareers;
-  const error = errorSubjects || errorCareers;
-
+  const { data: careers, loading, error } = useCollection<Career>(careersCollection);
 
   const handleAddNew = () => {
-    setEditingSubject(undefined);
+    setEditingCareer(undefined);
     setDialogOpen(true);
   };
 
-  const handleEdit = (subject: Subject) => {
-    setEditingSubject(subject);
+  const handleEdit = (career: Career) => {
+    setEditingCareer(career);
     setDialogOpen(true);
   };
 
-  const handleDelete = (subjectId: string) => {
+  const handleDelete = (careerId: string) => {
     if (!firestore) return;
-    const subjectRef = doc(firestore, 'subjects', subjectId);
-    deleteDoc(subjectRef).catch(async (serverError) => {
+    const careerRef = doc(firestore, 'careers', careerId);
+    deleteDoc(careerRef).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
-            path: subjectRef.path,
+            path: careerRef.path,
             operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
     });
     toast({
       variant: 'destructive',
-      title: 'Módulo Eliminado',
-      description: `El módulo ha sido eliminado permanentemente.`,
+      title: 'Carrera Eliminada',
+      description: `La carrera ha sido eliminada permanentemente.`,
     });
   };
 
@@ -74,24 +65,23 @@ export default function CoursesPage() {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold font-headline tracking-tight">Catálogo de Módulos</h1>
+            <h1 className="text-3xl font-bold font-headline tracking-tight">Gestión de Carreras</h1>
             <Button onClick={handleAddNew}>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Añadir Módulo
+                Añadir Carrera
             </Button>
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogContent className="sm:max-w-xl">
+            <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>{editingSubject ? 'Editar Módulo' : 'Añadir Nuevo Módulo'}</DialogTitle>
+                    <DialogTitle>{editingCareer ? 'Editar Carrera' : 'Añadir Nueva Carrera'}</DialogTitle>
                     <DialogDescription>
-                       {editingSubject ? 'Actualiza los detalles del módulo.' : 'Rellena los detalles para el nuevo módulo.'}
+                       {editingCareer ? 'Actualiza el nombre de la carrera.' : 'Añade una nueva carrera al sistema.'}
                     </DialogDescription>
                 </DialogHeader>
-                <CourseForm 
-                    subject={editingSubject} 
-                    careers={careers || []}
+                <CareerForm
+                    career={editingCareer} 
                     onSuccess={() => setDialogOpen(false)} 
                 />
             </DialogContent>
@@ -100,34 +90,24 @@ export default function CoursesPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Módulos Disponibles</CardTitle>
-            <CardDescription>Gestiona los detalles de los módulos, incluyendo duración, fechas y carga horaria.</CardDescription>
+            <CardTitle>Carreras Ofrecidas</CardTitle>
+            <CardDescription>Gestiona las carreras disponibles en la institución.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead className="hidden lg:table-cell">Descripción</TableHead>
-                  <TableHead className="hidden sm:table-cell">Carrera</TableHead>
-                  <TableHead>Semanas</TableHead>
-                  <TableHead className="hidden md:table-cell">Fecha Inicio</TableHead>
-                  <TableHead className="hidden md:table-cell">Fecha Fin</TableHead>
+                  <TableHead>Nombre de la Carrera</TableHead>
                   <TableHead><span className="sr-only">Acciones</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading && <TableRow><TableCell colSpan={7} className="text-center">Cargando...</TableCell></TableRow>}
-                {error && <TableRow><TableCell colSpan={7} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
-                {subjects?.map(subject => (
-                  <TableRow key={subject.id}>
-                    <TableCell className="font-medium">{subject.name}</TableCell>
-                    <TableCell className="hidden lg:table-cell max-w-xs truncate">{subject.description}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{subject.career}</TableCell>
-                    <TableCell>{subject.durationWeeks}</TableCell>
-                    <TableCell className="hidden md:table-cell">{format(new Date(subject.startDate), "d MMM, yyyy", { locale: es })}</TableCell>
-                    <TableCell className="hidden md:table-cell">{format(new Date(subject.endDate), "d MMM, yyyy", { locale: es })}</TableCell>
-                    <TableCell>
+                {loading && <TableRow><TableCell colSpan={2} className="text-center">Cargando...</TableCell></TableRow>}
+                {error && <TableRow><TableCell colSpan={2} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
+                {careers?.map(career => (
+                  <TableRow key={career.id}>
+                    <TableCell className="font-medium">{career.name}</TableCell>
+                    <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
@@ -137,7 +117,7 @@ export default function CoursesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEdit(subject)}>Editar Módulo</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEdit(career)}>Editar Carrera</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -150,12 +130,12 @@ export default function CoursesPage() {
                                   <AlertDialogHeader>
                                       <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
                                       <AlertDialogDescription>
-                                          Esta acción no se puede deshacer. Esto eliminará permanentemente el módulo.
+                                          Esta acción no se puede deshacer. Esto eliminará permanentemente la carrera.
                                       </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDelete(subject.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                      <AlertDialogAction onClick={() => handleDelete(career.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
                                   </AlertDialogFooter>
                               </AlertDialogContent>
                           </AlertDialog>
