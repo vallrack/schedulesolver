@@ -5,6 +5,8 @@ import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar'
 import AppSidebar from '@/components/app-sidebar';
 import Header from '@/components/header';
 import React from 'react';
+import { FirebaseProvider } from '@/firebase/provider';
+import FirebaseErrorListener from '@/components/FirebaseErrorListener';
 
 export const metadata: Metadata = {
   title: 'Schedulesolver',
@@ -25,18 +27,21 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased bg-background">
-        <SidebarProvider>
-            <Sidebar>
-                <AppSidebar />
-            </Sidebar>
-            <SidebarInset>
-                <Header />
-                <div className="p-4 sm:p-6 lg:p-8">
-                    {children}
-                </div>
-            </SidebarInset>
-        </SidebarProvider>
-        <Toaster />
+        <FirebaseProvider>
+          <SidebarProvider>
+              <Sidebar>
+                  <AppSidebar />
+              </Sidebar>
+              <SidebarInset>
+                  <Header />
+                  <div className="p-4 sm:p-6 lg:p-8">
+                      {children}
+                  </div>
+              </SidebarInset>
+          </SidebarProvider>
+          <Toaster />
+          <FirebaseErrorListener />
+        </FirebaseProvider>
       </body>
     </html>
   );

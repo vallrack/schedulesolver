@@ -7,10 +7,9 @@ import { Label } from '@/components/ui/label';
 import { identifyScheduleConflicts } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, AlertTriangle, CheckCircle, Lightbulb, Puzzle } from 'lucide-react';
-import { mockScheduleEvents } from '@/lib/mock-data';
 
 export default function ConflictAnalyzerPage() {
-    const [scheduleData, setScheduleData] = useState(JSON.stringify(mockScheduleEvents, null, 2));
+    const [scheduleData, setScheduleData] = useState("");
     const [constraints, setConstraints] = useState(JSON.stringify({
         "teacherClash": "high",
         "classroomClash": "high",
@@ -51,7 +50,7 @@ export default function ConflictAnalyzerPage() {
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="schedule-data">Schedule Data (JSON)</Label>
-                            <Textarea id="schedule-data" value={scheduleData} onChange={e => setScheduleData(e.target.value)} rows={15} className="font-code text-xs" />
+                            <Textarea id="schedule-data" value={scheduleData} onChange={e => setScheduleData(e.target.value)} rows={15} className="font-code text-xs" placeholder="Paste schedule JSON here..."/>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="constraints-data">Constraint Priorities (JSON)</Label>
@@ -59,7 +58,7 @@ export default function ConflictAnalyzerPage() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <Button onClick={handleAnalyze} disabled={isLoading}>
+                        <Button onClick={handleAnalyze} disabled={isLoading || !scheduleData}>
                             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Puzzle className="mr-2 h-4 w-4" />}
                             Analyze for Conflicts
                         </Button>

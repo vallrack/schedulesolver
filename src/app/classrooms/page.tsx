@@ -4,7 +4,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, PlusCircle } from "lucide-react"
-import { mockClassrooms } from "@/lib/mock-data"
 import {
   Dialog,
   DialogContent,
@@ -15,8 +14,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
+import { useCollection } from "@/firebase/firestore/use-collection"
+import { useFirestore } from "@/firebase"
+import { useMemo } from "react"
+import { collection } from "firebase/firestore"
 
 export default function ClassroomsPage() {
+  const firestore = useFirestore();
+  const classroomsCollection = useMemo(() => firestore ? collection(firestore, 'classrooms') : null, [firestore]);
+  const { data: classrooms, loading, error } = useCollection(classroomsCollection);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -60,7 +67,9 @@ export default function ClassroomsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockClassrooms.map(classroom => (
+              {loading && <TableRow><TableCell colSpan={4} className="text-center">Loading...</TableCell></TableRow>}
+              {error && <TableRow><TableCell colSpan={4} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
+              {classrooms?.map(classroom => (
                 <TableRow key={classroom.id}>
                   <TableCell className="font-medium">{classroom.name}</TableCell>
                   <TableCell><Badge variant={classroom.type === 'lab' ? 'default' : 'secondary'}>{classroom.type}</Badge></TableCell>

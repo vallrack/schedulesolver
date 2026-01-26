@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, PlusCircle } from "lucide-react"
-import { mockTeachers, mockCourses } from "@/lib/mock-data"
 import {
   Dialog,
   DialogContent,
@@ -15,8 +14,24 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { useCollection } from "@/firebase/firestore/use-collection"
+import { useFirestore } from "@/firebase"
+import { useMemo } from "react"
+import { collection } from "firebase/firestore"
+import type { Course } from "@/lib/types"
 
 export default function TeachersPage() {
+  const firestore = useFirestore();
+  
+  const teachersCollection = useMemo(() => firestore ? collection(firestore, 'teachers') : null, [firestore]);
+  const { data: teachers, loading: loadingTeachers, error: errorTeachers } = useCollection(teachersCollection);
+
+  const coursesCollection = useMemo(() => firestore ? collection(firestore, 'courses') : null, [firestore]);
+  const { data: courses, loading: loadingCourses, error: errorCourses } = useCollection<Course>(coursesCollection);
+
+  const loading = loadingTeachers || loadingCourses;
+  const error = errorTeachers || errorCourses;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -61,15 +76,17 @@ export default function TeachersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockTeachers.map(teacher => (
+              {loading && <TableRow><TableCell colSpan={5} className="text-center">Loading...</TableCell></TableRow>}
+              {error && <TableRow><TableCell colSpan={5} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
+              {teachers?.map(teacher => (
                 <TableRow key={teacher.id}>
                   <TableCell className="font-medium">{teacher.name}</TableCell>
                   <TableCell className="hidden md:table-cell">{teacher.email}</TableCell>
                   <TableCell className="hidden sm:table-cell">{teacher.maxWeeklyHours}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {teacher.specialties.map(specId => {
-                        const course = mockCourses.find(c => c.id === specId);
+                      {teacher.specialties?.map((specId: string) => {
+                        const course = courses?.find(c => c.id === specId);
                         return <Badge key={specId} variant="secondary">{course?.name ?? 'Unknown'}</Badge>;
                       })}
                     </div>

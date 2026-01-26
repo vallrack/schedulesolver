@@ -1,0 +1,132 @@
+{
+  "entities": {
+    "Teacher": {
+      "title": "Teacher",
+      "description": "A teacher in the institution.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The full name of the teacher."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The teacher's email address."
+        },
+        "maxWeeklyHours": {
+          "type": "number",
+          "description": "The maximum number of hours the teacher can work in a week."
+        },
+        "specialties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "An array of course IDs that the teacher specializes in."
+        },
+        "availability": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "day": { "type": "string" },
+              "startTime": { "type": "string" },
+              "endTime": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["name", "email"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "A course offered by the institution.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the course."
+        },
+        "durationWeeks": {
+          "type": "number",
+          "description": "The duration of the course in weeks."
+        },
+        "totalHours": {
+          "type": "number",
+          "description": "The total hours for the course."
+        },
+        "career": {
+          "type": "string",
+          "description": "The career path this course belongs to."
+        },
+        "semester": {
+          "type": "number",
+          "description": "The semester in which the course is offered."
+        },
+        "group": {
+          "type": "string",
+          "description": "The student group for this course."
+        }
+      },
+      "required": ["name", "durationWeeks", "totalHours", "career", "semester", "group"]
+    },
+    "Classroom": {
+      "title": "Classroom",
+      "description": "A classroom or lab in the institution.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name or number of the classroom."
+        },
+        "capacity": {
+          "type": "number",
+          "description": "The maximum capacity of the classroom."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["classroom", "lab"]
+        }
+      },
+      "required": ["name", "capacity", "type"]
+    },
+    "ScheduleEvent": {
+      "title": "Schedule Event",
+      "description": "An event in the schedule.",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "classroomId": { "type": "string" },
+        "day": { "type": "string" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "startWeek": { "type": "number" },
+        "endWeek": { "type": "number" }
+      },
+      "required": ["courseId", "teacherId", "classroomId", "day", "startTime", "endTime", "startWeek", "endWeek"]
+    }
+  },
+  "auth": {
+    "providers": []
+  },
+  "firestore": {
+    "/teachers/{teacherId}": {
+      "schema": { "$ref": "#/entities/Teacher" },
+      "description": "Stores teacher profiles."
+    },
+    "/courses/{courseId}": {
+      "schema": { "$ref": "#/entities/Course" },
+      "description": "Stores course information."
+    },
+    "/classrooms/{classroomId}": {
+      "schema": { "$ref": "#/entities/Classroom" },
+      "description": "Stores classroom information."
+    },
+    "/scheduleEvents/{scheduleEventId}": {
+      "schema": { "$ref": "#/entities/ScheduleEvent" },
+      "description": "Stores individual schedule events."
+    }
+  }
+}

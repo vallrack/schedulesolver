@@ -4,7 +4,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, PlusCircle } from "lucide-react"
-import { mockCourses } from "@/lib/mock-data"
 import {
   Dialog,
   DialogContent,
@@ -14,8 +13,16 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { useCollection } from "@/firebase/firestore/use-collection"
+import { useFirestore } from "@/firebase"
+import { useMemo } from "react"
+import { collection } from "firebase/firestore"
 
 export default function CoursesPage() {
+  const firestore = useFirestore();
+  const coursesCollection = useMemo(() => firestore ? collection(firestore, 'courses') : null, [firestore]);
+  const { data: courses, loading, error } = useCollection(coursesCollection);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -61,7 +68,9 @@ export default function CoursesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockCourses.map(course => (
+              {loading && <TableRow><TableCell colSpan={6} className="text-center">Loading...</TableCell></TableRow>}
+              {error && <TableRow><TableCell colSpan={6} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
+              {courses?.map(course => (
                 <TableRow key={course.id}>
                   <TableCell className="font-medium">{course.name}</TableCell>
                   <TableCell>{course.career}</TableCell>

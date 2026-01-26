@@ -4,7 +4,6 @@ import React from 'react';
 import type { ScheduleEvent, Teacher, Course, Classroom } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from '@/lib/utils';
-import { mockTeachers, mockClassrooms } from '@/lib/mock-data';
 
 const WEEKS = Array.from({ length: 20 }, (_, i) => i + 1); // 20 week semester
 
@@ -15,6 +14,8 @@ interface GanttChartProps {
     viewMode: ViewMode;
     resources: (Teacher | Course | Classroom)[];
     courses: Course[];
+    teachers: Teacher[];
+    classrooms: Classroom[];
 }
 
 const getResourceName = (resource: Teacher | Course | Classroom, viewMode: ViewMode) => {
@@ -44,9 +45,9 @@ const getEventResourceId = (event: ScheduleEvent, viewMode: ViewMode, courses: C
     return 'unknown';
 }
 
-const EventPopoverContent = ({ event, course }: { event: ScheduleEvent; course?: Course }) => {
-    const teacher = mockTeachers.find(t => t.id === event.teacherId);
-    const classroom = mockClassrooms.find(c => c.id === event.classroomId);
+const EventPopoverContent = ({ event, course, teachers, classrooms }: { event: ScheduleEvent; course?: Course, teachers: Teacher[], classrooms: Classroom[] }) => {
+    const teacher = teachers.find(t => t.id === event.teacherId);
+    const classroom = classrooms.find(c => c.id === event.classroomId);
 
     return (
         <div className="p-4 space-y-2 text-sm">
@@ -59,7 +60,7 @@ const EventPopoverContent = ({ event, course }: { event: ScheduleEvent; course?:
     )
 }
 
-export function GanttChart({ scheduleEvents, viewMode, resources, courses }: GanttChartProps) {
+export function GanttChart({ scheduleEvents, viewMode, resources, courses, teachers, classrooms }: GanttChartProps) {
     const colors = ['bg-accent/30 text-accent-foreground', 'bg-blue-200 text-blue-800', 'bg-green-200 text-green-800', 'bg-purple-200 text-purple-800', 'bg-yellow-200 text-yellow-800', 'bg-indigo-200 text-indigo-800'];
 
     return (
@@ -102,7 +103,7 @@ export function GanttChart({ scheduleEvents, viewMode, resources, courses }: Gan
                                                 </div>
                                             </PopoverTrigger>
                                             <PopoverContent>
-                                                <EventPopoverContent event={event} course={course} />
+                                                <EventPopoverContent event={event} course={course} teachers={teachers} classrooms={classrooms} />
                                             </PopoverContent>
                                         </Popover>
                                     );
