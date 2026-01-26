@@ -165,13 +165,14 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                     <PopoverContent 
                       className="w-[--radix-popover-trigger-width] p-0"
                       onOpenAutoFocus={(e) => e.preventDefault()}
-                    >
-                      <div onPointerDownOutside={(e) => {
+                      onPointerDownOutside={(e) => {
                         const target = e.target as HTMLElement;
                         if (target.closest('[role="combobox"]')) {
                           e.preventDefault();
                         }
-                      }}>
+                      }}
+                    >
+                      <div>
                         <Input 
                           placeholder="Buscar módulo..."
                           className="h-9 rounded-b-none border-0 focus-visible:ring-0"
@@ -245,13 +246,14 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                     <PopoverContent 
                       className="w-[--radix-popover-trigger-width] p-0"
                       onOpenAutoFocus={(e) => e.preventDefault()}
-                    >
-                      <div onPointerDownOutside={(e) => {
+                       onPointerDownOutside={(e) => {
                         const target = e.target as HTMLElement;
                         if (target.closest('[role="combobox"]')) {
                           e.preventDefault();
                         }
-                      }}>
+                      }}
+                    >
+                      <div>
                         <Input 
                             placeholder="Buscar grupo..."
                             className="h-9 rounded-b-none border-0 focus-visible:ring-0"
