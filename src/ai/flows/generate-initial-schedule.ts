@@ -49,6 +49,7 @@ Classrooms: {{{classrooms}}}
 Constraints: {{{constraints}}}
 
 Generate the schedule in JSON format and provide an explanation of how you generated the schedule.
+The 'schedule' property in your output JSON must be a JSON string representing an array of event objects. Each event object must have the following properties: subjectId (string), teacherId (string), classroomId (string), day (string, e.g., 'Lunes'), startTime (string, 'HH:MM'), endTime (string, 'HH:MM'), startWeek (number), and endWeek (number).
 
 {{# each constraints }}
   - {{{this}}}

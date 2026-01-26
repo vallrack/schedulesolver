@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { ScheduleEvent, Teacher, Subject, Classroom, Group, Career } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection } from 'firebase/firestore';
+import { collection, writeBatch, getDocs, doc } from 'firebase/firestore';
 import { ScheduleCalendar } from './schedule-calendar';
 
 
@@ -76,6 +76,15 @@ export default function ScheduleView() {
 
 
   const handleGenerateSchedule = async () => {
+    if (!firestore || !schedulesCollection) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'La base de datos no está disponible. Inténtalo de nuevo.',
+        });
+        return;
+    }
+
     setIsGenerating(true);
     try {
       const result = await generateInitialSchedule({
@@ -91,18 +100,37 @@ export default function ScheduleView() {
           'Preferir turnos de mañana/tarde cuando sea posible.',
         ]),
       });
-      // This is a placeholder, you should save the generated schedule to Firestore
-      // For now, it just updates the local state.
-      setSchedule(JSON.parse(result.schedule));
-      toast({
-        title: 'Horario Generado',
-        description: 'Se ha generado con éxito un nuevo horario base.',
+      
+      const newScheduleEvents = JSON.parse(result.schedule);
+
+      if (!Array.isArray(newScheduleEvents)) {
+          throw new Error("La IA no devolvió un formato de horario válido.");
+      }
+
+      const batch = writeBatch(firestore);
+
+      const existingSchedulesSnap = await getDocs(schedulesCollection);
+      existingSchedulesSnap.forEach(document => {
+          batch.delete(document.ref);
       });
-    } catch (error) {
+
+      newScheduleEvents.forEach(event => {
+          const newEventRef = doc(schedulesCollection);
+          batch.set(newEventRef, event);
+      });
+
+      await batch.commit();
+
+      toast({
+        title: 'Horario Generado y Guardado',
+        description: 'Se ha generado con éxito un nuevo horario y se ha guardado en la base de datos.',
+      });
+    } catch (error: any) {
+      console.error("Error generating schedule:", error);
       toast({
         variant: 'destructive',
         title: 'Error al Generar Horario',
-        description: 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.',
+        description: error.message || 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.',
       });
     } finally {
       setIsGenerating(false);
