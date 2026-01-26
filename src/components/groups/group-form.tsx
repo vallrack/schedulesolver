@@ -36,16 +36,32 @@ export function GroupForm({ group, careers, onSuccess }: GroupFormProps) {
 
   const form = useForm<GroupFormValues>({
     resolver: zodResolver(groupSchema),
-    defaultValues: group || { name: '', careerId: '', semester: 1, studentCount: 20 },
+    defaultValues: {
+      name: '',
+      careerId: '',
+      semester: 1,
+      studentCount: 20,
+    },
   });
 
+  const { reset } = form;
   useEffect(() => {
     if (group) {
-        form.reset(group);
+        reset({
+            name: group.name || '',
+            careerId: group.careerId || '',
+            semester: group.semester || 1,
+            studentCount: group.studentCount || 20,
+        });
     } else {
-        form.reset({ name: '', careerId: '', semester: 1, studentCount: 20 });
+        reset({
+            name: '',
+            careerId: '',
+            semester: 1,
+            studentCount: 20
+        });
     }
-  }, [group, form]);
+  }, [group, reset]);
 
   const onSubmit = async (data: GroupFormValues) => {
     if (!firestore) return;
@@ -82,7 +98,7 @@ export function GroupForm({ group, careers, onSuccess }: GroupFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Carrera</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                         <SelectTrigger>
                             <SelectValue placeholder="Selecciona una carrera" />
