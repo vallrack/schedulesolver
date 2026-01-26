@@ -1,0 +1,69 @@
+'use server';
+
+/**
+ * @fileOverview Flow for generating an initial schedule based on defined constraints.
+ *
+ * - generateInitialSchedule - A function that generates an initial schedule.
+ * - GenerateInitialScheduleInput - The input type for the generateInitialSchedule function.
+ * - GenerateInitialScheduleOutput - The return type for the generateInitialSchedule function.
+ */
+
+import {ai} from '@/ai/genkit';
+import {z} from 'genkit';
+
+const GenerateInitialScheduleInputSchema = z.object({
+  courses: z.string().describe('A list of courses to schedule.'),
+  teachers: z.string().describe('A list of teachers and their availability.'),
+  classrooms: z.string().describe('A list of classrooms and their capacity.'),
+  constraints: z.string().describe('A list of hard and soft constraints to consider.'),
+});
+
+export type GenerateInitialScheduleInput = z.infer<
+  typeof GenerateInitialScheduleInputSchema
+>;
+
+const GenerateInitialScheduleOutputSchema = z.object({
+  schedule: z.string().describe('The generated schedule in JSON format.'),
+  explanation: z.string().describe('An explanation of how the schedule was generated.'),
+});
+
+export type GenerateInitialScheduleOutput = z.infer<
+  typeof GenerateInitialScheduleOutputSchema
+>;
+
+export async function generateInitialSchedule(
+  input: GenerateInitialScheduleInput
+): Promise<GenerateInitialScheduleOutput> {
+  return generateInitialScheduleFlow(input);
+}
+
+const generateInitialSchedulePrompt = ai.definePrompt({
+  name: 'generateInitialSchedulePrompt',
+  input: {schema: GenerateInitialScheduleInputSchema},
+  output: {schema: GenerateInitialScheduleOutputSchema},
+  prompt: `You are a schedule generator. You will be given a list of courses, teachers, classrooms, and constraints. You will generate a schedule that satisfies the constraints.
+
+Courses: {{{courses}}}
+Teachers: {{{teachers}}}
+Classrooms: {{{classrooms}}}
+Constraints: {{{constraints}}}
+
+Generate the schedule in JSON format and provide an explanation of how you generated the schedule.
+
+{{# each constraints }}
+  - {{{this}}}
+{{/each}}
+`,
+});
+
+const generateInitialScheduleFlow = ai.defineFlow(
+  {
+    name: 'generateInitialScheduleFlow',
+    inputSchema: GenerateInitialScheduleInputSchema,
+    outputSchema: GenerateInitialScheduleOutputSchema,
+  },
+  async input => {
+    const {output} = await generateInitialSchedulePrompt(input);
+    return output!;
+  }
+);
