@@ -119,9 +119,13 @@
         "description": {
           "type": "string",
           "description": "Una descripción detallada del módulo."
+        },
+        "totalHours": {
+          "type": "number",
+          "description": "La cantidad total de horas que dura el módulo."
         }
       },
-      "required": [ "name" ]
+      "required": [ "name", "description", "totalHours" ]
     },
     "Course": {
       "title": "Curso Programado",

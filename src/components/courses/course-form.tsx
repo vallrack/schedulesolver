@@ -125,7 +125,13 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Módulo</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={(value) => {
+                        field.onChange(value);
+                        const selectedModule = modules.find(m => m.id === value);
+                        if (selectedModule) {
+                            form.setValue('totalHours', selectedModule.totalHours, { shouldValidate: true });
+                        }
+                    }} defaultValue={field.value}>
                         <FormControl>
                             <SelectTrigger>
                                 <SelectValue placeholder="Selecciona un módulo" />

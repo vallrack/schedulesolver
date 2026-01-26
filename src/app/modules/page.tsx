@@ -100,16 +100,18 @@ export default function ModulesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Descripción</TableHead>
+                  <TableHead className="hidden sm:table-cell">Horas</TableHead>
+                  <TableHead className="hidden lg:table-cell">Descripción</TableHead>
                   <TableHead><span className="sr-only">Acciones</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading && <TableRow><TableCell colSpan={3} className="text-center">Cargando...</TableCell></TableRow>}
-                {error && <TableRow><TableCell colSpan={3} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
+                {loading && <TableRow><TableCell colSpan={4} className="text-center">Cargando...</TableCell></TableRow>}
+                {error && <TableRow><TableCell colSpan={4} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
                 {modules?.map(module => (
                   <TableRow key={module.id}>
                     <TableCell className="font-medium">{module.name}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{module.totalHours}</TableCell>
                     <TableCell className="hidden lg:table-cell max-w-xs truncate">{module.description}</TableCell>
                     <TableCell>
                       <DropdownMenu>

@@ -18,6 +18,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 const moduleSchema = z.object({
   name: z.string().min(1, { message: 'El nombre es obligatorio.' }),
   description: z.string().min(1, { message: 'La descripción es obligatoria.' }),
+  totalHours: z.coerce.number().min(1, 'Las horas deben ser mayor a 0.'),
 });
 
 type ModuleFormValues = z.infer<typeof moduleSchema>;
@@ -35,9 +36,11 @@ export function ModuleForm({ module, onSuccess }: ModuleFormProps) {
     return module ? {
       name: module.name,
       description: module.description,
+      totalHours: module.totalHours,
     } : {
       name: '',
       description: '',
+      totalHours: 40,
     }
   }, [module]);
 
@@ -55,6 +58,7 @@ export function ModuleForm({ module, onSuccess }: ModuleFormProps) {
     const moduleData = { 
         name: data.name,
         description: data.description,
+        totalHours: data.totalHours,
     };
 
     try {
@@ -83,17 +87,30 @@ export function ModuleForm({ module, onSuccess }: ModuleFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nombre del Módulo</FormLabel>
-              <FormControl><Input {...field} placeholder="Ej: Fundamentos de Programación" /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem className="sm:col-span-3">
+                <FormLabel>Nombre de la Materia o Módulo</FormLabel>
+                <FormControl><Input {...field} placeholder="Ej: Programación Orientada a Objetos" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="totalHours"
+            render={({ field }) => (
+              <FormItem className="sm:col-span-2">
+                <FormLabel>Horas Totales</FormLabel>
+                <FormControl><Input type="number" {...field} placeholder="Ej: 40" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
         <FormField
           control={form.control}
           name="description"

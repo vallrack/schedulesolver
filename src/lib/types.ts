@@ -28,6 +28,7 @@ export type Module = {
   id: string;
   name: string;
   description: string;
+  totalHours: number;
 }
 
 export type Course = {
