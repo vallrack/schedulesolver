@@ -18,8 +18,8 @@ import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 const classroomSchema = z.object({
   name: z.string().min(1, { message: 'El nombre es obligatorio.' }),
   capacity: z.coerce.number().min(1, 'La capacidad debe ser mayor a 0.'),
-  type: z.enum(['classroom', 'lab'], {
-    required_error: 'Debes seleccionar un tipo de aula.',
+  type: z.enum(['aula', 'sala de sistemas', 'auditorio'], {
+    required_error: 'Debes seleccionar un tipo de sala.',
   }),
 });
 
@@ -36,14 +36,14 @@ export function ClassroomForm({ classroom, onSuccess }: ClassroomFormProps) {
 
   const form = useForm<ClassroomFormValues>({
     resolver: zodResolver(classroomSchema),
-    defaultValues: classroom || { name: '', capacity: 1, type: 'classroom' },
+    defaultValues: classroom || { name: '', capacity: 1, type: 'aula' },
   });
 
   useEffect(() => {
     if (classroom) {
         form.reset(classroom);
     } else {
-        form.reset({ name: '', capacity: 20, type: 'classroom' });
+        form.reset({ name: '', capacity: 20, type: 'aula' });
     }
   }, [classroom, form]);
 
@@ -54,11 +54,11 @@ export function ClassroomForm({ classroom, onSuccess }: ClassroomFormProps) {
         if (classroom) {
           const classroomRef = doc(firestore, 'classrooms', classroom.id);
           await setDoc(classroomRef, data, { merge: true });
-          toast({ title: 'Aula Actualizada', description: `Se ha actualizado el aula ${data.name}.` });
+          toast({ title: 'Sala Actualizada', description: `Se ha actualizado la sala ${data.name}.` });
         } else {
           const collectionRef = collection(firestore, 'classrooms');
           await addDoc(collectionRef, data);
-          toast({ title: 'Aula Añadida', description: `Se ha añadido el aula ${data.name}.` });
+          toast({ title: 'Sala Añadida', description: `Se ha añadido la sala ${data.name}.` });
         }
         onSuccess();
     } catch (e) {
@@ -81,8 +81,8 @@ export function ClassroomForm({ classroom, onSuccess }: ClassroomFormProps) {
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nombre del Aula/Laboratorio</FormLabel>
-              <FormControl><Input {...field} placeholder="Ej: Aula 101, Lab de Sistemas" /></FormControl>
+              <FormLabel>Nombre de la Sala</FormLabel>
+              <FormControl><Input {...field} placeholder="Ej: Aula 101, Sala de Sistemas 1" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -108,19 +108,25 @@ export function ClassroomForm({ classroom, onSuccess }: ClassroomFormProps) {
                 <RadioGroup
                   onValueChange={field.onChange}
                   defaultValue={field.value}
-                  className="flex space-x-4"
+                  className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4"
                 >
                   <FormItem className="flex items-center space-x-2">
                     <FormControl>
-                      <RadioGroupItem value="classroom" />
+                      <RadioGroupItem value="aula" />
                     </FormControl>
                     <FormLabel className="font-normal">Aula</FormLabel>
                   </FormItem>
                   <FormItem className="flex items-center space-x-2">
                     <FormControl>
-                      <RadioGroupItem value="lab" />
+                      <RadioGroupItem value="sala de sistemas" />
                     </FormControl>
-                    <FormLabel className="font-normal">Laboratorio</FormLabel>
+                    <FormLabel className="font-normal">Sala de Sistemas</FormLabel>
+                  </FormItem>
+                   <FormItem className="flex items-center space-x-2">
+                    <FormControl>
+                      <RadioGroupItem value="auditorio" />
+                    </FormControl>
+                    <FormLabel className="font-normal">Auditorio</FormLabel>
                   </FormItem>
                 </RadioGroup>
               </FormControl>
@@ -130,7 +136,7 @@ export function ClassroomForm({ classroom, onSuccess }: ClassroomFormProps) {
         />
 
         <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
-          {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Aula'}
+          {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Sala'}
         </Button>
       </form>
     </Form>

@@ -170,7 +170,7 @@
     },
     "Classroom": {
       "title": "Classroom",
-      "description": "A classroom or lab in the institution.",
+      "description": "Un aula, sala de sistemas o auditorio en la institución.",
       "type": "object",
       "properties": {
         "name": {
@@ -183,7 +183,7 @@
         },
         "type": {
           "type": "string",
-          "enum": ["classroom", "lab"]
+          "enum": ["aula", "sala de sistemas", "auditorio"]
         }
       },
       "required": ["name", "capacity", "type"]

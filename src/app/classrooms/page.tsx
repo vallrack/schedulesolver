@@ -88,8 +88,8 @@ export default function ClassroomsPage() {
       await deleteDoc(classroomRef);
       toast({
         variant: 'destructive',
-        title: 'Aula Eliminada',
-        description: `El aula ha sido eliminada.`,
+        title: 'Sala Eliminada',
+        description: `La sala ha sido eliminada.`,
       });
     } catch (e) {
       const permissionError = new FirestorePermissionError({
@@ -97,6 +97,18 @@ export default function ClassroomsPage() {
         operation: 'delete',
       });
       errorEmitter.emit('permission-error', permissionError);
+    }
+  };
+
+  const getTypeBadgeVariant = (type: Classroom['type']): 'default' | 'secondary' | 'outline' | 'destructive' | null | undefined => {
+    switch (type) {
+        case 'sala de sistemas':
+            return 'default';
+        case 'auditorio':
+            return 'outline';
+        case 'aula':
+        default:
+            return 'secondary';
     }
   };
 
@@ -108,16 +120,16 @@ export default function ClassroomsPage() {
             <h1 className="text-3xl font-bold font-headline tracking-tight">Gestión de Infraestructura</h1>
              <Button onClick={handleAddNew}>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Añadir Aula
+                Añadir Sala
             </Button>
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>{editingClassroom ? 'Editar Aula' : 'Añadir Nueva Aula'}</DialogTitle>
+                    <DialogTitle>{editingClassroom ? 'Editar Sala' : 'Añadir Nueva Sala'}</DialogTitle>
                     <DialogDescription>
-                       {editingClassroom ? 'Actualiza los detalles del aula.' : 'Añade una nueva aula o laboratorio al sistema.'}
+                       {editingClassroom ? 'Actualiza los detalles de la sala.' : 'Añade una nueva sala, aula o auditorio al sistema.'}
                     </DialogDescription>
                 </DialogHeader>
                 <ClassroomForm
@@ -130,7 +142,7 @@ export default function ClassroomsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Aulas y Laboratorios</CardTitle>
+            <CardTitle>Aulas, Salas y Auditorios</CardTitle>
             <CardDescription>Gestiona todas las salas disponibles y sus capacidades.</CardDescription>
             <div className="pt-4">
               <Input 
@@ -172,7 +184,7 @@ export default function ClassroomsPage() {
                 {sortedClassrooms?.map(classroom => (
                   <TableRow key={classroom.id}>
                     <TableCell className="font-medium">{classroom.name}</TableCell>
-                    <TableCell><Badge variant={classroom.type === 'lab' ? 'default' : 'secondary'}>{classroom.type}</Badge></TableCell>
+                    <TableCell><Badge variant={getTypeBadgeVariant(classroom.type)}>{classroom.type}</Badge></TableCell>
                     <TableCell>{classroom.capacity}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
@@ -184,7 +196,7 @@ export default function ClassroomsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEdit(classroom)}>Editar Aula</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEdit(classroom)}>Editar Sala</DropdownMenuItem>
                           <DropdownMenuSeparator />
                            <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -197,7 +209,7 @@ export default function ClassroomsPage() {
                                   <AlertDialogHeader>
                                       <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
                                       <AlertDialogDescription>
-                                          Esta acción no se puede deshacer. Esto eliminará permanentemente el aula.
+                                          Esta acción no se puede deshacer. Esto eliminará permanentemente la sala.
                                       </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
