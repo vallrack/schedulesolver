@@ -326,7 +326,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Fecha de Inicio</FormLabel>
-                <Popover>
+                <Popover modal={true}>
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
@@ -346,15 +346,18 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                     </FormControl>
                   </PopoverTrigger>
                   <PopoverContent 
-                    className="w-auto p-0 z-[100]" 
+                    className="w-auto p-0" 
                     align="start"
-                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    style={{ zIndex: 9999 }}
                   >
                     <Calendar
                       mode="single"
                       selected={field.value}
-                      onSelect={field.onChange}
+                      onSelect={(date) => {
+                        field.onChange(date);
+                      }}
                       disabled={(date) => date < new Date("1900-01-01")}
+                      initialFocus
                     />
                   </PopoverContent>
                 </Popover>
@@ -368,7 +371,7 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Fecha de Fin</FormLabel>
-                <Popover>
+                <Popover modal={true}>
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
@@ -388,15 +391,18 @@ export function CourseForm({ course, modules, groups, careers, onSuccess }: Cour
                     </FormControl>
                   </PopoverTrigger>
                   <PopoverContent 
-                    className="w-auto p-0 z-[100]" 
+                    className="w-auto p-0" 
                     align="start"
-                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    style={{ zIndex: 9999 }}
                   >
                     <Calendar
                       mode="single"
                       selected={field.value}
-                      onSelect={field.onChange}
+                      onSelect={(date) => {
+                        field.onChange(date);
+                      }}
                       disabled={(date) => date < (form.getValues("startDate") || new Date("1900-01-01"))}
+                      initialFocus
                     />
                   </PopoverContent>
                 </Popover>
