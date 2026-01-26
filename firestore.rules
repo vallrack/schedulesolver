@@ -9,49 +9,60 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Función para obtener los datos del usuario. El `get` se evalúa con los permisos del solicitante.
+    // Para que esto funcione, debe haber una regla que permita al usuario leer su propio documento de usuario.
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     // Verifica si el usuario tiene un documento en /users/ con role 'super_admin'
     function isSuperAdmin() {
-      return isSignedIn() && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "super_admin";
+      return isSignedIn() && getUserData().role == "super_admin";
     }
 
     // Verifica si el usuario es un 'admin' estándar
     function isAdmin() {
-      return isSignedIn() && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+      return isSignedIn() && getUserData().role == "admin";
     }
 
     // --- REGLAS POR COLECCIÓN ---
 
-    // 1. COMODÍN TOTAL: El Super Admin puede hacer TODO en CUALQUIER colección
-    match /{document=**} {
-      allow read, write, delete: if isSuperAdmin();
-    }
-
-    // 2. Colección de Usuarios (Gestión de permisos)
+    // Colección de Usuarios (Gestión de permisos)
     match /users/{userId} {
-      // Los usuarios pueden leer su propio perfil, los admins pueden leer todos
-      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      // Solo el Super Admin puede otorgar roles o crear otros admins (cubierto por el comodín de arriba)
+      // REGLA CRÍTICA: Un usuario DEBE poder leer su propio perfil para que las funciones de rol (isSuperAdmin, isAdmin) funcionen sin recursión.
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      // Admins y Super Admins pueden leer cualquier otro perfil.
+      allow read: if isAdmin() || isSuperAdmin();
+      // Solo Super Admins pueden crear/editar perfiles (para asignar roles).
+      allow write: if isSuperAdmin();
     }
 
-    // 3. Colección de Docentes (teachers)
+    // Colección de Docentes (teachers)
     match /teachers/{teacherId} {
+      // Cualquier usuario autenticado puede leer la lista de docentes.
       allow read: if isSignedIn();
-      // Solo admins pueden editar, pero no borrar (el super_admin sí puede por el comodín)
-      allow create, update: if isAdmin();
+      // Admins y Super Admins pueden crear y actualizar docentes.
+      allow create, update: if isAdmin() || isSuperAdmin();
+      // Solo Super Admins pueden eliminar docentes.
+      allow delete: if isSuperAdmin();
     }
 
-    // 4. Colección de Horarios (schedules)
+    // Colección de Horarios (schedules)
     match /schedules/{scheduleId} {
       allow read: if isSignedIn();
-      allow create, update: if isAdmin();
+      allow create, update, delete: if isAdmin() || isSuperAdmin();
     }
 
-    // 5. Colección de Grupos, Carreras y Materias
-    match /groups/{id} { allow read: if isSignedIn(); allow create, update: if isAdmin(); }
-    match /programs/{id} { allow read: if isSignedIn(); allow create, update: if isAdmin(); }
-    match /subjects/{id} { allow read: if isSignedIn(); allow create, update: if isAdmin(); }
-
+    // Colección de Módulos (subjects)
+    match /subjects/{subjectId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin() || isSuperAdmin();
+    }
+    
+    // Colección de Aulas (classrooms)
+    match /classrooms/{classroomId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin() || isSuperAdmin();
+    }
   }
 }
