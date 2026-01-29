@@ -8,12 +8,13 @@ import { collection, deleteDoc, doc } from 'firebase/firestore';
 import type { Career, Course, Group, Module } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { CourseForm } from '@/components/courses/course-form';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 type CourseWithDetails = Course & {
     moduleName: string;
@@ -55,6 +56,7 @@ export default function AcademicCalendarPage() {
     const navigateMonth = (direction: number) => {
         setCurrentDate(current => {
             const newDate = new Date(current);
+            newDate.setDate(1); // Avoid issues with month lengths
             newDate.setMonth(newDate.getMonth() + direction);
             return newDate;
         });
@@ -64,16 +66,15 @@ export default function AcademicCalendarPage() {
     const isSelected = (date: Date) => selectedDate.toDateString() === date.toDateString();
 
     const getCoursesForDate = (date: Date) => {
-        const checkDate = new Date(date);
-        checkDate.setHours(0, 0, 0, 0);
+        const checkDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
         return coursesWithDetails.filter(course => {
-            const startDate = new Date(course.startDate);
-            startDate.setHours(0, 0, 0, 0);
-            const endDate = new Date(course.endDate);
-            endDate.setHours(0, 0, 0, 0);
-            return checkDate >= startDate && checkDate <= endDate;
+            const startDateStr = course.startDate.split('T')[0];
+            const endDateStr = course.endDate.split('T')[0];
+            return checkDateStr >= startDateStr && checkDateStr <= endDateStr;
         });
     };
+
 
     const openModal = (course: Course | null = null) => {
         setEditingCourse(course);
@@ -131,14 +132,13 @@ export default function AcademicCalendarPage() {
                             <div
                                 key={idx}
                                 onClick={() => setSelectedDate(date)}
-                                className={`min-h-[120px] p-2 cursor-pointer transition-colors duration-150 border-t border-l ${
-                                    isOtherMonth ? 'bg-gray-50 text-gray-400' :
-                                    isToday(date) ? 'border-2 border-primary' : ''
-                                } ${
-                                    isSelected(date) ? 'bg-accent/20' : 'bg-white hover:bg-gray-50'
-                                }`}
+                                className={cn(`min-h-[120px] p-2 cursor-pointer transition-colors duration-150 border-t border-l`,
+                                    isOtherMonth ? 'bg-gray-50 text-gray-400' : 'bg-white hover:bg-gray-50',
+                                    isToday(date) ? 'border-2 border-primary' : '',
+                                    isSelected(date) ? 'bg-accent/20' : ''
+                                )}
                             >
-                                <div className={`font-semibold text-right ${isToday(date) ? 'text-primary' : ''}`}>{date.getDate()}</div>
+                                <div className={cn('font-semibold text-right', isToday(date) ? 'text-primary' : '')}>{date.getDate()}</div>
                                 <div className="space-y-1 mt-1">
                                     {dayCourses.slice(0, 3).map(course => (
                                         <div
@@ -259,7 +259,7 @@ export default function AcademicCalendarPage() {
                         <DialogHeader>
                             <DialogTitle>{editingCourse ? 'Editar Curso' : 'Programar Nuevo Curso'}</DialogTitle>
                             <DialogDescription>
-                                {editingCourse ? 'Actualiza los detalles del curso.' : `Programa un nuevo curso. Fecha seleccionada: ${selectedDate.toLocaleDateString('es-ES')}`}
+                                {editingCourse ? 'Actualiza los detalles del curso.' : `Programa un nuevo curso que inicia cerca de la fecha seleccionada: ${selectedDate.toLocaleDateString('es-ES')}`}
                             </DialogDescription>
                         </DialogHeader>
                         <CourseForm 
