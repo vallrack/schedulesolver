@@ -93,11 +93,10 @@ export function MonthlyCalendar({ courses, modules, year, month }: MonthlyCalend
         for (let day = 1; day <= daysInMonth; day++) {
             const currentDate = new Date(year, month, day);
             const eventsForDay = courses.filter(event => {
-                // Using UTC dates to avoid timezone issues
                 const startDate = new Date(event.startDate);
-                startDate.setUTCHours(0,0,0,0);
+                startDate.setHours(0, 0, 0, 0);
                 const endDate = new Date(event.endDate);
-                endDate.setUTCHours(23,59,59,999);
+                endDate.setHours(23, 59, 59, 999);
                 return currentDate >= startDate && currentDate <= endDate;
             });
             days.push(<DayCell key={day} date={currentDate} eventsInDay={eventsForDay} />);
