@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { generateInitialSchedule } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, PlusCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ScheduleEvent, Teacher, Module, Classroom, Group, Career, Course } from '@/lib/types';
@@ -12,11 +12,14 @@ import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, writeBatch, getDocs, doc } from 'firebase/firestore';
 import { ScheduleCalendar } from './schedule-calendar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ManualScheduleForm } from './manual-schedule-form';
 
 
 export default function ScheduleView() {
   const [schedule, setSchedule] = useState<ScheduleEvent[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [manualFormOpen, setManualFormOpen] = useState(false);
   const { toast } = useToast();
 
   const firestore = useFirestore();
@@ -198,17 +201,44 @@ export default function ScheduleView() {
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <CardTitle className="font-headline">Horario de Clases</CardTitle>
-          <Button onClick={handleGenerateSchedule} disabled={isGenerating || loading} size="sm">
-            {isGenerating ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
-            )}
-            Generar con IA
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setManualFormOpen(true)} variant="outline" size="sm" disabled={loading}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Crear Manualmente
+            </Button>
+            <Button onClick={handleGenerateSchedule} disabled={isGenerating || loading} size="sm">
+              {isGenerating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+              )}
+              Generar con IA
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
+        <Dialog open={manualFormOpen} onOpenChange={setManualFormOpen}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Crear Evento de Horario Manualmente</DialogTitle>
+                    <DialogDescription>
+                        Añade una clase al horario. El sistema verificará conflictos de solapamiento.
+                    </DialogDescription>
+                </DialogHeader>
+                <ManualScheduleForm 
+                    courses={courses || []}
+                    modules={modules || []}
+                    groups={groups || []}
+                    careers={careers || []}
+                    teachers={teachers || []}
+                    classrooms={classrooms || []}
+                    scheduleEvents={scheduleEvents || []}
+                    onSuccess={() => setManualFormOpen(false)}
+                />
+            </DialogContent>
+        </Dialog>
+
         {loading && <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>}
         {errorSchedule && <div className="text-destructive text-center">Error al cargar el horario: {errorSchedule.message}</div>}
         {!loading && !errorSchedule && (
