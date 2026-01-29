@@ -74,26 +74,26 @@ const DayCell = ({ date, eventsInDay, isOutOfMonth }: { date: Date, eventsInDay:
 
     return (
       <div className={cn(
-          "min-h-28 rounded-lg border bg-white p-1.5 flex flex-col relative transition-all duration-150 ease-in-out",
+          "min-h-28 rounded-lg border bg-card p-1.5 flex flex-col relative transition-all duration-150 ease-in-out",
           isOutOfMonth ? "bg-muted/50 cursor-default opacity-50" : "cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:border-primary/50",
           isToday && "border-2 border-primary shadow-lg"
       )}>
         <div className={cn(
-            "text-xs font-bold mb-1 w-6 h-6 flex items-center justify-center rounded-full", 
-            isToday && "bg-primary text-primary-foreground"
+            "text-xs font-bold mb-1 w-6 h-6 flex items-center justify-center rounded-full self-end", 
+            isToday ? "bg-primary text-primary-foreground" : "text-foreground"
         )}>
           {day}
         </div>
         {!isOutOfMonth && 
-            <div className="space-y-1 overflow-hidden">
-            {sortedEvents.slice(0, 3).map(event => (
+            <div className="space-y-1 overflow-hidden flex-1">
+            {sortedEvents.slice(0, 2).map(event => (
                 <EventPill key={event.id} event={event} />
             ))}
-            {sortedEvents.length > 3 && <div className="text-xs text-muted-foreground mt-1">+{sortedEvents.length - 3} más</div>}
+            {sortedEvents.length > 2 && <div className="text-xs text-muted-foreground mt-1 text-center">+{sortedEvents.length - 2} más</div>}
             </div>
         }
         {isToday && !isOutOfMonth && (
-            <div className="absolute top-1.5 right-1.5 text-[9px] font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary">HOY</div>
+            <div className="absolute top-1.5 left-1.5 text-[9px] font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary">HOY</div>
         )}
       </div>
     );
@@ -105,8 +105,11 @@ export function MonthlyCalendar({ courses, year, month, onPrevYear, onNextYear, 
         const lastDayOfMonth = new Date(year, month + 1, 0);
         
         const daysInMonth = lastDayOfMonth.getDate();
-        // Sunday - 0, Monday - 1, etc. getDay() is what we need.
-        const startDayOfWeek = getDay(firstDayOfMonth); 
+        let startDayOfWeek = getDay(firstDayOfMonth);
+        // Adjust startDayOfWeek to be Monday-based (0=Mon, 6=Sun) if needed, but getDay() is Sun-based
+        startDayOfWeek = startDayOfWeek === 0 ? 6 : startDayOfWeek -1; // Let's use Monday as start, so Sunday is 6
+        // The provided example starts with sunday. So 0 is sunday. Let's stick with that.
+        startDayOfWeek = getDay(firstDayOfMonth);
         
         const days = [];
         
@@ -115,22 +118,23 @@ export function MonthlyCalendar({ courses, year, month, onPrevYear, onNextYear, 
         const prevMonthDays = prevMonthLastDay.getDate();
         for (let i = startDayOfWeek - 1; i >= 0; i--) {
             const date = new Date(year, month - 1, prevMonthDays - i);
-            days.push(<DayCell key={`prev-${i}`} date={date} eventsInDay={[]} isOutOfMonth={true} />);
+            days.push({ key: `prev-${i}`, date, events: [], isOutOfMonth: true });
         }
         
         // Days of the current month
         for (let day = 1; day <= daysInMonth; day++) {
             const currentDate = new Date(year, month, day);
-            currentDate.setHours(0,0,0,0);
-
+            
             const eventsForDay = courses.filter(event => {
                 const startDate = new Date(event.startDate);
-                startDate.setHours(0, 0, 0, 0);
                 const endDate = new Date(event.endDate);
-                endDate.setHours(0, 0, 0, 0);
+                // Set hours to 0 to compare dates only
+                startDate.setHours(0,0,0,0);
+                endDate.setHours(0,0,0,0);
+                currentDate.setHours(0,0,0,0);
                 return currentDate >= startDate && currentDate <= endDate;
             });
-            days.push(<DayCell key={day} date={currentDate} eventsInDay={eventsForDay} isOutOfMonth={false} />);
+            days.push({ key: `current-${day}`, date: currentDate, events: eventsForDay, isOutOfMonth: false });
         }
 
         // Days from next month
@@ -138,7 +142,7 @@ export function MonthlyCalendar({ courses, year, month, onPrevYear, onNextYear, 
         const remainingCells = (7 - (totalCells % 7)) % 7;
         for (let i = 1; i <= remainingCells; i++) {
              const date = new Date(year, month + 1, i);
-             days.push(<DayCell key={`next-${i}`} date={date} eventsInDay={[]} isOutOfMonth={true} />);
+             days.push({ key: `next-${i}`, date, events: [], isOutOfMonth: true });
         }
 
         return days;
@@ -160,11 +164,11 @@ export function MonthlyCalendar({ courses, year, month, onPrevYear, onNextYear, 
                 </div>
             </div>
 
-             <div className="grid grid-cols-7 gap-2 bg-slate-800 text-white p-2">
+             <div className="grid grid-cols-7 gap-2 bg-muted/80 p-2">
                 {dayHeaders.map((day, index) => (
                     <div key={day} className={cn(
-                        "p-2 text-center font-bold text-xs rounded-md bg-white/5",
-                        (index === 0 || index === 6) && "bg-red-500/20 border border-red-500/30"
+                        "p-2 text-center font-bold text-xs rounded-md text-foreground",
+                        (index === 0 || index === 6) && "bg-destructive/10 text-destructive"
                     )}>
                         {day}
                     </div>
@@ -172,7 +176,14 @@ export function MonthlyCalendar({ courses, year, month, onPrevYear, onNextYear, 
             </div>
             
             <div className="grid grid-cols-7 gap-2 p-2 bg-muted/30">
-                {calendarGrid}
+                {calendarGrid.map(dayData => (
+                    <DayCell 
+                        key={dayData.key} 
+                        date={dayData.date} 
+                        eventsInDay={dayData.events} 
+                        isOutOfMonth={dayData.isOutOfMonth} 
+                    />
+                ))}
             </div>
         </div>
     );
