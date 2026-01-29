@@ -485,13 +485,112 @@ export default function DashboardPage() {
         )
     };
 
-    const ViewPlaceholder = ({ viewName }: { viewName: string }) => (
-        <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
-            <p className="text-gray-500">La vista de '{viewName}' aún no está implementada.</p>
-        </div>
-    );
+    const DayView = () => {
+        const dayOfWeekMap = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const dayOfWeek = dayOfWeekMap[selectedDate.getDay()];
     
-    const selectedDayEvents = getCoursesForDate(selectedDate);
+        const eventsForDay = useMemo(() => {
+            if (!scheduleEvents || !courses || !modules || !teachers || !classrooms || !groups || !careers) return [];
+            
+            const selectedDateStr = toISODateString(selectedDate);
+    
+            return scheduleEvents
+                .filter(event => {
+                    if (event.day !== dayOfWeek) return false;
+                    
+                    const course = courses.find(c => c.id === event.courseId);
+                    if (!course) return false;
+                    
+                    const courseStartDateStr = course.startDate.split('T')[0];
+                    const courseEndDateStr = course.endDate.split('T')[0];
+                    
+                    return selectedDateStr >= courseStartDateStr && selectedDateStr <= courseEndDateStr;
+                })
+                .map(event => {
+                    const course = courses.find(c => c.id === event.courseId)!;
+                    const module = modules.find(m => m.id === course.moduleId)!;
+                    const teacher = teachers.find(t => t.id === event.teacherId)!;
+                    const classroom = classrooms.find(c => c.id === event.classroomId)!;
+                    const group = groups.find(g => g.id === course.groupId)!;
+                    const career = careers.find(c => c.id === group.careerId)!;
+    
+                    return {
+                        ...event,
+                        moduleName: module.name,
+                        teacherName: teacher.name,
+                        classroomName: classroom.name,
+                        groupInfo: `${career.name} - Sem ${group.semester} - G ${group.name}`
+                    };
+                })
+                .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    
+        }, [selectedDate, scheduleEvents, courses, modules, teachers, classrooms, groups, careers]);
+        
+        return (
+            <div>
+                <h2 className="text-2xl font-bold mb-4 capitalize">
+                    {selectedDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </h2>
+                {eventsForDay.length === 0 ? (
+                    <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
+                        <p className="text-gray-500">No hay clases programadas para este día.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {eventsForDay.map(event => (
+                            <Card key={event.id} className="transition-all hover:shadow-md">
+                                <CardContent className="p-4 flex items-center gap-4">
+                                    <div className="text-center w-24 flex-shrink-0 border-r pr-4">
+                                        <p className="text-lg font-bold text-primary">{event.startTime}</p>
+                                        <p className="text-sm text-muted-foreground">a</p>
+                                        <p className="text-lg font-bold text-primary">{event.endTime}</p>
+                                    </div>
+                                    <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
+                                        <div className="col-span-1 md:col-span-3">
+                                            <p className="font-bold text-base">{event.moduleName}</p>
+                                            <p className="text-muted-foreground">{event.groupInfo}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <User className="h-4 w-4 text-muted-foreground" />
+                                            <span>{event.teacherName}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <School className="h-4 w-4 text-muted-foreground" />
+                                            <span>{event.classroomName}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col gap-1 ml-auto">
+                                        <Button onClick={() => handleEditScheduleEvent(event)} variant="outline" size="icon" className="h-8 w-8">
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:border-destructive/50">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Esta acción eliminará permanentemente la clase. No se puede deshacer.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteScheduleEvent(event.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+            </div>
+        )
+    };
 
     return (
         <AppLayout>
@@ -541,7 +640,7 @@ export default function DashboardPage() {
                     <div className="mb-8">
                         {currentView === 'month' && <MonthView />}
                         {currentView === 'week' && <WeekView />}
-                        {currentView === 'day' && <ViewPlaceholder viewName="Día" />}
+                        {currentView === 'day' && <DayView />}
                     </div>
                 </div>
 
@@ -558,7 +657,7 @@ export default function DashboardPage() {
                         </div>
 
                         <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                            {selectedDayEvents.length > 0 ? selectedDayEvents.map(course => (
+                            {getCoursesForDate(selectedDate).length > 0 ? getCoursesForDate(selectedDate).map(course => (
                                 <div key={course.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
                                     <div className="w-2 h-12 rounded-full flex-shrink-0 bg-primary mt-1" />
                                     <div className="flex-1">
