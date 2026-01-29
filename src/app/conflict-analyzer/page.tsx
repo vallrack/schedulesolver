@@ -32,8 +32,8 @@ export default function ConflictAnalyzerPage() {
             });
             setResult(res);
             toast({ title: "Análisis Completo", description: `Se encontraron ${res.conflicts.length} conflictos.` });
-        } catch (error) {
-            toast({ variant: 'destructive', title: "Falló el Análisis", description: "Ocurrió un error al analizar el horario." });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: "Falló el Análisis", description: error.message || "Ocurrió un error al analizar el horario." });
         } finally {
             setIsLoading(false);
         }
