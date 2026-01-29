@@ -24,6 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import * as XLSX from 'xlsx';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 
 
 type ReportToPrint = {
@@ -34,7 +35,7 @@ type ReportToPrint = {
 } | null;
 
 const PrintableReport = React.forwardRef<HTMLDivElement, { report: NonNullable<ReportToPrint> }>(({ report }, ref) => (
-    <div ref={ref} className="printable-report p-8">
+    <div ref={ref} className="printable-report">
         <h1 className="text-2xl font-bold mb-4">{report.title}</h1>
         <Table>
             <TableHeader>
@@ -130,6 +131,19 @@ export default function DashboardPage() {
             }
         }).filter((c): c is CourseWithDetails => c !== null);
     }, [allDataLoaded, courses, modules, groups, careers]);
+
+     const coursesForMonth = useMemo(() => {
+        if (!allDataLoaded) return [];
+        const monthStart = startOfMonth(currentDate);
+        const monthEnd = endOfMonth(currentDate);
+
+        return coursesWithDetails.filter(course => {
+            const courseStart = new Date(course.startDate);
+            const courseEnd = new Date(course.endDate);
+            // Check for overlap between course interval and month interval
+            return courseStart <= monthEnd && courseEnd >= monthStart;
+        }).sort((a,b) => a.moduleName.localeCompare(b.moduleName));
+    }, [allDataLoaded, coursesWithDetails, currentDate]);
     
     const groupOptions = useMemo(() => {
         if (!groups || !careers) return [];
@@ -154,15 +168,6 @@ export default function DashboardPage() {
             newDate.setDate(1); 
             newDate.setMonth(newDate.getMonth() + direction);
             return newDate;
-        });
-    };
-    
-    const getCoursesForDate = (date: Date) => {
-        const checkDateStr = toISODateString(date);
-        return coursesWithDetails.filter(course => {
-            const startDateStr = course.startDate.split('T')[0];
-            const endDateStr = course.endDate.split('T')[0];
-            return checkDateStr >= startDateStr && checkDateStr <= endDateStr;
         });
     };
 
@@ -254,12 +259,19 @@ export default function DashboardPage() {
                 </div>
                 <div className="grid grid-cols-7 grid-rows-6">
                     {days.map((date, idx) => {
-                        const dayCourses = getCoursesForDate(date);
                         const isOtherMonth = date.getMonth() !== month;
                         const isTodayDate = date.toDateString() === new Date().toDateString();
                         const dayOfWeek = dayOfWeekMap[date.getDay()];
                         
-                        const scheduledCoursesForDay = dayCourses.map(course => {
+                        const scheduledCoursesForDay = coursesWithDetails.map(course => {
+                            const dateStr = toISODateString(date);
+                            const courseStartDate = course.startDate.split('T')[0];
+                            const courseEndDate = course.endDate.split('T')[0];
+
+                            if (dateStr < courseStartDate || dateStr > courseEndDate) {
+                                return null;
+                            }
+
                             const scheduleEvent = scheduleEvents?.find(e => e.courseId === course.id && e.day === dayOfWeek);
                             if (!scheduleEvent) return null;
                             
@@ -506,7 +518,7 @@ export default function DashboardPage() {
     };
 
 
-    if (reportToPrint) {
+    if (reportToPrint && printRef) {
         return <PrintableReport report={reportToPrint} ref={printRef} />;
     }
 
@@ -560,8 +572,8 @@ export default function DashboardPage() {
                         {currentView === 'month' && (
                             <div className="bg-white rounded-lg">
                                 <div className="flex justify-between items-center mb-4 pb-4 border-b">
-                                    <h3 className="text-lg font-semibold text-gray-800">
-                                        Cursos para el {selectedDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}
+                                    <h3 className="text-lg font-semibold text-gray-800 capitalize">
+                                        Cursos para {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
                                     </h3>
                                     <Button onClick={() => openCourseModal()} size="sm">
                                         <Plus className="w-4 h-4 mr-2" />
@@ -570,7 +582,7 @@ export default function DashboardPage() {
                                 </div>
 
                                 <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                                    {getCoursesForDate(selectedDate).length > 0 ? getCoursesForDate(selectedDate).map(course => {
+                                    {coursesForMonth.length > 0 ? coursesForMonth.map(course => {
                                         const dayOfWeekMap = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
                                         const dayOfWeek = dayOfWeekMap[selectedDate.getDay()];
                                         const scheduleEventForDay = scheduleEvents?.find(e => e.courseId === course.id && e.day === dayOfWeek);
@@ -624,7 +636,7 @@ export default function DashboardPage() {
                                             </div>
                                         </div>
                                     )}) : (
-                                        <p className="text-center text-gray-500 py-4">No hay cursos programados para este día.</p>
+                                        <p className="text-center text-gray-500 py-4">No hay cursos programados para este mes.</p>
                                     )}
                                 </div>
                             </div>
