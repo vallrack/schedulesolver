@@ -5,8 +5,7 @@ import AppLogo from '@/components/app-logo';
 import { LayoutDashboard, Users, Book, School, Puzzle, GraduationCap, Group, Package, CalendarClock, CalendarDays } from 'lucide-react';
 
 const menuItems = [
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/academic-calendar', label: 'Calendario Académico', icon: CalendarDays },
+    { href: '/dashboard', label: 'Calendario', icon: CalendarDays },
     { href: '/teachers', label: 'Docentes', icon: Users },
     { href: '/careers', label: 'Carreras', icon: GraduationCap },
     { href: '/groups', label: 'Grupos', icon: Group },

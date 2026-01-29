@@ -5,9 +5,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import type { Career, Course, Group, Module } from '@/lib/types';
+import type { Career, Course, Group, Module, Teacher, ScheduleEvent } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection, doc, setDoc } from 'firebase/firestore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -43,9 +43,11 @@ interface CourseFormProps {
   groups: Group[];
   careers: Career[];
   onSuccess: () => void;
+  teachers?: Teacher[];
+  scheduleEvents?: ScheduleEvent[];
 }
 
-export function CourseForm({ course, allCourses, modules, groups, careers, onSuccess }: CourseFormProps) {
+export function CourseForm({ course, allCourses, modules, groups, careers, onSuccess, teachers, scheduleEvents }: CourseFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -72,6 +74,13 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
   useEffect(() => {
     form.reset(defaultValues);
   }, [course, defaultValues, form]);
+  
+  const assignedTeacher = useMemo(() => {
+    if (!course || !scheduleEvents || !teachers) return null;
+    const eventForCourse = scheduleEvents.find(e => e.courseId === course.id);
+    if (!eventForCourse) return null;
+    return teachers.find(t => t.id === eventForCourse.teacherId);
+}, [course, scheduleEvents, teachers]);
 
 
   const groupOptions = useMemo(() => {
@@ -223,6 +232,18 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
               )}
             />
         </div>
+
+        {assignedTeacher && (
+          <FormItem>
+            <FormLabel>Docente Asignado</FormLabel>
+            <FormControl>
+              <Input value={assignedTeacher.name} disabled />
+            </FormControl>
+            <FormDescription>
+              Para cambiar el docente, edita las clases asociadas a este curso desde la vista semanal.
+            </FormDescription>
+          </FormItem>
+        )}
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
