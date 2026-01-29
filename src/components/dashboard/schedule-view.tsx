@@ -10,17 +10,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { ScheduleEvent, Teacher, Module, Classroom, Group, Career, Course } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, writeBatch, getDocs, doc } from 'firebase/firestore';
+import { collection, writeBatch, getDocs, doc, deleteDoc } from 'firebase/firestore';
 import { ScheduleCalendar } from './schedule-calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ManualScheduleForm } from './manual-schedule-form';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 
 export default function ScheduleView() {
   const [schedule, setSchedule] = useState<ScheduleEvent[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [manualFormOpen, setManualFormOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<ScheduleEvent | undefined>(undefined);
   const { toast } = useToast();
 
   const firestore = useFirestore();
@@ -197,6 +200,35 @@ export default function ScheduleView() {
     return schedule.filter(e => e.classroomId === selectedClassroom);
   }, [schedule, selectedClassroom]);
 
+  const handleEditEvent = (event: ScheduleEvent) => {
+    setEditingEvent(event);
+    setManualFormOpen(true);
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!firestore) return;
+    const eventRef = doc(firestore, 'schedules', eventId);
+    try {
+        await deleteDoc(eventRef);
+        toast({
+            variant: 'destructive',
+            title: 'Clase Eliminada',
+            description: 'La clase ha sido eliminada del horario.',
+        });
+    } catch (e) {
+        const permissionError = new FirestorePermissionError({
+            path: eventRef.path,
+            operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }
+  };
+
+  const handleCloseForm = () => {
+    setManualFormOpen(false);
+    setEditingEvent(undefined);
+  };
+
 
   return (
     <Card>
@@ -220,12 +252,12 @@ export default function ScheduleView() {
         </div>
       </CardHeader>
       <CardContent>
-        <Dialog open={manualFormOpen} onOpenChange={setManualFormOpen}>
+        <Dialog open={manualFormOpen} onOpenChange={handleCloseForm}>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Crear Evento de Horario Manualmente</DialogTitle>
+                    <DialogTitle>{editingEvent ? "Editar Clase" : "Crear Evento de Horario Manualmente"}</DialogTitle>
                     <DialogDescription>
-                        Añade una clase al horario. El sistema verificará conflictos de solapamiento.
+                       {editingEvent ? "Modifica los detalles de la clase." : "Añade una clase al horario. El sistema verificará conflictos."}
                     </DialogDescription>
                 </DialogHeader>
                 <ManualScheduleForm 
@@ -236,7 +268,8 @@ export default function ScheduleView() {
                     teachers={teachers || []}
                     classrooms={classrooms || []}
                     scheduleEvents={scheduleEvents || []}
-                    onSuccess={() => setManualFormOpen(false)}
+                    eventToEdit={editingEvent}
+                    onSuccess={handleCloseForm}
                 />
             </DialogContent>
         </Dialog>
@@ -273,7 +306,7 @@ export default function ScheduleView() {
                     </SelectContent>
                  </Select>
                </div>
-               {selectedTeacher && <ScheduleCalendar events={teacherEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} />}
+               {selectedTeacher && <ScheduleCalendar events={teacherEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} onEditEvent={handleEditEvent} onDeleteEvent={handleDeleteEvent} />}
             </TabsContent>
             <TabsContent value="group" className="mt-4">
                <div className="max-w-sm">
@@ -286,7 +319,7 @@ export default function ScheduleView() {
                     </SelectContent>
                  </Select>
                </div>
-               {selectedGroup && <ScheduleCalendar events={groupEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} />}
+               {selectedGroup && <ScheduleCalendar events={groupEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} onEditEvent={handleEditEvent} onDeleteEvent={handleDeleteEvent} />}
             </TabsContent>
             <TabsContent value="classroom" className="mt-4">
               <div className="max-w-sm">
@@ -299,7 +332,7 @@ export default function ScheduleView() {
                     </SelectContent>
                  </Select>
                </div>
-               {selectedClassroom && <ScheduleCalendar events={classroomEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} />}
+               {selectedClassroom && <ScheduleCalendar events={classroomEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} onEditEvent={handleEditEvent} onDeleteEvent={handleDeleteEvent} />}
             </TabsContent>
           </Tabs>
         )}

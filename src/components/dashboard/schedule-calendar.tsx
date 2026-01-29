@@ -4,9 +4,10 @@ import React from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@/lib/utils';
 import type { ScheduleEvent, Teacher, Module, Classroom, Course, Group, Career } from '@/lib/types';
+import { Button } from '../ui/button';
+import { Edit, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-const TIME_SLOTS = Array.from({ length: 16 }, (_, i) => `${(i + 7).toString().padStart(2, '0')}:00`); // 7 AM to 10 PM
 
 const timeToMinutes = (time: string): number => {
   if (!time) return 0;
@@ -27,6 +28,8 @@ const EventCard = ({
   classrooms,
   groups,
   careers,
+  onEdit,
+  onDelete,
 }: {
   event: ScheduleEvent;
   courses: Course[];
@@ -35,6 +38,8 @@ const EventCard = ({
   classrooms: Classroom[];
   groups: Group[];
   careers: Career[];
+  onEdit: (event: ScheduleEvent) => void;
+  onDelete: (eventId: string) => void;
 }) => {
   const course = courses.find(c => c.id === event.courseId);
   const module = modules.find((m) => m.id === course?.moduleId);
@@ -50,14 +55,14 @@ const EventCard = ({
   const topPosition = ((startTimeInMinutes - 7 * 60) / 60) * 4.5; // 4.5rem per hour (h-18)
   const height = (durationInMinutes / 60) * 4.5;
 
-  const colorClasses = 'bg-primary text-primary-foreground';
+  const colorClasses = 'bg-primary/80 border border-primary text-primary-foreground';
 
   return (
     <Popover>
       <PopoverTrigger asChild>
         <div
           className={cn(
-            'absolute w-[calc(100%-8px)] left-[4px] rounded-md p-2 text-xs cursor-pointer hover:opacity-90 transition-opacity z-10',
+            'absolute w-[calc(100%-8px)] left-[4px] rounded-lg p-2 text-xs cursor-pointer hover:opacity-90 transition-opacity z-10',
             colorClasses
           )}
           style={{ top: `${topPosition}rem`, height: `${height}rem` }}
@@ -68,12 +73,37 @@ const EventCard = ({
         </div>
       </PopoverTrigger>
       <PopoverContent>
-        <div className="p-2 space-y-2 text-sm">
+        <div className="space-y-3 text-sm">
             <h4 className="font-bold font-headline">{module?.name ?? "Evento Desconocido"}</h4>
-            {group && <p className="text-xs text-muted-foreground">{career?.name ?? 'Carrera desconocida'} / Sem {group.semester} G{group.name}</p>}
+            {group && <p className="text-xs text-muted-foreground -mt-2 mb-2">{career?.name ?? '...'} / Sem {group.semester} G{group.name}</p>}
             <p><strong>Docente:</strong> {teacher?.name ?? "N/A"}</p>
             <p><strong>Aula:</strong> {classroom?.name ?? "N/A"}</p>
             <p><strong>Horario:</strong> {event.day}, {event.startTime} - {event.endTime}</p>
+            <p><strong>Semanas:</strong> {event.startWeek} - {event.endWeek}</p>
+        </div>
+        <div className="flex justify-end gap-2 pt-4 mt-4 border-t">
+            <Button onClick={() => onEdit(event)} variant="ghost" size="icon" className="h-8 w-8">
+                <Edit className="h-4 w-4" />
+            </Button>
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción eliminará permanentemente la clase. No se puede deshacer.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onDelete(event.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
       </PopoverContent>
     </Popover>
@@ -88,9 +118,11 @@ interface ScheduleCalendarProps {
   classrooms: Classroom[];
   groups: Group[];
   careers: Career[];
+  onEditEvent: (event: ScheduleEvent) => void;
+  onDeleteEvent: (eventId: string) => void;
 }
 
-export function ScheduleCalendar({ events, courses, modules, teachers, classrooms, groups, careers }: ScheduleCalendarProps) {
+export function ScheduleCalendar({ events, courses, modules, teachers, classrooms, groups, careers, onEditEvent, onDeleteEvent }: ScheduleCalendarProps) {
   return (
     <div className="mt-6 border rounded-xl shadow-sm bg-card">
       <div className="grid grid-cols-[60px_repeat(6,1fr)]">
@@ -134,6 +166,8 @@ export function ScheduleCalendar({ events, courses, modules, teachers, classroom
                       classrooms={classrooms}
                       groups={groups}
                       careers={careers}
+                      onEdit={onEditEvent}
+                      onDelete={onDeleteEvent}
                     />
                 ))}
             </div>
@@ -143,3 +177,6 @@ export function ScheduleCalendar({ events, courses, modules, teachers, classroom
     </div>
   );
 }
+
+const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const TIME_SLOTS = Array.from({ length: 16 }, (_, i) => `${(i + 7).toString().padStart(2, '0')}:00`); // 7 AM to 10 PM

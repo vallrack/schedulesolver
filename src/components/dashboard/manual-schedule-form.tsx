@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore } from '@/firebase';
-import { addDoc, collection, doc, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, doc, writeBatch, updateDoc } from 'firebase/firestore';
 import { useEffect, useMemo } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -51,6 +51,7 @@ interface ManualScheduleFormProps {
   teachers: Teacher[];
   classrooms: Classroom[];
   scheduleEvents: ScheduleEvent[];
+  eventToEdit?: ScheduleEvent;
   onSuccess: () => void;
 }
 
@@ -60,9 +61,10 @@ const timeToMinutes = (time: string): number => {
   return hours * 60 + minutes;
 };
 
-export function ManualScheduleForm({ courses, modules, groups, careers, teachers, classrooms, scheduleEvents, onSuccess }: ManualScheduleFormProps) {
+export function ManualScheduleForm({ courses, modules, groups, careers, teachers, classrooms, scheduleEvents, eventToEdit, onSuccess }: ManualScheduleFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const isEditMode = !!eventToEdit;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(manualScheduleSchema),
@@ -77,6 +79,32 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         endWeek: 16,
     },
   });
+
+  useEffect(() => {
+    if (isEditMode && eventToEdit) {
+      form.reset({
+        courseId: eventToEdit.courseId,
+        teacherId: eventToEdit.teacherId,
+        classroomId: eventToEdit.classroomId,
+        days: [eventToEdit.day],
+        startTime: eventToEdit.startTime,
+        endTime: eventToEdit.endTime,
+        startWeek: eventToEdit.startWeek,
+        endWeek: eventToEdit.endWeek,
+      });
+    } else {
+      form.reset({
+        courseId: '',
+        teacherId: '',
+        classroomId: '',
+        days: [],
+        startTime: '07:00',
+        endTime: '09:00',
+        startWeek: 1,
+        endWeek: 16,
+      });
+    }
+  }, [eventToEdit, isEditMode, form]);
   
   const selectedTeacherId = form.watch('teacherId');
 
@@ -109,13 +137,13 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
   
   useEffect(() => {
     const currentCourseId = form.getValues('courseId');
-    if (currentCourseId) {
+    if (currentCourseId && !isEditMode) {
         const isCourseStillValid = filteredCourseOptions.some(opt => opt.value === currentCourseId);
         if (!isCourseStillValid) {
             form.setValue('courseId', '', { shouldValidate: true });
         }
     }
-  }, [selectedTeacherId, filteredCourseOptions, form]);
+  }, [selectedTeacherId, filteredCourseOptions, form, isEditMode]);
 
 
   const onSubmit = async (data: FormValues) => {
@@ -138,6 +166,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
     // 2. Overlap checks
     for (const day of data.days) {
         for (const event of scheduleEvents) {
+            if (isEditMode && event.id === eventToEdit.id) continue;
             if (event.day !== day) continue;
 
             const eventStartMinutes = timeToMinutes(event.startTime);
@@ -175,19 +204,31 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
     }
 
     try {
-        const batch = writeBatch(firestore);
-        const schedulesCol = collection(firestore, 'schedules');
-        const { days, ...restOfData } = data;
+        if (isEditMode && eventToEdit) {
+            const scheduleRef = doc(firestore, 'schedules', eventToEdit.id);
+            const eventDataForUpdate = {
+              ...data,
+              day: data.days[0],
+            };
+            delete (eventDataForUpdate as any).days;
+      
+            await updateDoc(scheduleRef, eventDataForUpdate);
+            toast({ title: 'Clase Actualizada', description: 'La clase ha sido actualizada correctamente.' });
+        } else {
+            const batch = writeBatch(firestore);
+            const schedulesCol = collection(firestore, 'schedules');
+            const { days, ...restOfData } = data;
 
-        days.forEach(day => {
-            const newEventRef = doc(schedulesCol);
-            const eventData = { ...restOfData, day };
-            batch.set(newEventRef, eventData);
-        });
+            days.forEach(day => {
+                const newEventRef = doc(schedulesCol);
+                const eventData = { ...restOfData, day };
+                batch.set(newEventRef, eventData);
+            });
 
-        await batch.commit();
+            await batch.commit();
 
-        toast({ title: 'Horario Creado', description: `Se ha(n) añadido ${days.length} nueva(s) clase(s) al horario.` });
+            toast({ title: 'Horario Creado', description: `Se ha(n) añadido ${days.length} nueva(s) clase(s) al horario.` });
+        }
         onSuccess();
     } catch (e) {
         const permissionError = new FirestorePermissionError({
@@ -258,59 +299,74 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             </FormItem>
           )}
         />
-        <FormField
-            control={form.control}
-            name="days"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Días</FormLabel>
-                <Popover modal={true}>
-                    <PopoverTrigger asChild>
-                    <FormControl>
-                        <Button
-                        variant="outline"
-                        className={cn(
-                            "w-full justify-between",
-                            !field.value?.length && "text-muted-foreground"
-                        )}
-                        >
-                        {field.value?.length
-                            ? `${field.value.length} día(s) seleccionado(s)`
-                            : "Selecciona uno o más días"}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                    </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <div className="p-4 space-y-2">
-                        {availableDays.map((day) => (
-                            <FormItem key={day} className="flex flex-row items-start space-x-3 space-y-0">
-                                <FormControl>
-                                <Checkbox
-                                    checked={field.value?.includes(day)}
-                                    onCheckedChange={(checked) => {
-                                    return checked
-                                        ? field.onChange([...(field.value || []), day])
-                                        : field.onChange(
-                                            (field.value || []).filter(
-                                            (value) => value !== day
+        {isEditMode ? (
+            <FormField
+                control={form.control}
+                name="days"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Día</FormLabel>
+                        <FormControl>
+                            <Input value={field.value?.[0] || ''} disabled />
+                        </FormControl>
+                    </FormItem>
+                )}
+            />
+        ) : (
+            <FormField
+                control={form.control}
+                name="days"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Días</FormLabel>
+                    <Popover modal={true}>
+                        <PopoverTrigger asChild>
+                        <FormControl>
+                            <Button
+                            variant="outline"
+                            className={cn(
+                                "w-full justify-between",
+                                !field.value?.length && "text-muted-foreground"
+                            )}
+                            >
+                            {field.value?.length
+                                ? `${field.value.length} día(s) seleccionado(s)`
+                                : "Selecciona uno o más días"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <div className="p-4 space-y-2">
+                            {availableDays.map((day) => (
+                                <FormItem key={day} className="flex flex-row items-start space-x-3 space-y-0">
+                                    <FormControl>
+                                    <Checkbox
+                                        checked={field.value?.includes(day)}
+                                        onCheckedChange={(checked) => {
+                                        return checked
+                                            ? field.onChange([...(field.value || []), day])
+                                            : field.onChange(
+                                                (field.value || []).filter(
+                                                (value) => value !== day
+                                                )
                                             )
-                                        )
-                                    }}
-                                />
-                                </FormControl>
-                                <FormLabel className="font-normal">
-                                {day}
-                                </FormLabel>
-                            </FormItem>
-                        ))}
-                    </div>
-                    </PopoverContent>
-                </Popover>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
+                                        }}
+                                    />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                    {day}
+                                    </FormLabel>
+                                </FormItem>
+                            ))}
+                        </div>
+                        </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+        )}
         <div className="grid grid-cols-2 gap-4">
             <FormField
                 control={form.control}
@@ -361,7 +417,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         </div>
 
         <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
-          {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Clase(s)'}
+          {form.formState.isSubmitting ? 'Guardando...' : (isEditMode ? 'Guardar Cambios' : 'Guardar Clase(s)')}
         </Button>
       </form>
     </Form>
