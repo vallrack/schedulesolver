@@ -83,13 +83,26 @@ export default function GroupsPage() {
       sortableItems.sort((a, b) => {
         const aValue = a[sortConfig.key];
         const bValue = b[sortConfig.key];
+        
+        let compareVal = 0;
         if (aValue < bValue) {
-          return sortConfig.direction === 'ascending' ? -1 : 1;
+          compareVal = -1;
+        } else if (aValue > bValue) {
+          compareVal = 1;
         }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'ascending' ? 1 : -1;
+
+        if(compareVal !== 0) {
+            return sortConfig.direction === 'ascending' ? compareVal : -compareVal;
         }
-        return 0;
+
+        // Fallback sorting
+        const careerCompare = a.careerName.localeCompare(b.careerName);
+        if (careerCompare !== 0) return careerCompare;
+
+        if (a.semester < b.semester) return -1;
+        if (a.semester > b.semester) return 1;
+
+        return a.name.localeCompare(b.name);
       });
     }
     return sortableItems;

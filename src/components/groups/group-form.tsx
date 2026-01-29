@@ -105,7 +105,7 @@ export function GroupForm({ group, careers, onSuccess }: GroupFormProps) {
                         </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                        {careers.map(career => (
+                        {[...careers].sort((a, b) => a.name.localeCompare(b.name)).map(career => (
                             <SelectItem key={career.id} value={career.id}>{career.name}</SelectItem>
                         ))}
                     </SelectContent>

@@ -49,13 +49,14 @@ export default function ScheduleView() {
 
   const groupOptions = useMemo(() => {
     if (!groups || !careers) return [];
-    return groups.map(group => {
+    const options = groups.map(group => {
         const career = careers.find(c => c.id === group.careerId);
         return {
             id: group.id,
             name: `${career?.name || '...'} - Sem ${group.semester} - G ${group.name}`
         }
-    })
+    });
+    return options.sort((a, b) => a.name.localeCompare(b.name));
   }, [groups, careers]);
 
   useEffect(() => {

@@ -183,7 +183,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                     <ScrollArea className="h-48">
                         <div className="p-4">
-                        {modules.map((module) => (
+                        {[...modules].sort((a, b) => a.name.localeCompare(b.name)).map((module) => (
                             <div key={module.id} className="flex items-center space-x-2 mb-2">
                                 <Checkbox
                                     id={`specialty-${module.id}`}
