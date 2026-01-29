@@ -51,15 +51,15 @@ const EventCard = ({
   const endTimeInMinutes = timeToMinutes(event.endTime);
   const durationInMinutes = endTimeInMinutes - startTimeInMinutes;
 
-  const topPosition = ((startTimeInMinutes - 7 * 60) / 60) * 4.5; // 4.5rem per hour (h-18)
+  const topPosition = ((startTimeInMinutes - 7 * 60) / 60) * 4.5; // 4.5rem per hour (h-[4.5rem])
   const height = (durationInMinutes / 60) * 4.5;
 
-  const colorClasses = 'bg-primary/80 border border-primary text-primary-foreground';
+  const colorClasses = 'bg-primary text-primary-foreground';
 
   return (
       <div
         className={cn(
-          'group absolute w-[calc(100%-8px)] left-[4px] rounded-lg p-2 text-xs cursor-pointer hover:opacity-90 transition-opacity z-10',
+          'group absolute w-full rounded-lg p-2 text-xs cursor-pointer hover:opacity-90 transition-opacity z-10',
           colorClasses
         )}
         style={{ top: `${topPosition}rem`, height: `${height}rem` }}
@@ -120,14 +120,14 @@ interface ScheduleCalendarProps {
 
 export function ScheduleCalendar({ events, courses, modules, teachers, classrooms, groups, careers, onEditEvent, onDeleteEvent }: ScheduleCalendarProps) {
   return (
-    <div className="mt-6 border-t">
+    <div className="mt-6">
       <div className="grid grid-cols-[60px_repeat(6,1fr)]">
         {/* Corner */}
         <div className="h-12 border-b"></div>
 
         {/* Day Headers */}
         {DAYS_OF_WEEK.map((day) => (
-          <div key={day} className="h-12 text-center font-semibold flex items-center justify-center border-b border-l text-sm text-muted-foreground bg-gray-50/50">
+          <div key={day} className="h-12 text-center font-semibold flex items-center justify-center border-b text-sm text-muted-foreground">
             {day}
           </div>
         ))}
@@ -136,7 +136,7 @@ export function ScheduleCalendar({ events, courses, modules, teachers, classroom
             {/* Time Gutter */}
             <div className="col-start-1 row-start-2 flex flex-col">
                 {TIME_SLOTS.map((time) => (
-                    <div key={time} className="h-18 border-t relative">
+                    <div key={time} className="h-[4.5rem] border-t relative">
                         <span className="text-xs text-muted-foreground absolute top-0 right-2 -translate-y-1/2 bg-card px-1">{time}</span>
                     </div>
                 ))}
@@ -144,28 +144,30 @@ export function ScheduleCalendar({ events, courses, modules, teachers, classroom
 
             {/* Calendar Grid */}
             {DAYS_OF_WEEK.map((day, dayIndex) => (
-            <div key={day} className="relative border-l" style={{ gridColumnStart: dayIndex + 2, gridRowStart: 2 }}>
+            <div key={day} className="relative" style={{ gridColumnStart: dayIndex + 2, gridRowStart: 2 }}>
                 {/* Hour lines */}
                 {TIME_SLOTS.map((_, index) => (
-                <div key={index} className={cn("h-18", "border-t")}></div>
+                <div key={index} className="h-[4.5rem] border-t"></div>
                 ))}
                 {/* Events */}
-                {events
-                .filter((event) => event.day === day)
-                .map((event) => (
-                    <EventCard
-                      key={event.id}
-                      event={event}
-                      courses={courses}
-                      modules={modules}
-                      teachers={teachers}
-                      classrooms={classrooms}
-                      groups={groups}
-                      careers={careers}
-                      onEdit={onEditEvent}
-                      onDelete={onDeleteEvent}
-                    />
-                ))}
+                <div className="absolute inset-0 px-1">
+                  {events
+                  .filter((event) => event.day === day)
+                  .map((event) => (
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        courses={courses}
+                        modules={modules}
+                        teachers={teachers}
+                        classrooms={classrooms}
+                        groups={groups}
+                        careers={careers}
+                        onEdit={onEditEvent}
+                        onDelete={onDeleteEvent}
+                      />
+                  ))}
+                </div>
             </div>
             ))}
         </div>
