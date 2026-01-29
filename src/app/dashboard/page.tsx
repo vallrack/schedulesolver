@@ -61,7 +61,6 @@ type CourseWithDetails = Course & {
     moduleName: string;
     groupInfo: string;
     careerName: string;
-    teacherName?: string;
 };
 
 const toISODateString = (date: Date) => {
@@ -122,19 +121,15 @@ export default function DashboardPage() {
             const group = groups!.find(g => g.id === course.groupId);
             if (!group || !module) return null;
             const career = careers!.find(c => c.id === group.careerId);
-            
-            const eventForCourse = scheduleEvents!.find(e => e.courseId === course.id);
-            const teacher = eventForCourse ? teachers!.find(t => t.id === eventForCourse.teacherId) : undefined;
 
             return {
                 ...course,
                 moduleName: module.name,
                 groupInfo: `Sem ${group.semester} - G ${group.name}`,
                 careerName: career?.name || 'Carrera Desconocida',
-                teacherName: teacher?.name,
             }
         }).filter((c): c is CourseWithDetails => c !== null);
-    }, [allDataLoaded, courses, modules, groups, careers, scheduleEvents, teachers]);
+    }, [allDataLoaded, courses, modules, groups, careers]);
     
     const groupOptions = useMemo(() => {
         if (!groups || !careers) return [];
@@ -575,20 +570,35 @@ export default function DashboardPage() {
                                 </div>
 
                                 <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                                    {getCoursesForDate(selectedDate).length > 0 ? getCoursesForDate(selectedDate).map(course => (
+                                    {getCoursesForDate(selectedDate).length > 0 ? getCoursesForDate(selectedDate).map(course => {
+                                        const dayOfWeekMap = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                                        const dayOfWeek = dayOfWeekMap[selectedDate.getDay()];
+                                        const scheduleEventForDay = scheduleEvents?.find(e => e.courseId === course.id && e.day === dayOfWeek);
+                                        const teacher = scheduleEventForDay ? teachers?.find(t => t.id === scheduleEventForDay.teacherId) : undefined;
+                                        
+                                        return (
                                         <div key={course.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
                                             <div className="w-2 h-12 rounded-full flex-shrink-0 bg-primary mt-1" />
                                             <div className="flex-1">
                                                 <div className="font-semibold text-gray-800">{course.moduleName}</div>
                                                 <div className="text-sm text-gray-600">{course.careerName} / {course.groupInfo}</div>
-                                                <div className="flex items-center gap-2 mt-1 pt-1">
-                                                    <User className="w-4 h-4 text-muted-foreground" />
-                                                    {course.teacherName ? (
-                                                        <span className="text-sm text-muted-foreground font-medium">{course.teacherName}</span>
-                                                    ) : (
-                                                        <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => handleAssignTeacher(course)}>
-                                                            Asignar Docente
-                                                        </Button>
+                                                
+                                                <div className="flex items-center gap-4 mt-2 text-sm">
+                                                     <div className="flex items-center gap-2">
+                                                        <User className="w-4 h-4 text-muted-foreground" />
+                                                        {teacher ? (
+                                                            <span className="text-muted-foreground font-medium">{teacher.name}</span>
+                                                        ) : (
+                                                            <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => handleAssignTeacher(course)}>
+                                                                Asignar Docente
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                    {scheduleEventForDay && (
+                                                         <div className="flex items-center gap-2 text-muted-foreground">
+                                                            <Clock className="w-4 h-4" />
+                                                            <span className="font-medium">{scheduleEventForDay.startTime} - {scheduleEventForDay.endTime}</span>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
@@ -613,7 +623,7 @@ export default function DashboardPage() {
                                                 </AlertDialog>
                                             </div>
                                         </div>
-                                    )) : (
+                                    )}) : (
                                         <p className="text-center text-gray-500 py-4">No hay cursos programados para este día.</p>
                                     )}
                                 </div>
