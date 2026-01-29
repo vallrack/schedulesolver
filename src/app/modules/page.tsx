@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, PlusCircle, Trash2, ArrowUpDown } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Trash2, ArrowUpDown, Upload } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,7 @@ import { ModuleForm } from "@/components/modules/module-form";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { Input } from "@/components/ui/input";
+import { ModuleImportDialog } from "@/components/modules/module-import-dialog";
 
 
 type SortableModuleKeys = keyof Module;
@@ -32,6 +33,7 @@ export default function ModulesPage() {
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<Module | undefined>(undefined);
   const [filterText, setFilterText] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortableModuleKeys; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
@@ -106,12 +108,18 @@ export default function ModulesPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
             <h1 className="text-3xl font-bold font-headline tracking-tight">Catálogo de Módulos</h1>
-            <Button onClick={handleAddNew}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Añadir Módulo
-            </Button>
+            <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Importar desde Archivo
+                </Button>
+                <Button onClick={handleAddNew}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Añadir Módulo
+                </Button>
+            </div>
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -128,6 +136,12 @@ export default function ModulesPage() {
                 />
             </DialogContent>
         </Dialog>
+
+        <ModuleImportDialog
+            open={importDialogOpen}
+            onOpenChange={setImportDialogOpen}
+            onSuccess={() => setImportDialogOpen(false)}
+        />
 
 
         <Card>
