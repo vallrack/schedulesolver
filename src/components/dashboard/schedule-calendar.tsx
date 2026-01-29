@@ -89,7 +89,7 @@ interface ScheduleCalendarProps {
 
 export function ScheduleCalendar({ events, courses, modules, teachers, classrooms }: ScheduleCalendarProps) {
   return (
-    <div className="mt-6 border rounded-xl overflow-hidden shadow-sm bg-card">
+    <div className="mt-6 border rounded-xl shadow-sm bg-card">
       <div className="grid grid-cols-[60px_repeat(6,1fr)]">
         {/* Corner */}
         <div className="h-12 border-b border-r"></div>
