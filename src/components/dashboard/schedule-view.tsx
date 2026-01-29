@@ -261,6 +261,7 @@ export default function ScheduleView() {
                     </DialogDescription>
                 </DialogHeader>
                 <ManualScheduleForm 
+                    key={editingEvent?.id || 'new-event'}
                     courses={courses || []}
                     modules={modules || []}
                     groups={groups || []}

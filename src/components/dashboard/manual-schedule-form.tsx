@@ -68,7 +68,16 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
 
   const form = useForm<FormValues>({
     resolver: zodResolver(manualScheduleSchema),
-    defaultValues: {
+    defaultValues: isEditMode && eventToEdit ? {
+        courseId: eventToEdit.courseId,
+        teacherId: eventToEdit.teacherId,
+        classroomId: eventToEdit.classroomId,
+        days: [eventToEdit.day],
+        startTime: eventToEdit.startTime,
+        endTime: eventToEdit.endTime,
+        startWeek: eventToEdit.startWeek,
+        endWeek: eventToEdit.endWeek,
+    } : {
         courseId: '',
         teacherId: '',
         classroomId: '',
@@ -79,32 +88,6 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         endWeek: 16,
     },
   });
-
-  useEffect(() => {
-    if (isEditMode && eventToEdit) {
-      form.reset({
-        courseId: eventToEdit.courseId,
-        teacherId: eventToEdit.teacherId,
-        classroomId: eventToEdit.classroomId,
-        days: [eventToEdit.day],
-        startTime: eventToEdit.startTime,
-        endTime: eventToEdit.endTime,
-        startWeek: eventToEdit.startWeek,
-        endWeek: eventToEdit.endWeek,
-      });
-    } else {
-      form.reset({
-        courseId: '',
-        teacherId: '',
-        classroomId: '',
-        days: [],
-        startTime: '07:00',
-        endTime: '09:00',
-        startWeek: 1,
-        endWeek: 16,
-      });
-    }
-  }, [eventToEdit, isEditMode, form]);
   
   const selectedTeacherId = form.watch('teacherId');
 

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Edit, Trash2 } from 'lucide-react';
 import AppLayout from '@/components/app-layout';
 import { useFirestore } from '@/firebase';
@@ -376,6 +376,7 @@ export default function AcademicCalendarPage() {
                             </DialogDescription>
                         </DialogHeader>
                         <ManualScheduleForm 
+                            key={editingScheduleEvent?.id || 'new-schedule-event'}
                             courses={courses || []}
                             modules={modules || []}
                             groups={groups || []}
