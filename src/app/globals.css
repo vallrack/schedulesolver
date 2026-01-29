@@ -83,16 +83,21 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  .print-only {
+    display: none;
+  }
 
   @media print {
     body {
       background-color: white !important;
     }
-    header,
-    [data-sidebar="sidebar"],
-    [data-sidebar="trigger"],
-    .no-print {
+    .no-print, header, [data-sidebar="sidebar"], [data-sidebar="trigger"] {
       display: none !important;
+    }
+    
+    .print-only {
+      display: block !important;
     }
     
     @page {
@@ -103,13 +108,6 @@
     main {
       padding: 0 !important;
       margin: 0 !important;
-    }
-
-    .printable-area {
-      padding: 0 !important;
-      margin: 0 !important;
-      border: none !important;
-      box-shadow: none !important;
     }
   }
 }
