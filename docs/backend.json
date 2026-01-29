@@ -183,7 +183,15 @@
         },
         "type": {
           "type": "string",
-          "enum": ["aula", "sala de sistemas", "auditorio"]
+          "enum": [
+            "aula",
+            "sala de sistemas",
+            "auditorio",
+            "biblioteca",
+            "sala reuniones",
+            "oficina",
+            "laboratorio/taller"
+          ]
         },
         "description": {
           "type": "string",

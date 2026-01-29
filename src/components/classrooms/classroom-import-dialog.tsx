@@ -37,12 +37,18 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
         setIsSaving(false);
     }
     
+    const allowedTypes: Classroom['type'][] = ['aula', 'sala de sistemas', 'auditorio', 'biblioteca', 'sala reuniones', 'oficina', 'laboratorio/taller'];
+
     const handleDownloadTemplate = () => {
         const headers = [['name', 'capacity', 'type', 'description']];
         const exampleData = [
             ['Aula 101', 30, 'aula', 'Pizarra digital, proyector.'],
             ['Sala de Sistemas 1', 25, 'sala de sistemas', '25 equipos Core i5, 8GB RAM.'],
             ['Auditorio Principal', 150, 'auditorio', 'Sistema de sonido, pantalla gigante.'],
+            ['Biblioteca Central', 50, 'biblioteca', 'Estanterías con libros.'],
+            ['Sala de Juntas', 12, 'sala reuniones', 'Mesa grande, sillas, proyector.'],
+            ['Oficina de Coordinación', 4, 'oficina', 'Escritorios y archivadores.'],
+            ['Taller de Mecánica', 20, 'laboratorio/taller', 'Herramientas y bancos de trabajo.'],
         ];
         const ws = XLSX.utils.aoa_to_sheet([...headers, ...exampleData]);
         
@@ -74,8 +80,6 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
                 return !nameValue.toLowerCase().startsWith('total');
             });
 
-            const allowedTypes = ['aula', 'sala de sistemas', 'auditorio'];
-
             const processedData = jsonFiltered.map(row => {
                 const lowerCaseRow = Object.keys(row).reduce((acc, key) => {
                     acc[key.toLowerCase().trim()] = row[key];
@@ -105,9 +109,9 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
                     classroom.errors.push('La columna "capacity" debe ser un número positivo.');
                 }
 
-                if (!type || !allowedTypes.includes(type)) {
+                if (!type || !allowedTypes.includes(type as any)) {
                     classroom.isValid = false;
-                    classroom.errors.push(`El tipo debe ser: ${allowedTypes.join(', ')}.`);
+                    classroom.errors.push(`El tipo debe ser uno de los permitidos.`);
                 } else {
                     classroom.type = type as Classroom['type'];
                 }
@@ -183,7 +187,7 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
                     <DialogTitle>Importar Aulas desde Archivo</DialogTitle>
                     <DialogDescription>
                         Sube un archivo Excel (.xlsx, .xls) o CSV con las columnas: <strong>name</strong>, <strong>capacity</strong>, <strong>type</strong>, y <strong>description</strong> (opcional).
-                        El campo 'type' debe ser 'aula', 'sala de sistemas' o 'auditorio'.
+                        El campo 'type' debe ser uno de los siguientes: {allowedTypes.join(', ')}.
                     </DialogDescription>
                     <div className="pt-2">
                         <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>

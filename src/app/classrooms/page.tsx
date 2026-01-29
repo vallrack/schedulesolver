@@ -103,13 +103,17 @@ export default function ClassroomsPage() {
     }
   };
 
-  const getTypeBadgeVariant = (type: Classroom['type']): 'default' | 'secondary' | 'outline' | 'destructive' | null | undefined => {
+  const getTypeBadgeVariant = (type: Classroom['type']): 'default' | 'secondary' | 'outline' => {
     switch (type) {
         case 'sala de sistemas':
+        case 'laboratorio/taller':
             return 'default';
         case 'auditorio':
+        case 'biblioteca':
             return 'outline';
         case 'aula':
+        case 'sala reuniones':
+        case 'oficina':
         default:
             return 'secondary';
     }

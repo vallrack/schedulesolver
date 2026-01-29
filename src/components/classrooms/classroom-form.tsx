@@ -19,7 +19,7 @@ import { Textarea } from '../ui/textarea';
 const classroomSchema = z.object({
   name: z.string().min(1, { message: 'El nombre es obligatorio.' }),
   capacity: z.coerce.number().min(1, 'La capacidad debe ser mayor a 0.'),
-  type: z.enum(['aula', 'sala de sistemas', 'auditorio'], {
+  type: z.enum(['aula', 'sala de sistemas', 'auditorio', 'biblioteca', 'sala reuniones', 'oficina', 'laboratorio/taller'], {
     required_error: 'Debes seleccionar un tipo de sala.',
   }),
   description: z.string().optional(),
@@ -110,7 +110,7 @@ export function ClassroomForm({ classroom, onSuccess }: ClassroomFormProps) {
                 <RadioGroup
                   onValueChange={field.onChange}
                   defaultValue={field.value}
-                  className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4"
+                  className="grid grid-cols-2 gap-x-4 gap-y-2"
                 >
                   <FormItem className="flex items-center space-x-2">
                     <FormControl>
@@ -129,6 +129,22 @@ export function ClassroomForm({ classroom, onSuccess }: ClassroomFormProps) {
                       <RadioGroupItem value="auditorio" />
                     </FormControl>
                     <FormLabel className="font-normal">Auditorio</FormLabel>
+                  </FormItem>
+                  <FormItem className="flex items-center space-x-2">
+                    <FormControl><RadioGroupItem value="biblioteca" /></FormControl>
+                    <FormLabel className="font-normal">Biblioteca</FormLabel>
+                  </FormItem>
+                  <FormItem className="flex items-center space-x-2">
+                    <FormControl><RadioGroupItem value="sala reuniones" /></FormControl>
+                    <FormLabel className="font-normal">Sala Reuniones</FormLabel>
+                  </FormItem>
+                  <FormItem className="flex items-center space-x-2">
+                    <FormControl><RadioGroupItem value="oficina" /></FormControl>
+                    <FormLabel className="font-normal">Oficina</FormLabel>
+                  </FormItem>
+                  <FormItem className="flex items-center space-x-2">
+                    <FormControl><RadioGroupItem value="laboratorio/taller" /></FormControl>
+                    <FormLabel className="font-normal">Laboratorio/Taller</FormLabel>
                   </FormItem>
                 </RadioGroup>
               </FormControl>

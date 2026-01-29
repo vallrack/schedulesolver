@@ -45,7 +45,7 @@ export type Classroom = {
   id: string;
   name: string;
   capacity: number;
-  type: 'aula' | 'sala de sistemas' | 'auditorio';
+  type: 'aula' | 'sala de sistemas' | 'auditorio' | 'biblioteca' | 'sala reuniones' | 'oficina' | 'laboratorio/taller';
   description?: string;
 };
 
