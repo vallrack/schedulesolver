@@ -638,6 +638,7 @@ export default function DashboardPage() {
                                     onSuccess={closeCourseModal}
                                     teachers={teachers || []}
                                     scheduleEvents={scheduleEvents || []}
+                                    classrooms={classrooms || []}
                                 />
                             </DialogContent>
                         </Dialog>
