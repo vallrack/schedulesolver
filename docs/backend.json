@@ -184,6 +184,10 @@
         "type": {
           "type": "string",
           "enum": ["aula", "sala de sistemas", "auditorio"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Observaciones o características del aula (ej: equipos, software, etc.)."
         }
       },
       "required": ["name", "capacity", "type"]

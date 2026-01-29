@@ -43,7 +43,8 @@ export default function ClassroomsPage() {
     if (!classrooms) return [];
     return classrooms.filter(classroom =>
       classroom.name.toLowerCase().includes(filterText.toLowerCase()) ||
-      classroom.type.toLowerCase().includes(filterText.toLowerCase())
+      classroom.type.toLowerCase().includes(filterText.toLowerCase()) ||
+      (classroom.description && classroom.description.toLowerCase().includes(filterText.toLowerCase()))
     );
   }, [classrooms, filterText]);
 
@@ -59,8 +60,8 @@ export default function ClassroomsPage() {
     let sortableItems = [...filteredClassrooms];
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
-        const aValue = a[sortConfig.key];
-        const bValue = b[sortConfig.key];
+        const aValue = a[sortConfig.key] ?? '';
+        const bValue = b[sortConfig.key] ?? '';
         if (aValue < bValue) {
           return sortConfig.direction === 'ascending' ? -1 : 1;
         }
@@ -161,7 +162,7 @@ export default function ClassroomsPage() {
             <CardDescription>Gestiona todas las salas disponibles y sus capacidades.</CardDescription>
             <div className="pt-4">
               <Input 
-                placeholder="Filtrar por nombre o tipo..."
+                placeholder="Filtrar por nombre, tipo o características..."
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
                 className="max-w-sm"
@@ -190,17 +191,24 @@ export default function ClassroomsPage() {
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    <Button variant="ghost" onClick={() => requestSort('description')}>
+                        Características
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
                   <TableHead className="text-right"><span className="sr-only">Acciones</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading && <TableRow><TableCell colSpan={4} className="text-center">Cargando...</TableCell></TableRow>}
-                {error && <TableRow><TableCell colSpan={4} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
+                {loading && <TableRow><TableCell colSpan={5} className="text-center">Cargando...</TableCell></TableRow>}
+                {error && <TableRow><TableCell colSpan={5} className="text-center text-destructive">Error: {error.message}</TableCell></TableRow>}
                 {sortedClassrooms?.map(classroom => (
                   <TableRow key={classroom.id}>
                     <TableCell className="font-medium">{classroom.name}</TableCell>
                     <TableCell><Badge variant={getTypeBadgeVariant(classroom.type)}>{classroom.type}</Badge></TableCell>
                     <TableCell>{classroom.capacity}</TableCell>
+                    <TableCell className="hidden lg:table-cell max-w-xs truncate">{classroom.description}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

@@ -46,6 +46,7 @@ export type Classroom = {
   name: string;
   capacity: number;
   type: 'aula' | 'sala de sistemas' | 'auditorio';
+  description?: string;
 };
 
 export type ScheduleEvent = {

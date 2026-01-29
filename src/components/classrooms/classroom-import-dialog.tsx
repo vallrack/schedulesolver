@@ -38,15 +38,15 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
     }
     
     const handleDownloadTemplate = () => {
-        const headers = [['name', 'capacity', 'type']];
+        const headers = [['name', 'capacity', 'type', 'description']];
         const exampleData = [
-            ['Aula 101', 30, 'aula'],
-            ['Sala de Sistemas 1', 25, 'sala de sistemas'],
-            ['Auditorio Principal', 150, 'auditorio'],
+            ['Aula 101', 30, 'aula', 'Pizarra digital, proyector.'],
+            ['Sala de Sistemas 1', 25, 'sala de sistemas', '25 equipos Core i5, 8GB RAM.'],
+            ['Auditorio Principal', 150, 'auditorio', 'Sistema de sonido, pantalla gigante.'],
         ];
         const ws = XLSX.utils.aoa_to_sheet([...headers, ...exampleData]);
         
-        ws['!cols'] = [ { wch: 25 }, { wch: 10 }, { wch: 20 } ];
+        ws['!cols'] = [ { wch: 25 }, { wch: 10 }, { wch: 20 }, { wch: 50 } ];
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
@@ -85,11 +85,13 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
                 const name = String(lowerCaseRow['name'] || '').trim();
                 const capacity = parseInt(String(lowerCaseRow['capacity'] || 0), 10);
                 const type = String(lowerCaseRow['type'] || '').trim().toLowerCase();
+                const description = String(lowerCaseRow['description'] || '').trim();
 
                 const classroom: ParsedClassroom = {
                     name,
                     capacity,
                     type: 'aula', // Default, will be validated
+                    description,
                     isValid: true,
                     errors: [],
                 };
@@ -176,11 +178,11 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
             }
             onOpenChange(isOpen);
         }}>
-            <DialogContent className="max-w-3xl flex flex-col max-h-[90vh]">
+            <DialogContent className="max-w-4xl flex flex-col max-h-[90vh]">
                 <DialogHeader>
                     <DialogTitle>Importar Aulas desde Archivo</DialogTitle>
                     <DialogDescription>
-                        Sube un archivo Excel (.xlsx, .xls) o CSV con las columnas: <strong>name</strong>, <strong>capacity</strong>, y <strong>type</strong>.
+                        Sube un archivo Excel (.xlsx, .xls) o CSV con las columnas: <strong>name</strong>, <strong>capacity</strong>, <strong>type</strong>, y <strong>description</strong> (opcional).
                         El campo 'type' debe ser 'aula', 'sala de sistemas' o 'auditorio'.
                     </DialogDescription>
                     <div className="pt-2">
@@ -218,6 +220,7 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
                                                 <TableHead>name</TableHead>
                                                 <TableHead>capacity</TableHead>
                                                 <TableHead>type</TableHead>
+                                                <TableHead>description</TableHead>
                                                 <TableHead>Errores</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -233,6 +236,7 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
                                                     <TableCell>{row.name}</TableCell>
                                                     <TableCell>{row.capacity}</TableCell>
                                                     <TableCell><Badge variant="outline">{row.type}</Badge></TableCell>
+                                                    <TableCell className="max-w-[200px] truncate">{row.description}</TableCell>
                                                     <TableCell className="text-destructive text-xs">{row.errors.join(', ')}</TableCell>
                                                 </TableRow>
                                             ))}

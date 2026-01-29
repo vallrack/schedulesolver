@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { Textarea } from '../ui/textarea';
 
 const classroomSchema = z.object({
   name: z.string().min(1, { message: 'El nombre es obligatorio.' }),
@@ -21,6 +22,7 @@ const classroomSchema = z.object({
   type: z.enum(['aula', 'sala de sistemas', 'auditorio'], {
     required_error: 'Debes seleccionar un tipo de sala.',
   }),
+  description: z.string().optional(),
 });
 
 type ClassroomFormValues = z.infer<typeof classroomSchema>;
@@ -36,14 +38,14 @@ export function ClassroomForm({ classroom, onSuccess }: ClassroomFormProps) {
 
   const form = useForm<ClassroomFormValues>({
     resolver: zodResolver(classroomSchema),
-    defaultValues: classroom || { name: '', capacity: 1, type: 'aula' },
+    defaultValues: classroom || { name: '', capacity: 1, type: 'aula', description: '' },
   });
 
   useEffect(() => {
     if (classroom) {
         form.reset(classroom);
     } else {
-        form.reset({ name: '', capacity: 20, type: 'aula' });
+        form.reset({ name: '', capacity: 20, type: 'aula', description: '' });
     }
   }, [classroom, form]);
 
@@ -129,6 +131,19 @@ export function ClassroomForm({ classroom, onSuccess }: ClassroomFormProps) {
                     <FormLabel className="font-normal">Auditorio</FormLabel>
                   </FormItem>
                 </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+         <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Observaciones / Características (Opcional)</FormLabel>
+              <FormControl>
+                <Textarea {...field} placeholder="Ej: Portátil HP 14, Intel Core i5, 8 GB RAM, 512 GB SSD..." />
               </FormControl>
               <FormMessage />
             </FormItem>
