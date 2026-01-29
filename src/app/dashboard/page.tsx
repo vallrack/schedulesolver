@@ -34,7 +34,7 @@ type ReportToPrint = {
 } | null;
 
 const PrintableReport = React.forwardRef<HTMLDivElement, { report: NonNullable<ReportToPrint> }>(({ report }, ref) => (
-    <div ref={ref} className="p-8">
+    <div ref={ref} className="printable-report p-8">
         <h1 className="text-2xl font-bold mb-4">{report.title}</h1>
         <Table>
             <TableHeader>

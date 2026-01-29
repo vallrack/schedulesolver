@@ -88,20 +88,22 @@
     body {
       background-color: white !important;
     }
-    
     .no-print {
       display: none !important;
     }
-    
-    body > *:not(.printable-report),
-    body > #__next > *:not(.printable-report) {
-      display: none !important;
+    body * {
+      visibility: hidden;
     }
-    
+    .printable-report,
+    .printable-report * {
+      visibility: visible;
+    }
     .printable-report {
-      display: block !important;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
     }
-    
     @page {
       size: A4 landscape;
       margin: 1cm;
