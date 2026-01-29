@@ -16,19 +16,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import type { Career, Course, Group, Module, Teacher, Classroom, ScheduleEvent } from '@/lib/types';
 import { ScrollArea } from '../ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { ChevronsUpDown } from 'lucide-react';
+import { ChevronsUpDown, CalendarIcon } from 'lucide-react';
 import { Checkbox } from '../ui/checkbox';
 import { cn } from '@/lib/utils';
+import { format, addWeeks, differenceInCalendarWeeks, startOfWeek as getStartOfWeek } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { Calendar } from '../ui/calendar';
 
-const manualScheduleSchema = z.object({
+const scheduleEventSchema = z.object({
   courseId: z.string().min(1, 'Debes seleccionar un curso.'),
   teacherId: z.string().min(1, 'Debes seleccionar un docente.'),
   classroomId: z.string().min(1, 'Debes seleccionar un aula.'),
   days: z.array(z.string()).nonempty({ message: 'Debes seleccionar al menos un día.' }),
   startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Formato HH:MM requerido."),
   endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Formato HH:MM requerido."),
-  startWeek: z.coerce.number().min(1, 'La semana de inicio es requerida.'),
-  endWeek: z.coerce.number().min(1, 'La semana de fin es requerida.'),
+  startDate: z.date({ required_error: 'La fecha de inicio es obligatoria.' }),
+  endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
 }).refine(data => {
     const start = parseInt(data.startTime.replace(':', ''), 10);
     const end = parseInt(data.endTime.replace(':', ''), 10);
@@ -36,12 +39,12 @@ const manualScheduleSchema = z.object({
 }, {
     message: 'La hora de fin debe ser posterior a la de inicio.',
     path: ['endTime'],
-}).refine(data => data.endWeek >= data.startWeek, {
-    message: 'La semana de fin debe ser igual o posterior a la de inicio.',
-    path: ['endWeek'],
+}).refine(data => data.endDate >= data.startDate, {
+    message: 'La fecha de fin debe ser igual o posterior a la de inicio.',
+    path: ['endDate'],
 });
 
-type FormValues = z.infer<typeof manualScheduleSchema>;
+type FormValues = z.infer<typeof scheduleEventSchema>;
 
 interface ManualScheduleFormProps {
   courses: Course[];
@@ -68,27 +71,42 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
   const isEditMode = !!eventToEdit;
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(manualScheduleSchema),
-    defaultValues: isEditMode && eventToEdit ? {
-        courseId: eventToEdit.courseId,
-        teacherId: eventToEdit.teacherId,
-        classroomId: eventToEdit.classroomId,
-        days: [eventToEdit.day],
-        startTime: eventToEdit.startTime,
-        endTime: eventToEdit.endTime,
-        startWeek: eventToEdit.startWeek,
-        endWeek: eventToEdit.endWeek,
-    } : {
-        courseId: courseToSchedule?.id || '',
-        teacherId: '',
-        classroomId: '',
-        days: [],
-        startTime: '07:00',
-        endTime: '09:00',
-        startWeek: 1,
-        endWeek: 16,
-    },
+    resolver: zodResolver(scheduleEventSchema),
   });
+
+  useEffect(() => {
+    if (isEditMode && eventToEdit) {
+        const course = courses.find(c => c.id === eventToEdit.courseId);
+        if (course) {
+            const courseStartDate = new Date(course.startDate);
+            const eventStartDate = addWeeks(courseStartDate, eventToEdit.startWeek - 1);
+            const eventEndDate = addWeeks(courseStartDate, eventToEdit.endWeek - 1);
+
+            form.reset({
+                courseId: eventToEdit.courseId,
+                teacherId: eventToEdit.teacherId,
+                classroomId: eventToEdit.classroomId,
+                days: [eventToEdit.day],
+                startTime: eventToEdit.startTime,
+                endTime: eventToEdit.endTime,
+                startDate: eventStartDate,
+                endDate: eventEndDate,
+            });
+        }
+    } else {
+        const course = courses.find(c => c.id === courseToSchedule?.id);
+        form.reset({
+            courseId: courseToSchedule?.id || '',
+            teacherId: '',
+            classroomId: '',
+            days: [],
+            startTime: '07:00',
+            endTime: '09:00',
+            startDate: course ? new Date(course.startDate) : undefined,
+            endDate: course ? new Date(course.endDate) : undefined,
+        });
+    }
+  }, [eventToEdit, isEditMode, courses, courseToSchedule, form]);
   
   const selectedCourseId = form.watch('courseId');
 
@@ -136,25 +154,24 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
 
     // --- VALIDATION LOGIC ---
     const selectedCourse = courses.find(c => c.id === data.courseId);
+    if (!selectedCourse) {
+        toast({ variant: "destructive", title: "Error de Validación", description: `El curso seleccionado no es válido.` });
+        return;
+    }
     const groupForCourse = groups.find(g => g.id === selectedCourse?.groupId);
     const selectedClassroom = classrooms.find(c => c.id === data.classroomId);
 
-    // 1. Classroom capacity
     if (groupForCourse && selectedClassroom && groupForCourse.studentCount > selectedClassroom.capacity) {
         toast({ variant: "destructive", title: "Conflicto de Capacidad", description: `El aula ${selectedClassroom.name} (${selectedClassroom.capacity}) no tiene capacidad para el grupo (${groupForCourse.studentCount} estudiantes).` });
         return;
     }
     
-    // 2. Overlap checks
     for (const day of data.days) {
         for (const event of scheduleEvents) {
             if (isEditMode && event.id === eventToEdit.id) continue;
             if (event.day !== day) continue;
-
-            const eventStartMinutes = timeToMinutes(event.startTime);
-            const eventEndMinutes = timeToMinutes(event.endTime);
-
-            const timeOverlap = startMinutes < eventEndMinutes && endMinutes > eventStartMinutes;
+            // More detailed check needed here, comparing week ranges
+            const timeOverlap = startMinutes < timeToMinutes(event.endTime) && endMinutes > timeToMinutes(event.startTime);
             if (!timeOverlap) continue;
 
             if (event.teacherId === data.teacherId) {
@@ -173,7 +190,6 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         }
     }
     
-    // 3. Teacher hours (This is a soft validation, just a warning)
     const selectedTeacher = teachers.find(t => t.id === data.teacherId);
     if(selectedTeacher) {
         const durationPerClass = (endMinutes - startMinutes) / 60;
@@ -184,26 +200,41 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             toast({ variant: "default", title: "Advertencia de Horas", description: `Con esta(s) clase(s), el docente superará sus horas semanales máximas (${newTotalHours.toFixed(2)} / ${selectedTeacher.maxWeeklyHours}).` });
         }
     }
+    
+    // Convert dates to week numbers before saving
+    const courseStartDate = getStartOfWeek(new Date(selectedCourse.startDate), { weekStartsOn: 1 }); // week starts on Monday
+    const eventStartDate = getStartOfWeek(data.startDate, { weekStartsOn: 1 });
+    const eventEndDate = getStartOfWeek(data.endDate, { weekStartsOn: 1 });
+    const startWeek = differenceInCalendarWeeks(eventStartDate, courseStartDate, { weekStartsOn: 1 }) + 1;
+    const endWeek = differenceInCalendarWeeks(eventEndDate, courseStartDate, { weekStartsOn: 1 }) + 1;
+    
+    if (startWeek < 1 || endWeek < 1) {
+        toast({ variant: "destructive", title: "Error de Fechas", description: "Las fechas de la clase deben ser posteriores a la fecha de inicio del curso." });
+        return;
+    }
+
 
     try {
         if (isEditMode && eventToEdit) {
             const scheduleRef = doc(firestore, 'schedules', eventToEdit.id);
+            const { days, startDate, endDate, ...restOfData } = data;
             const eventDataForUpdate = {
-              ...data,
+              ...restOfData,
               day: data.days[0],
+              startWeek,
+              endWeek,
             };
-            delete (eventDataForUpdate as any).days;
       
-            await updateDoc(scheduleRef, eventDataForUpdate);
+            await updateDoc(scheduleRef, eventDataForUpdate as any);
             toast({ title: 'Clase Actualizada', description: 'La clase ha sido actualizada correctamente.' });
         } else {
             const batch = writeBatch(firestore);
             const schedulesCol = collection(firestore, 'schedules');
-            const { days, ...restOfData } = data;
+            const { days, startDate, endDate, ...restOfData } = data;
 
             days.forEach(day => {
                 const newEventRef = doc(schedulesCol);
-                const eventData = { ...restOfData, day };
+                const eventData = { ...restOfData, day, startWeek, endWeek };
                 batch.set(newEventRef, eventData);
             });
 
@@ -213,10 +244,11 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         }
         onSuccess();
     } catch (e) {
+        const { startDate, endDate, ...requestData} = data;
         const permissionError = new FirestorePermissionError({
             path: 'schedules',
             operation: 'create',
-            requestResourceData: data,
+            requestResourceData: { ...requestData, startWeek, endWeek },
         });
         errorEmitter.emit('permission-error', permissionError);
     }
@@ -376,24 +408,79 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         <div className="grid grid-cols-2 gap-4">
             <FormField
                 control={form.control}
-                name="startWeek"
+                name="startDate"
                 render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Semana Inicio</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
+                <FormItem className="flex flex-col">
+                    <FormLabel>Fecha de Inicio</FormLabel>
+                    <Popover modal={true}>
+                    <PopoverTrigger asChild>
+                        <FormControl>
+                        <Button
+                            variant={"outline"}
+                            className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                            )}
+                        >
+                            {field.value ? (
+                            format(field.value, "PPP", { locale: es })
+                            ) : (
+                            <span>Selecciona una fecha</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                        </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        initialFocus
+                        />
+                    </PopoverContent>
+                    </Popover>
                     <FormMessage />
-                    </FormItem>
+                </FormItem>
                 )}
             />
             <FormField
                 control={form.control}
-                name="endWeek"
+                name="endDate"
                 render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Semana Fin</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
+                <FormItem className="flex flex-col">
+                    <FormLabel>Fecha de Fin</FormLabel>
+                    <Popover modal={true}>
+                    <PopoverTrigger asChild>
+                        <FormControl>
+                        <Button
+                            variant={"outline"}
+                            className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                            )}
+                        >
+                            {field.value ? (
+                            format(field.value, "PPP", { locale: es })
+                            ) : (
+                            <span>Selecciona una fecha</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                        </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) => date < (form.getValues("startDate") || new Date("1900-01-01"))}
+                        initialFocus
+                        />
+                    </PopoverContent>
+                    </Popover>
                     <FormMessage />
-                    </FormItem>
+                </FormItem>
                 )}
             />
         </div>
