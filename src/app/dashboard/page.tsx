@@ -46,7 +46,7 @@ const PrintableReport = React.forwardRef<HTMLDivElement, { report: NonNullable<R
                 {report.data.map((row, rowIndex) => (
                     <TableRow key={rowIndex}>
                         {report.headers.map(header => (
-                            <TableCell key={header}>{row[header]}</TableCell>
+                            <TableCell key={header}>{String(row[header] ?? '')}</TableCell>
                         ))}
                     </TableRow>
                 ))}
@@ -87,6 +87,8 @@ export default function DashboardPage() {
 
     const [exportDialogOpen, setExportDialogOpen] = useState(false);
     const [reportToPrint, setReportToPrint] = useState<ReportToPrint>(null);
+    const printRef = useRef<HTMLDivElement>(null);
+
 
     const { toast } = useToast();
     const firestore = useFirestore();
@@ -508,181 +510,180 @@ export default function DashboardPage() {
         )
     };
 
+
+    if (reportToPrint) {
+        return <PrintableReport report={reportToPrint} ref={printRef} />;
+    }
+
     return (
         <AppLayout>
-            {reportToPrint ? (
-                <div className="print-only">
-                    <PrintableReport report={reportToPrint} />
-                </div>
-            ) : (
-                <div className="no-print">
-                    <Card className="shadow-lg">
-                        <CardContent className="p-6">
-                            <div className="flex justify-between items-center mb-6 pb-4 border-b">
-                                <div className="flex items-center gap-2">
-                                    <Button onClick={() => navigateMonth(-1)} variant="outline" size="icon" className="h-9 w-9">
-                                        <ChevronLeft className="w-5 h-5" />
-                                    </Button>
-                                    <h1 className="text-xl font-bold text-gray-800 w-48 text-center capitalize">
-                                        {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
-                                    </h1>
-                                    <Button onClick={() => navigateMonth(1)} variant="outline" size="icon" className="h-9 w-9">
-                                        <ChevronRight className="w-5 h-5" />
-                                    </Button>
-                                </div>
-
-                                <div className="flex items-center gap-4">
-                                    <Button variant="outline" size="sm" onClick={() => setExportDialogOpen(true)} disabled={!allDataLoaded}>
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Exportar
-                                    </Button>
-                                    <div className="flex gap-1 bg-muted p-1 rounded-md">
-                                        {['month', 'week', 'day'].map(view => (
-                                            <Button
-                                                key={view}
-                                                onClick={() => setCurrentView(view)}
-                                                size="sm"
-                                                variant={currentView === view ? 'default' : 'ghost'}
-                                                className="capitalize h-8 text-xs px-3"
-                                            >
-                                                {view === 'month' ? 'Mes' : view === 'week' ? 'Semana' : 'Día'}
-                                            </Button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div className="printable-area">
-                                <div className="mb-8">
-                                    {currentView === 'month' && <MonthView />}
-                                    {currentView === 'week' && <WeekView />}
-                                    {currentView === 'day' && <DayView />}
-                                </div>
+            <div className="no-print">
+                <Card className="shadow-lg">
+                    <CardContent className="p-6">
+                        <div className="flex justify-between items-center mb-6 pb-4 border-b">
+                            <div className="flex items-center gap-2">
+                                <Button onClick={() => navigateMonth(-1)} variant="outline" size="icon" className="h-9 w-9">
+                                    <ChevronLeft className="w-5 h-5" />
+                                </Button>
+                                <h1 className="text-xl font-bold text-gray-800 w-48 text-center capitalize">
+                                    {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+                                </h1>
+                                <Button onClick={() => navigateMonth(1)} variant="outline" size="icon" className="h-9 w-9">
+                                    <ChevronRight className="w-5 h-5" />
+                                </Button>
                             </div>
 
-                            {currentView === 'month' && (
-                                <div className="bg-white rounded-lg">
-                                    <div className="flex justify-between items-center mb-4 pb-4 border-b">
-                                        <h3 className="text-lg font-semibold text-gray-800">
-                                            Cursos para el {selectedDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}
-                                        </h3>
-                                        <Button onClick={() => openCourseModal()} size="sm">
-                                            <Plus className="w-4 h-4 mr-2" />
-                                            Programar Curso
+                            <div className="flex items-center gap-4">
+                                <Button variant="outline" size="sm" onClick={() => setExportDialogOpen(true)} disabled={!allDataLoaded}>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Exportar
+                                </Button>
+                                <div className="flex gap-1 bg-muted p-1 rounded-md">
+                                    {['month', 'week', 'day'].map(view => (
+                                        <Button
+                                            key={view}
+                                            onClick={() => setCurrentView(view)}
+                                            size="sm"
+                                            variant={currentView === view ? 'default' : 'ghost'}
+                                            className="capitalize h-8 text-xs px-3"
+                                        >
+                                            {view === 'month' ? 'Mes' : view === 'week' ? 'Semana' : 'Día'}
                                         </Button>
-                                    </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="printable-area">
+                            <div className="mb-8">
+                                {currentView === 'month' && <MonthView />}
+                                {currentView === 'week' && <WeekView />}
+                                {currentView === 'day' && <DayView />}
+                            </div>
+                        </div>
 
-                                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                                        {getCoursesForDate(selectedDate).length > 0 ? getCoursesForDate(selectedDate).map(course => (
-                                            <div key={course.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
-                                                <div className="w-2 h-12 rounded-full flex-shrink-0 bg-primary mt-1" />
-                                                <div className="flex-1">
-                                                    <div className="font-semibold text-gray-800">{course.moduleName}</div>
-                                                    <div className="text-sm text-gray-600">{course.careerName} / {course.groupInfo}</div>
-                                                    <div className="flex items-center gap-2 mt-1 pt-1">
-                                                        <User className="w-4 h-4 text-muted-foreground" />
-                                                        {course.teacherName ? (
-                                                            <span className="text-sm text-muted-foreground font-medium">{course.teacherName}</span>
-                                                        ) : (
-                                                            <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => handleAssignTeacher(course)}>
-                                                                Asignar Docente
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <Button onClick={() => openCourseModal(course)} variant="ghost" size="icon" className="w-8 h-8 text-blue-600 hover:text-blue-700">
-                                                        <Edit className="w-4 h-4" />
-                                                    </Button>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="w-8 h-8 text-red-600 hover:text-red-700"><Trash2 className="w-4 h-4" /></Button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader>
-                                                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                                                <AlertDialogDescription>Esta acción eliminará permanentemente el curso. No se puede deshacer.</AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter>
-                                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => handleDeleteCourse(course.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
+                        {currentView === 'month' && (
+                            <div className="bg-white rounded-lg">
+                                <div className="flex justify-between items-center mb-4 pb-4 border-b">
+                                    <h3 className="text-lg font-semibold text-gray-800">
+                                        Cursos para el {selectedDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}
+                                    </h3>
+                                    <Button onClick={() => openCourseModal()} size="sm">
+                                        <Plus className="w-4 h-4 mr-2" />
+                                        Programar Curso
+                                    </Button>
+                                </div>
+
+                                <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                                    {getCoursesForDate(selectedDate).length > 0 ? getCoursesForDate(selectedDate).map(course => (
+                                        <div key={course.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
+                                            <div className="w-2 h-12 rounded-full flex-shrink-0 bg-primary mt-1" />
+                                            <div className="flex-1">
+                                                <div className="font-semibold text-gray-800">{course.moduleName}</div>
+                                                <div className="text-sm text-gray-600">{course.careerName} / {course.groupInfo}</div>
+                                                <div className="flex items-center gap-2 mt-1 pt-1">
+                                                    <User className="w-4 h-4 text-muted-foreground" />
+                                                    {course.teacherName ? (
+                                                        <span className="text-sm text-muted-foreground font-medium">{course.teacherName}</span>
+                                                    ) : (
+                                                        <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => handleAssignTeacher(course)}>
+                                                            Asignar Docente
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </div>
-                                        )) : (
-                                            <p className="text-center text-gray-500 py-4">No hay cursos programados para este día.</p>
-                                        )}
-                                    </div>
+                                            <div className="flex gap-2">
+                                                <Button onClick={() => openCourseModal(course)} variant="ghost" size="icon" className="w-8 h-8 text-blue-600 hover:text-blue-700">
+                                                    <Edit className="w-4 h-4" />
+                                                </Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="w-8 h-8 text-red-600 hover:text-red-700"><Trash2 className="w-4 h-4" /></Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                            <AlertDialogDescription>Esta acción eliminará permanentemente el curso. No se puede deshacer.</AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleDeleteCourse(course.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        </div>
+                                    )) : (
+                                        <p className="text-center text-gray-500 py-4">No hay cursos programados para este día.</p>
+                                    )}
                                 </div>
-                            )}
-                            
-                            <Dialog open={showCourseModal} onOpenChange={closeCourseModal}>
-                                <DialogContent className="sm:max-w-xl">
-                                    <DialogHeader>
-                                        <DialogTitle>{editingCourse ? 'Editar Curso' : 'Programar Nuevo Curso'}</DialogTitle>
-                                        <DialogDescription>
-                                            {editingCourse ? 'Actualiza los detalles del curso.' : `Programa un nuevo curso que inicia cerca de la fecha seleccionada: ${selectedDate.toLocaleDateString('es-ES')}`}
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <CourseForm 
-                                        key={editingCourse?.id || 'new-course'}
-                                        course={editingCourse || undefined}
-                                        allCourses={courses || []}
-                                        modules={modules || []}
-                                        groups={groups || []}
-                                        careers={careers || []}
-                                        onSuccess={closeCourseModal}
-                                        teachers={teachers || []}
-                                        scheduleEvents={scheduleEvents || []}
-                                    />
-                                </DialogContent>
-                            </Dialog>
+                            </div>
+                        )}
+                        
+                        <Dialog open={showCourseModal} onOpenChange={closeCourseModal}>
+                            <DialogContent className="sm:max-w-xl">
+                                <DialogHeader>
+                                    <DialogTitle>{editingCourse ? 'Editar Curso' : 'Programar Nuevo Curso'}</DialogTitle>
+                                    <DialogDescription>
+                                        {editingCourse ? 'Actualiza los detalles del curso.' : `Programa un nuevo curso que inicia cerca de la fecha seleccionada: ${selectedDate.toLocaleDateString('es-ES')}`}
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <CourseForm 
+                                    key={editingCourse?.id || 'new-course'}
+                                    course={editingCourse || undefined}
+                                    allCourses={courses || []}
+                                    modules={modules || []}
+                                    groups={groups || []}
+                                    careers={careers || []}
+                                    onSuccess={closeCourseModal}
+                                    teachers={teachers || []}
+                                    scheduleEvents={scheduleEvents || []}
+                                />
+                            </DialogContent>
+                        </Dialog>
 
-                            <Dialog open={showScheduleModal} onOpenChange={closeScheduleModal}>
-                                <DialogContent className="sm:max-w-lg">
-                                    <DialogHeader>
-                                        <DialogTitle>{editingScheduleEvent ? "Editar Clase" : "Asignar Horario a Curso"}</DialogTitle>
-                                        <DialogDescription>
-                                        {editingScheduleEvent ? "Modifica los detalles de la clase." : (courseToSchedule ? `Asignando horario para: ${courseToSchedule.moduleName}`: "Añade una clase al horario. El sistema verificará conflictos.")}
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <ManualScheduleForm 
-                                        key={editingScheduleEvent?.id || courseToSchedule?.id || 'new-schedule-event'}
-                                        courses={courses || []}
-                                        modules={modules || []}
-                                        groups={groups || []}
-                                        careers={careers || []}
-                                        teachers={teachers || []}
-                                        classrooms={classrooms || []}
-                                        scheduleEvents={scheduleEvents || []}
-                                        eventToEdit={editingScheduleEvent}
-                                        courseToSchedule={courseToSchedule || undefined}
-                                        onSuccess={closeScheduleModal}
-                                    />
-                                </DialogContent>
-                            </Dialog>
+                        <Dialog open={showScheduleModal} onOpenChange={closeScheduleModal}>
+                            <DialogContent className="sm:max-w-lg">
+                                <DialogHeader>
+                                    <DialogTitle>{editingScheduleEvent ? "Editar Clase" : "Asignar Horario a Curso"}</DialogTitle>
+                                    <DialogDescription>
+                                    {editingScheduleEvent ? "Modifica los detalles de la clase." : (courseToSchedule ? `Asignando horario para: ${courseToSchedule.moduleName}`: "Añade una clase al horario. El sistema verificará conflictos.")}
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <ManualScheduleForm 
+                                    key={editingScheduleEvent?.id || courseToSchedule?.id || 'new-schedule-event'}
+                                    courses={courses || []}
+                                    modules={modules || []}
+                                    groups={groups || []}
+                                    careers={careers || []}
+                                    teachers={teachers || []}
+                                    classrooms={classrooms || []}
+                                    scheduleEvents={scheduleEvents || []}
+                                    eventToEdit={editingScheduleEvent}
+                                    courseToSchedule={courseToSchedule || undefined}
+                                    onSuccess={closeScheduleModal}
+                                />
+                            </DialogContent>
+                        </Dialog>
 
-                             <ExportDialog 
-                                open={exportDialogOpen}
-                                onOpenChange={setExportDialogOpen}
-                                onPrintRequest={setReportToPrint}
-                                data={{
-                                    courses: courses || [],
-                                    modules: modules || [],
-                                    groups: groups || [],
-                                    careers: careers || [],
-                                    teachers: teachers || [],
-                                    classrooms: classrooms || [],
-                                    scheduleEvents: scheduleEvents || [],
-                                    currentDate: currentDate,
-                                }}
-                            />
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
+                         <ExportDialog 
+                            open={exportDialogOpen}
+                            onOpenChange={setExportDialogOpen}
+                            onPrintRequest={setReportToPrint}
+                            data={{
+                                courses: courses || [],
+                                modules: modules || [],
+                                groups: groups || [],
+                                careers: careers || [],
+                                teachers: teachers || [],
+                                classrooms: classrooms || [],
+                                scheduleEvents: scheduleEvents || [],
+                                currentDate: currentDate,
+                            }}
+                        />
+                    </CardContent>
+                </Card>
+            </div>
         </AppLayout>
     );
 }
@@ -904,7 +905,7 @@ function ExportDialog({ open, onOpenChange, onPrintRequest, data }: ExportDialog
                 <DialogHeader>
                     <DialogTitle>Generar Reporte de Horario</DialogTitle>
                     <DialogDescription>
-                        Selecciona el tipo de reporte y el formato que deseas generar.
+                        Selecciona el tipo de reporte y el formato que deseas generar. El PDF se genera a través del diálogo de impresión de tu navegador.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
