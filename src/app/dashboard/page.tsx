@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Edit, Trash2, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Edit, Trash2, User, Clock, School } from 'lucide-react';
 import AppLayout from '@/components/app-layout';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -20,6 +20,8 @@ import { ManualScheduleForm } from '@/components/dashboard/manual-schedule-form'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
 
 type CourseWithDetails = Course & {
     moduleName: string;
@@ -166,13 +168,15 @@ export default function DashboardPage() {
         const firstDayOfMonth = new Date(year, month, 1);
         const startDate = new Date(firstDayOfMonth);
         startDate.setDate(startDate.getDate() - startDate.getDay());
-
+    
         const days = Array.from({ length: 42 }, (_, i) => {
             const date = new Date(startDate);
             date.setDate(startDate.getDate() + i);
             return date;
         });
-
+    
+        const dayOfWeekMap = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    
         return (
             <div className="border rounded-lg overflow-hidden bg-white">
                 <div className="grid grid-cols-7 bg-gray-50">
@@ -184,7 +188,24 @@ export default function DashboardPage() {
                     {days.map((date, idx) => {
                         const dayCourses = getCoursesForDate(date);
                         const isOtherMonth = date.getMonth() !== month;
-                        const isToday = date.toDateString() === new Date().toDateString();
+                        const isTodayDate = date.toDateString() === new Date().toDateString();
+                        const dayOfWeek = dayOfWeekMap[date.getDay()];
+                        
+                        const scheduledCoursesForDay = dayCourses.map(course => {
+                            const scheduleEvent = scheduleEvents?.find(e => e.courseId === course.id && e.day === dayOfWeek);
+                            if (!scheduleEvent) return null;
+                            
+                            const teacher = teachers?.find(t => t.id === scheduleEvent.teacherId);
+                            const classroom = classrooms?.find(c => c.id === scheduleEvent.classroomId);
+
+                            return {
+                                ...course,
+                                scheduleEvent,
+                                teacher,
+                                classroom
+                            }
+                        }).filter((c): c is NonNullable<typeof c> => c !== null);
+
 
                         return (
                             <div
@@ -194,21 +215,48 @@ export default function DashboardPage() {
                                     isOtherMonth ? 'bg-gray-50 text-gray-400' : 'bg-white hover:bg-gray-100'
                                 )}
                             >
-                                <div className={cn('font-semibold text-right mb-1', isToday ? 'text-primary' : '')}>{date.getDate()}</div>
-                                {isToday && <div className="absolute top-2 right-2 text-xs font-bold text-primary opacity-75">HOY</div>}
+                                <div className={cn('font-semibold text-right mb-1', isTodayDate ? 'text-primary' : '')}>{date.getDate()}</div>
+                                {isTodayDate && <div className="absolute top-2 right-2 text-xs font-bold text-primary opacity-75">HOY</div>}
                                 <div className="space-y-1">
-                                    {dayCourses.slice(0, 2).map(course => (
-                                        <div
-                                            key={course.id}
-                                            className="text-xs px-1.5 py-0.5 rounded truncate text-white font-medium cursor-pointer bg-primary/80"
-                                            title={course.moduleName}
-                                            onClick={(e) => { e.stopPropagation(); openCourseModal(course); }}
-                                        >
-                                            {course.moduleName}
-                                        </div>
+                                    {scheduledCoursesForDay.slice(0, 2).map(course => (
+                                        <Popover key={course.id}>
+                                            <PopoverTrigger asChild>
+                                                <div
+                                                    className="text-xs px-1.5 py-0.5 rounded truncate text-white font-medium cursor-pointer bg-primary/80"
+                                                    title={course.moduleName}
+                                                    onClick={(e) => e.stopPropagation()} // Prevent day selection
+                                                >
+                                                    {course.moduleName}
+                                                </div>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-72" onClick={(e) => e.stopPropagation()}>
+                                                <div className="grid gap-4">
+                                                    <div className="space-y-1">
+                                                        <h4 className="font-medium leading-none">{course.moduleName}</h4>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {course.careerName} / {course.groupInfo}
+                                                        </p>
+                                                    </div>
+                                                    <div className="grid gap-2 text-sm">
+                                                        <div className="flex items-center gap-2">
+                                                            <Clock className="h-4 w-4 text-muted-foreground" />
+                                                            <span>{course.scheduleEvent.startTime} - {course.scheduleEvent.endTime}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <User className="h-4 w-4 text-muted-foreground" />
+                                                            <span>{course.teacher?.name || 'No asignado'}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <School className="h-4 w-4 text-muted-foreground" />
+                                                            <span>{course.classroom?.name || 'No asignada'}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </PopoverContent>
+                                        </Popover>
                                     ))}
-                                    {dayCourses.length > 2 && (
-                                        <div className="text-xs text-gray-500 font-bold">+ {dayCourses.length - 2} más</div>
+                                    {scheduledCoursesForDay.length > 2 && (
+                                        <div className="text-xs text-gray-500 font-bold">+ {scheduledCoursesForDay.length - 2} más</div>
                                     )}
                                 </div>
                             </div>
