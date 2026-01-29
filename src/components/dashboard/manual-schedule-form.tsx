@@ -74,9 +74,9 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
     if (isEditMode && eventToEdit && courses.length > 0) {
         const course = courses.find(c => c.id === eventToEdit.courseId);
         if (course) {
-            const courseStartDate = new Date(course.startDate);
-            const eventStartDate = addWeeks(courseStartDate, eventToEdit.startWeek - 1);
-            const eventEndDate = addWeeks(courseStartDate, eventToEdit.endWeek - 1);
+            const courseWeekStartDate = getStartOfWeek(new Date(course.startDate), { weekStartsOn: 1 });
+            const eventStartDate = addWeeks(courseWeekStartDate, eventToEdit.startWeek - 1);
+            const eventEndDate = addWeeks(courseWeekStartDate, eventToEdit.endWeek - 1);
             return {
                 courseId: eventToEdit.courseId,
                 teacherId: eventToEdit.teacherId,
