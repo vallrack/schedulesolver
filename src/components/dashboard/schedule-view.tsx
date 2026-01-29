@@ -61,7 +61,8 @@ export default function ScheduleView() {
 
   useEffect(() => {
       if (teachers && teachers.length > 0 && !selectedTeacher) {
-          setSelectedTeacher(teachers[0].id);
+          const sortedTeachers = [...teachers].sort((a, b) => a.name.localeCompare(b.name));
+          setSelectedTeacher(sortedTeachers[0].id);
       }
   }, [teachers, selectedTeacher]);
 
@@ -73,7 +74,8 @@ export default function ScheduleView() {
 
   useEffect(() => {
       if (classrooms && classrooms.length > 0 && !selectedClassroom) {
-          setSelectedClassroom(classrooms[0].id);
+          const sortedClassrooms = [...classrooms].sort((a, b) => a.name.localeCompare(b.name));
+          setSelectedClassroom(sortedClassrooms[0].id);
       }
   }, [classrooms, selectedClassroom]);
 
@@ -119,13 +121,8 @@ export default function ScheduleView() {
       });
 
       newScheduleEvents.forEach(event => {
-          // The AI returns a `subjectId`, but it's really a `courseId` in our new model
           const newEventRef = doc(schedulesCollection);
-          batch.set(newEventRef, {
-            ...event,
-            courseId: event.subjectId, // Remap the field
-            subjectId: undefined, // Remove old field
-          });
+          batch.set(newEventRef, event);
       });
 
       await batch.commit();
@@ -198,7 +195,7 @@ export default function ScheduleView() {
                         <SelectValue placeholder="Selecciona un docente..." />
                     </SelectTrigger>
                     <SelectContent>
-                        {teachers?.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                        {teachers?.sort((a,b) => a.name.localeCompare(b.name)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                     </SelectContent>
                  </Select>
                </div>
@@ -224,7 +221,7 @@ export default function ScheduleView() {
                         <SelectValue placeholder="Selecciona un aula..." />
                     </SelectTrigger>
                     <SelectContent>
-                        {classrooms?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        {classrooms?.sort((a, b) => a.name.localeCompare(b.name)).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                     </SelectContent>
                  </Select>
                </div>

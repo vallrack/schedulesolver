@@ -24,7 +24,7 @@ export type GenerateInitialScheduleInput = z.infer<
 >;
 
 const GeneratedScheduleEventSchema = z.object({
-  subjectId: z.string().describe("The ID of the course offering from the input 'subjects' list."),
+  courseId: z.string().describe("The ID of the course from the input 'subjects' list."),
   teacherId: z.string(),
   classroomId: z.string(),
   day: z.string().describe("Day of the week, e.g., 'Lunes'."),
@@ -62,7 +62,7 @@ Groups: {{{groups}}}
 Constraints: {{{constraints}}}
 
 Generate a schedule and provide an explanation of how you generated it.
-The 'schedule' property in your output must be an array of event objects. Each event object must have the following properties: subjectId (string, THIS MUST BE THE ID OF THE COURSE OFFERING from the input 'subjects' list), teacherId (string), classroomId (string), day (string, e.g., 'Lunes'), startTime (string, 'HH:MM'), endTime (string, 'HH:MM'), startWeek (number), and endWeek (number).
+The 'schedule' property in your output must be an array of event objects. Each event object must have the following properties: courseId (string, THIS MUST BE THE ID OF THE COURSE from the input 'subjects' list), teacherId (string), classroomId (string), day (string, e.g., 'Lunes'), startTime (string, 'HH:MM'), endTime (string, 'HH:MM'), startWeek (number), and endWeek (number).
 
 The most important constraint is to never assign a group to a classroom where the number of students in the group ('studentCount') exceeds the classroom's 'capacity'.
 
@@ -80,6 +80,9 @@ const generateInitialScheduleFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await generateInitialSchedulePrompt(input);
-    return output!;
+    if (!output) {
+      throw new Error('La IA no devolvió una respuesta válida. Por favor, inténtalo de nuevo.');
+    }
+    return output;
   }
 );

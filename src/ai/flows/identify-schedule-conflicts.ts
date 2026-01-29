@@ -52,6 +52,9 @@ const identifyScheduleConflictsFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await identifyScheduleConflictsPrompt(input);
-    return output!;
+    if (!output) {
+      throw new Error('La IA no devolvió una respuesta válida. Por favor, inténtalo de nuevo.');
+    }
+    return output;
   }
 );
