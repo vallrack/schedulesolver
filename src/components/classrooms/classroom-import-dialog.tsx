@@ -53,11 +53,19 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
             const json = XLSX.utils.sheet_to_json<any>(worksheet);
 
             const processedData = json.map(row => {
-                const nameHeader = Object.keys(row).find(k => k.toLowerCase().includes('sala')) || '';
-                const capacityHeader = Object.keys(row).find(k => k.toLowerCase().includes('cantidad')) || '';
+                const nameHeader = Object.keys(row).find(k => k.toLowerCase().includes('sala') || k.toLowerCase().includes('aula')) || Object.keys(row)[0] || '';
+                const capacityHeader = Object.keys(row).find(k => k.toLowerCase().includes('cantidad') || k.toLowerCase().includes('capacidad')) || Object.keys(row)[1] || '';
+                const characteristicsHeader = Object.keys(row).find(k => k.toLowerCase().includes('características')) || '';
                 
                 const name = String(row[nameHeader] || '').trim();
+
+                // Filter out rows that are likely totals/summaries
+                if (name.toLowerCase().startsWith('total')) {
+                    return null;
+                }
+
                 const capacity = parseInt(String(row[capacityHeader] || 0), 10);
+                const characteristics = String(row[characteristicsHeader] || '').toLowerCase();
                 
                 const classroom: ParsedClassroom = {
                     name: name,
@@ -67,7 +75,7 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
                     errors: [],
                 };
                 
-                // --- VALIDATION & INFERENCE ---
+                // --- VALIDATION ---
                 if (!name) {
                     classroom.isValid = false;
                     classroom.errors.push('El nombre no puede estar vacío.');
@@ -77,16 +85,19 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
                     classroom.errors.push('La capacidad debe ser un número positivo.');
                 }
 
-                // Infer type
+                // --- INFERENCE ---
                 const lowerCaseName = name.toLowerCase();
-                if (lowerCaseName.includes('sistemas') || lowerCaseName.includes('diseño gráfico')) {
-                    classroom.type = 'sala de sistemas';
-                } else if (lowerCaseName.includes('auditorio')) {
+                const systemKeywords = ['sistemas', 'diseño', 'taller', 'redes', 'portátil', 'equipos', 'pc', 'computador', 'ssd', 'ram', 'intel', 'amd', 'core i', 'ryzen'];
+                
+                if (lowerCaseName.includes('auditorio')) {
                     classroom.type = 'auditorio';
+                } else if (systemKeywords.some(keyword => lowerCaseName.includes(keyword) || characteristics.includes(keyword))) {
+                    classroom.type = 'sala de sistemas';
                 }
+                // otherwise it remains 'aula'
 
                 return classroom;
-            });
+            }).filter((c): c is ParsedClassroom => c !== null); // Filter out nulls
             
             setParsedData(processedData);
 
