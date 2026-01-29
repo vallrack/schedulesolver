@@ -53,22 +53,42 @@ const generateInitialSchedulePrompt = ai.definePrompt({
   name: 'generateInitialSchedulePrompt',
   input: {schema: GenerateInitialScheduleInputSchema},
   output: {schema: GenerateInitialScheduleOutputSchema},
-  prompt: `You are a schedule generator. You will be given a list of subjects (which are actually scheduled courses), teachers, classrooms, student groups, and constraints. You will generate a schedule that satisfies the constraints.
+  prompt: `You are an expert university scheduler AI. Your task is to generate a weekly class schedule based on the provided data and constraints.
 
-Subjects: {{{subjects}}}
-Teachers: {{{teachers}}}
-Classrooms: {{{classrooms}}}
-Groups: {{{groups}}}
-Constraints: {{{constraints}}}
+You will receive JSON strings for the following:
+- **Subjects**: A list of courses that need to be scheduled. Each course has an ID, name, total hours required for the semester, and the group of students taking it.
+- **Teachers**: A list of available teachers, their specializations (by module ID), and their availability.
+- **Classrooms**: A list of available classrooms with their capacity.
+- **Groups**: A list of student groups with their student count.
+- **Constraints**: A list of rules you must follow.
 
-Generate a schedule and provide an explanation of how you generated it.
-The 'schedule' property in your output must be an array of event objects. Each event object must have the following properties: courseId (string, THIS MUST BE THE ID OF THE COURSE from the input 'subjects' list), teacherId (string), classroomId (string), day (string, e.g., 'Lunes'), startTime (string, 'HH:MM'), endTime (string, 'HH:MM'), startWeek (number), and endWeek (number).
+**Input Data:**
+- Subjects: {{{subjects}}}
+- Teachers: {{{teachers}}}
+- Classrooms: {{{classrooms}}}
+- Groups: {{{groups}}}
 
-The most important constraint is to never assign a group to a classroom where the number of students in the group ('studentCount') exceeds the classroom's 'capacity'.
+**Your Goal:**
+Create an array of schedule events. Each event represents a single class session.
 
-{{# each constraints }}
+**Output Format:**
+Your output **MUST** be a JSON object with two properties: 'schedule' and 'explanation'.
+The 'schedule' property must be an array of event objects. Each event object **MUST** have the following properties:
+- \`courseId\`: (string) The ID of the course from the input 'subjects' list.
+- \`teacherId\`: (string) The ID of the assigned teacher.
+- \`classroomId\`: (string) The ID of the assigned classroom.
+- \`day\`: (string) Day of the week (e.g., 'Lunes', 'Martes', etc.).
+- \`startTime\`: (string) Start time in 'HH:MM' format.
+- \`endTime\`: (string) End time in 'HH:MM' format.
+- \`startWeek\`: (number) The week number the course starts.
+- \`endWeek\`: (number) The week number the course ends.
+
+**Crucial Constraints to Follow:**
+{{#each constraints}}
   - {{{this}}}
 {{/each}}
+
+Please generate the schedule now. Provide the schedule array and a brief explanation of your process.
 `,
 });
 

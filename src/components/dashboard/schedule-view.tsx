@@ -81,36 +81,67 @@ export default function ScheduleView() {
 
 
   const handleGenerateSchedule = async () => {
-    if (!firestore || !schedulesCollection || !courses) {
+    if (!firestore || !schedulesCollection || !courses || !teachers || !classrooms || !groups || !modules) {
         toast({
             variant: 'destructive',
-            title: 'Error',
-            description: 'Faltan datos para generar el horario. Asegúrate de tener cursos programados.',
+            title: 'Faltan Datos para Generar',
+            description: 'Asegúrate de tener docentes, cursos, aulas y grupos definidos antes de generar un horario.',
         });
         return;
     }
 
     setIsGenerating(true);
     try {
+      const aiTeachers = teachers.map(t => ({ 
+        id: t.id, 
+        name: t.name, 
+        specialties: t.specialties, 
+        availability: t.availability,
+        maxWeeklyHours: t.maxWeeklyHours,
+      }));
+
+      const aiClassrooms = classrooms.map(c => ({
+        id: c.id,
+        name: c.name,
+        capacity: c.capacity,
+        type: c.type,
+      }));
+
+      const aiCourses = courses.map(c => {
+        const group = groups.find(g => g.id === c.groupId);
+        const module = modules.find(m => m.id === c.moduleId);
+        return {
+          id: c.id, // This is the courseId
+          moduleName: module?.name,
+          moduleId: c.moduleId,
+          groupId: c.groupId,
+          studentCount: group?.studentCount,
+          totalHours: c.totalHours,
+          durationWeeks: c.durationWeeks,
+        }
+      });
+
       const result = await generateInitialSchedule({
-        subjects: JSON.stringify(courses), // Passing courses as "subjects" to the AI
-        teachers: JSON.stringify(teachers),
-        classrooms: JSON.stringify(classrooms),
+        subjects: JSON.stringify(aiCourses),
+        teachers: JSON.stringify(aiTeachers),
+        classrooms: JSON.stringify(aiClassrooms),
         groups: JSON.stringify(groups),
         constraints: JSON.stringify([
-          'Un profesor no puede estar en dos lugares a la vez.',
-          'Un grupo no puede tener dos clases al mismo tiempo.',
-          'No exceder la capacidad del aula. Compara la capacidad del aula (`capacity`) con la cantidad de estudiantes del grupo (`studentCount`).',
-          'Respetar la duración exacta del curso.',
-          'Evitar huecos excesivos para profesores y alumnos.',
-          'Preferir turnos de mañana/tarde cuando sea posible.',
+          'Regla de Oro: Un profesor, un grupo o un aula no pueden estar en dos lugares a la vez.',
+          'Capacidad del Aula: Nunca asignes un grupo a un aula si el número de estudiantes (`studentCount`) supera la capacidad del aula (`capacity`).',
+          'Especialidad del Docente: Asigna docentes solo a los módulos para los que son especialistas (compara `moduleId` del curso con el array `specialties` del docente).',
+          'Disponibilidad del Docente: Respeta estrictamente los días y horas definidos en el array `availability` de cada docente.',
+          'Horas Semanales: La carga horaria semanal de un docente no debe superar sus `maxWeeklyHours`.',
+          'Horas del Curso: El total de horas de clase asignadas a un curso durante el semestre debe ser igual a sus `totalHours`.',
+          'Duración de la Sesión: Cada sesión de clase individual debe durar exactamente 2 horas.',
+          'Días Hábiles: Las clases solo se pueden programar de Lunes a Sábado.',
         ]),
       });
       
       const newScheduleEvents = result.schedule;
 
       if (!Array.isArray(newScheduleEvents)) {
-          throw new Error("La IA no devolvió un formato de horario válido.");
+          throw new Error("La IA no devolvió un formato de horario válido. La respuesta no fue un array.");
       }
 
       const batch = writeBatch(firestore);
