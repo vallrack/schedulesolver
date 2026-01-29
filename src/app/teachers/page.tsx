@@ -275,20 +275,18 @@ export default function TeachersPage() {
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>{editingTeacher ? 'Editar Docente' : 'Añadir Nuevo Docente'}</DialogTitle>
                     <DialogDescription>
                        {editingTeacher ? 'Actualiza los detalles del docente.' : 'Rellena los detalles para el nuevo docente.'}
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4">
-                    <TeacherForm 
-                        teacher={editingTeacher} 
-                        modules={modules || []} 
-                        onSuccess={() => setDialogOpen(false)} 
-                    />
-                </div>
+                <TeacherForm 
+                    teacher={editingTeacher} 
+                    modules={modules || []} 
+                    onSuccess={() => setDialogOpen(false)} 
+                />
             </DialogContent>
         </Dialog>
 

@@ -112,7 +112,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4 max-h-[60vh] overflow-y-auto pr-2">
         <FormField
           control={form.control}
           name="name"
@@ -180,7 +180,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                     <ScrollArea className="h-48">
                         <div className="p-4">
                         {modules.map((module) => (
