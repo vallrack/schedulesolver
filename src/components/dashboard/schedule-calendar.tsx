@@ -9,7 +9,11 @@ const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sá
 const TIME_SLOTS = Array.from({ length: 16 }, (_, i) => `${(i + 7).toString().padStart(2, '0')}:00`); // 7 AM to 10 PM
 
 const timeToMinutes = (time: string): number => {
-  const [hours, minutes] = time.split(':').map(Number);
+  if (!time) return 0;
+  const [hours, minutes] = time.split(':').map(t => parseInt(t, 10));
+  if (isNaN(hours) || isNaN(minutes)) {
+    return 0;
+  }
   return hours * 60 + minutes;
 };
 
@@ -89,7 +93,7 @@ interface ScheduleCalendarProps {
 
 export function ScheduleCalendar({ events, courses, modules, teachers, classrooms }: ScheduleCalendarProps) {
   return (
-    <div className="mt-6 border rounded-xl shadow-sm bg-card">
+    <div className="mt-6 border rounded-xl shadow-sm bg-card overflow-hidden">
       <div className="grid grid-cols-[60px_repeat(6,1fr)]">
         {/* Corner */}
         <div className="h-12 border-b border-r"></div>
@@ -102,7 +106,7 @@ export function ScheduleCalendar({ events, courses, modules, teachers, classroom
         ))}
 
         {/* Time Gutter */}
-        <div className="flex flex-col border-r">
+        <div className="row-span-full col-start-1 row-start-2 flex flex-col border-r">
           {TIME_SLOTS.map((time, index) => (
             <div key={time} className={cn("h-18 flex items-center justify-center", index > 0 && "border-t")}>
               <span className="text-xs text-muted-foreground">{time}</span>
@@ -111,8 +115,8 @@ export function ScheduleCalendar({ events, courses, modules, teachers, classroom
         </div>
 
         {/* Calendar Grid */}
-        {DAYS_OF_WEEK.map((day) => (
-          <div key={day} className="relative border-l">
+        {DAYS_OF_WEEK.map((day, dayIndex) => (
+          <div key={day} className="relative border-l" style={{ gridColumnStart: dayIndex + 2, gridRowStart: 2 }}>
             {/* Hour lines */}
             {TIME_SLOTS.map((time, index) => (
               <div key={time} className={cn("h-18", index > 0 && "border-t")}></div>
