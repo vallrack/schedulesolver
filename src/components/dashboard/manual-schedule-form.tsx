@@ -264,7 +264,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Días</FormLabel>
-                <Popover>
+                <Popover modal={true}>
                     <PopoverTrigger asChild>
                     <FormControl>
                         <Button
