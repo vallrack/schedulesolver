@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Edit, Trash2 } from 'lucide-react';
 import AppLayout from '@/components/app-layout';
 import { useFirestore } from '@/firebase';
@@ -12,15 +12,19 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { CourseForm } from '@/components/courses/course-form';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Card, CardContent } from '@/components/ui/card';
 
 type CourseWithDetails = Course & {
     moduleName: string;
     groupInfo: string;
     careerName: string;
 };
+
+const toISODateString = (date: Date) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
 export default function AcademicCalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -56,25 +60,20 @@ export default function AcademicCalendarPage() {
     const navigateMonth = (direction: number) => {
         setCurrentDate(current => {
             const newDate = new Date(current);
-            newDate.setDate(1); // Avoid issues with month lengths
+            newDate.setDate(1); 
             newDate.setMonth(newDate.getMonth() + direction);
             return newDate;
         });
     };
     
-    const isToday = (date: Date) => new Date().toDateString() === date.toDateString();
-    const isSelected = (date: Date) => selectedDate.toDateString() === date.toDateString();
-
     const getCoursesForDate = (date: Date) => {
-        const checkDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-
+        const checkDateStr = toISODateString(date);
         return coursesWithDetails.filter(course => {
             const startDateStr = course.startDate.split('T')[0];
             const endDateStr = course.endDate.split('T')[0];
             return checkDateStr >= startDateStr && checkDateStr <= endDateStr;
         });
     };
-
 
     const openModal = (course: Course | null = null) => {
         setEditingCourse(course);
@@ -117,13 +116,13 @@ export default function AcademicCalendarPage() {
         });
 
         return (
-            <div>
-                <div className="grid grid-cols-7 text-center font-semibold text-sm text-gray-600">
+            <div className="border rounded-lg overflow-hidden">
+                <div className="grid grid-cols-7 bg-gray-50">
                     {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
-                        <div key={day} className="py-2">{day}</div>
+                        <div key={day} className="py-3 text-center font-semibold text-sm text-gray-500">{day}</div>
                     ))}
                 </div>
-                <div className="grid grid-cols-7 border rounded-lg overflow-hidden">
+                <div className="grid grid-cols-7">
                     {days.map((date, idx) => {
                         const dayCourses = getCoursesForDate(date);
                         const isOtherMonth = date.getMonth() !== month;
@@ -133,17 +132,15 @@ export default function AcademicCalendarPage() {
                                 key={idx}
                                 onClick={() => setSelectedDate(date)}
                                 className={cn(`min-h-[120px] p-2 cursor-pointer transition-colors duration-150 border-t border-l`,
-                                    isOtherMonth ? 'bg-gray-50 text-gray-400' : 'bg-white hover:bg-gray-50',
-                                    isToday(date) ? 'border-2 border-primary' : '',
-                                    isSelected(date) ? 'bg-accent/20' : ''
+                                    isOtherMonth ? 'bg-gray-50 text-gray-400' : 'bg-white hover:bg-gray-100'
                                 )}
                             >
-                                <div className={cn('font-semibold text-right', isToday(date) ? 'text-primary' : '')}>{date.getDate()}</div>
+                                <div className={cn('font-semibold text-right', date.toDateString() === new Date().toDateString() ? 'text-primary' : '')}>{date.getDate()}</div>
                                 <div className="space-y-1 mt-1">
                                     {dayCourses.slice(0, 3).map(course => (
                                         <div
                                             key={course.id}
-                                            className="text-xs px-1.5 py-0.5 rounded truncate text-white font-medium cursor-pointer bg-primary/80 hover:bg-primary"
+                                            className="text-xs px-1.5 py-0.5 rounded truncate text-white font-medium cursor-pointer bg-primary"
                                             title={course.moduleName}
                                             onClick={(e) => { e.stopPropagation(); openModal(course); }}
                                         >
@@ -172,7 +169,7 @@ export default function AcademicCalendarPage() {
 
     return (
         <AppLayout>
-            <Card className="shadow-2xl">
+            <Card className="shadow-lg">
               <CardContent className="p-6">
                 <div className="flex justify-between items-center mb-6 pb-4 border-b">
                     <div className="flex items-center gap-2">
