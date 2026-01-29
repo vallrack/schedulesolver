@@ -25,6 +25,8 @@ import * as XLSX from 'xlsx';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from '@/components/ui/badge';
 
 
 type ReportToPrint = {
@@ -62,6 +64,19 @@ type CourseWithDetails = Course & {
     moduleName: string;
     groupInfo: string;
     careerName: string;
+};
+
+type ScheduledClassInfo = {
+    scheduleEventId: string;
+    courseId: string;
+    moduleName: string;
+    groupInfo: string;
+    teacherName: string;
+    classroomName: string;
+    day: string;
+    startTime: string;
+    endTime: string;
+    scheduleEvent: ScheduleEvent;
 };
 
 const toISODateString = (date: Date) => {
@@ -131,20 +146,81 @@ export default function DashboardPage() {
             }
         }).filter((c): c is CourseWithDetails => c !== null);
     }, [allDataLoaded, courses, modules, groups, careers]);
-
-     const coursesForMonth = useMemo(() => {
-        if (!allDataLoaded) return [];
+    
+    const { groupedScheduledClasses, unscheduledCourses } = useMemo(() => {
+        if (!allDataLoaded) return { groupedScheduledClasses: {}, unscheduledCourses: [] };
+    
         const monthStart = startOfMonth(currentDate);
         const monthEnd = endOfMonth(currentDate);
-
-        return coursesWithDetails.filter(course => {
-            const courseStart = new Date(course.startDate);
-            const courseEnd = new Date(course.endDate);
-            // Check for overlap between course interval and month interval
-            return courseStart <= monthEnd && courseEnd >= monthStart;
-        }).sort((a,b) => a.moduleName.localeCompare(b.moduleName));
-    }, [allDataLoaded, coursesWithDetails, currentDate]);
     
+        const activeCoursesInMonth = coursesWithDetails.filter(course => {
+          const courseStart = new Date(course.startDate);
+          const courseEnd = new Date(course.endDate);
+          return courseStart <= monthEnd && courseEnd >= monthStart;
+        });
+    
+        const scheduledCourseIds = new Set<string>();
+        const scheduledClasses: ScheduledClassInfo[] = [];
+    
+        scheduleEvents!.forEach(event => {
+          const course = coursesWithDetails.find(c => c.id === event.courseId);
+          if (!course) return;
+    
+          const courseStart = new Date(course.startDate);
+          const courseEnd = new Date(course.endDate);
+          if (courseStart > monthEnd || courseEnd < monthStart) return;
+    
+          scheduledCourseIds.add(course.id);
+    
+          const teacher = teachers!.find(t => t.id === event.teacherId);
+          const classroom = classrooms!.find(c => c.id === event.classroomId);
+    
+          scheduledClasses.push({
+            scheduleEventId: event.id,
+            courseId: course.id,
+            moduleName: course.moduleName,
+            groupInfo: `${course.careerName} / ${course.groupInfo}`,
+            teacherName: teacher?.name || 'No asignado',
+            classroomName: classroom?.name || 'No asignada',
+            day: event.day,
+            startTime: event.startTime,
+            endTime: event.endTime,
+            scheduleEvent: event
+          });
+        });
+    
+        const grouped = scheduledClasses.reduce((acc, currentClass) => {
+          const key = currentClass.moduleName;
+          if (!acc[key]) {
+            acc[key] = [];
+          }
+          acc[key].push(currentClass);
+          return acc;
+        }, {} as Record<string, ScheduledClassInfo[]>);
+    
+        for (const moduleName in grouped) {
+            grouped[moduleName].sort((a, b) => {
+                const dayOrder = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+                const dayCompare = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
+                if (dayCompare !== 0) return dayCompare;
+                return a.startTime.localeCompare(b.startTime);
+            });
+        }
+        
+        const sortedGroupedScheduledClasses: Record<string, ScheduledClassInfo[]> = Object.keys(grouped).sort().reduce(
+          (obj, key) => { 
+            obj[key] = grouped[key]; 
+            return obj;
+          }, 
+          {} as Record<string, ScheduledClassInfo[]>
+        );
+    
+        const unscheduled = activeCoursesInMonth.filter(course => !scheduledCourseIds.has(course.id))
+          .sort((a,b) => a.moduleName.localeCompare(b.moduleName));
+    
+        return { groupedScheduledClasses: sortedGroupedScheduledClasses, unscheduledCourses: unscheduled };
+      }, [allDataLoaded, coursesWithDetails, scheduleEvents, teachers, classrooms, currentDate]);
+
     const groupOptions = useMemo(() => {
         if (!groups || !careers) return [];
         return groups.map(group => {
@@ -570,77 +646,125 @@ export default function DashboardPage() {
                         </div>
 
                         {currentView === 'month' && (
-                            <div className="bg-white rounded-lg">
-                                <div className="flex justify-between items-center mb-4 pb-4 border-b">
-                                    <h3 className="text-lg font-semibold text-gray-800 capitalize">
-                                        Cursos para {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
-                                    </h3>
-                                    <Button onClick={() => openCourseModal()} size="sm">
-                                        <Plus className="w-4 h-4 mr-2" />
-                                        Programar Curso
-                                    </Button>
-                                </div>
+                        <div className="bg-white rounded-lg">
+                            <div className="flex justify-between items-center mb-4 pb-4 border-b">
+                                <h3 className="text-lg font-semibold text-gray-800 capitalize">
+                                    Clases Programadas para {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+                                </h3>
+                                <Button onClick={() => openCourseModal()} size="sm">
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Programar Curso
+                                </Button>
+                            </div>
 
-                                <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                                    {coursesForMonth.length > 0 ? coursesForMonth.map(course => {
-                                        const dayOfWeekMap = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-                                        const dayOfWeek = dayOfWeekMap[selectedDate.getDay()];
-                                        const scheduleEventForDay = scheduleEvents?.find(e => e.courseId === course.id && e.day === dayOfWeek);
-                                        const teacher = scheduleEventForDay ? teachers?.find(t => t.id === scheduleEventForDay.teacherId) : undefined;
-                                        
-                                        return (
-                                        <div key={course.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
-                                            <div className="w-2 h-12 rounded-full flex-shrink-0 bg-primary mt-1" />
-                                            <div className="flex-1">
-                                                <div className="font-semibold text-gray-800">{course.moduleName}</div>
-                                                <div className="text-sm text-gray-600">{course.careerName} / {course.groupInfo}</div>
-                                                
-                                                <div className="flex items-center gap-4 mt-2 text-sm">
-                                                     <div className="flex items-center gap-2">
-                                                        <User className="w-4 h-4 text-muted-foreground" />
-                                                        {teacher ? (
-                                                            <span className="text-muted-foreground font-medium">{teacher.name}</span>
-                                                        ) : (
-                                                            <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => handleAssignTeacher(course)}>
-                                                                Asignar Docente
-                                                            </Button>
-                                                        )}
+                            {Object.keys(groupedScheduledClasses).length > 0 ? (
+                                <Accordion type="multiple" className="w-full space-y-2 max-h-[30rem] overflow-y-auto pr-2">
+                                    {Object.entries(groupedScheduledClasses).map(([moduleName, schedules]) => (
+                                        <AccordionItem value={moduleName} key={moduleName} className="border rounded-lg px-4 bg-gray-50/50">
+                                            <AccordionTrigger className="hover:no-underline text-base font-semibold">
+                                                {moduleName}
+                                                <Badge variant="secondary" className="ml-2">{schedules.length} clase(s)</Badge>
+                                            </AccordionTrigger>
+                                            <AccordionContent>
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>Grupo</TableHead>
+                                                            <TableHead>Docente</TableHead>
+                                                            <TableHead>Horario</TableHead>
+                                                            <TableHead>Aula</TableHead>
+                                                            <TableHead className="text-right w-24"><span className="sr-only">Acciones</span></TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {schedules.map((s) => (
+                                                            <TableRow key={s.scheduleEventId}>
+                                                                <TableCell className="text-xs">{s.groupInfo}</TableCell>
+                                                                <TableCell>{s.teacherName}</TableCell>
+                                                                <TableCell>{s.day} {s.startTime} - {s.endTime}</TableCell>
+                                                                <TableCell>{s.classroomName}</TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <div className="flex gap-1 justify-end">
+                                                                        <Button onClick={() => handleEditScheduleEvent(s.scheduleEvent)} variant="ghost" size="icon" className="w-8 h-8 text-blue-600 hover:text-blue-700">
+                                                                            <Edit className="w-4 h-4" />
+                                                                        </Button>
+                                                                        <AlertDialog>
+                                                                            <AlertDialogTrigger asChild>
+                                                                                <Button variant="ghost" size="icon" className="w-8 h-8 text-red-600 hover:text-red-700"><Trash2 className="w-4 h-4" /></Button>
+                                                                            </AlertDialogTrigger>
+                                                                            <AlertDialogContent>
+                                                                                <AlertDialogHeader>
+                                                                                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                                                    <AlertDialogDescription>Esta acción eliminará permanentemente la clase. No se puede deshacer.</AlertDialogDescription>
+                                                                                </AlertDialogHeader>
+                                                                                <AlertDialogFooter>
+                                                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                                    <AlertDialogAction onClick={() => handleDeleteScheduleEvent(s.scheduleEvent.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                                                                </AlertDialogFooter>
+                                                                            </AlertDialogContent>
+                                                                        </AlertDialog>
+                                                                    </div>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    ))}
+                                </Accordion>
+                            ) : (
+                                <p className="text-center text-gray-500 py-4">No hay clases programadas para este mes.</p>
+                            )}
+
+                            {unscheduledCourses.length > 0 && (
+                                <div className="mt-8">
+                                    <div className="mb-4 pb-4 border-b">
+                                        <h3 className="text-lg font-semibold text-gray-800 capitalize">
+                                            Cursos Activos sin Horario Asignado
+                                        </h3>
+                                    </div>
+                                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                                        {unscheduledCourses.map(course => (
+                                            <div key={course.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
+                                                <div className="w-2 h-12 rounded-full flex-shrink-0 bg-amber-500 mt-1" />
+                                                <div className="flex-1">
+                                                    <div className="font-semibold text-gray-800">{course.moduleName}</div>
+                                                    <div className="text-sm text-gray-600">{course.careerName} / {course.groupInfo}</div>
+                                                    <div className="flex items-center gap-4 mt-2 text-sm">
+                                                        <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => handleAssignTeacher(course)}>
+                                                            Asignar Docente y Horario
+                                                        </Button>
                                                     </div>
-                                                    {scheduleEventForDay && (
-                                                         <div className="flex items-center gap-2 text-muted-foreground">
-                                                            <Clock className="w-4 h-4" />
-                                                            <span className="font-medium">{scheduleEventForDay.startTime} - {scheduleEventForDay.endTime}</span>
-                                                        </div>
-                                                    )}
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button onClick={() => openCourseModal(course)} variant="ghost" size="icon" className="w-8 h-8 text-blue-600 hover:text-blue-700">
+                                                        <Edit className="w-4 h-4" />
+                                                    </Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="w-8 h-8 text-red-600 hover:text-red-700"><Trash2 className="w-4 h-4" /></Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                                <AlertDialogDescription>Esta acción eliminará permanentemente el curso. No se puede deshacer.</AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteCourse(course.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <Button onClick={() => openCourseModal(course)} variant="ghost" size="icon" className="w-8 h-8 text-blue-600 hover:text-blue-700">
-                                                    <Edit className="w-4 h-4" />
-                                                </Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="w-8 h-8 text-red-600 hover:text-red-700"><Trash2 className="w-4 h-4" /></Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                                            <AlertDialogDescription>Esta acción eliminará permanentemente el curso. No se puede deshacer.</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteCourse(course.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                        </div>
-                                    )}) : (
-                                        <p className="text-center text-gray-500 py-4">No hay cursos programados para este mes.</p>
-                                    )}
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
+                    )}
+
                         
                         <Dialog open={showCourseModal} onOpenChange={closeCourseModal}>
                             <DialogContent className="sm:max-w-xl">
