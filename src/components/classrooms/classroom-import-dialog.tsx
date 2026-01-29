@@ -151,7 +151,7 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
             }
             onOpenChange(isOpen);
         }}>
-            <DialogContent className="max-w-4xl">
+            <DialogContent className="max-w-3xl flex flex-col max-h-[90vh]">
                 <DialogHeader>
                     <DialogTitle>Importar Aulas desde Archivo</DialogTitle>
                     <DialogDescription>
@@ -159,61 +159,63 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
                     </DialogDescription>
                 </DialogHeader>
                 
-                <div className="py-4 space-y-6">
-                    <div className="flex items-center justify-center w-full">
-                        <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-background/80">
-                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                <UploadCloud className="w-8 h-8 mb-4 text-muted-foreground" />
-                                <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Haz clic para subir</span> o arrastra y suelta</p>
-                                <p className="text-xs text-muted-foreground">XLSX, XLS o CSV</p>
-                                {fileName && <p className="mt-4 text-xs font-semibold text-primary">{fileName}</p>}
-                            </div>
-                            <Input id="dropzone-file" type="file" className="hidden" onChange={handleFileChange} accept=".xlsx, .xls, .csv" />
-                        </label>
-                    </div>
-
-                    {isProcessing && <div className="flex items-center justify-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Procesando archivo...</div>}
-                    
-                    {parsedData.length > 0 && (
-                        <div>
-                            <h3 className="mb-2 font-semibold">Vista Previa de la Importación</h3>
-                            <ScrollArea className="h-64 border rounded-md">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-12">Estado</TableHead>
-                                            <TableHead>Nombre de Sala</TableHead>
-                                            <TableHead>Capacidad</TableHead>
-                                            <TableHead>Tipo (Inferido)</TableHead>
-                                            <TableHead>Errores</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {parsedData.map((row, index) => (
-                                            <TableRow key={index} className={!row.isValid ? 'bg-destructive/10' : ''}>
-                                                <TableCell className="text-center">
-                                                    {row.isValid ? 
-                                                        <CheckCircle className="h-5 w-5 text-green-500" /> : 
-                                                        <AlertCircle className="h-5 w-5 text-destructive" />
-                                                    }
-                                                </TableCell>
-                                                <TableCell>{row.name}</TableCell>
-                                                <TableCell>{row.capacity}</TableCell>
-                                                <TableCell><Badge variant="outline">{row.type}</Badge></TableCell>
-                                                <TableCell className="text-destructive text-xs">{row.errors.join(', ')}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </ScrollArea>
-                            <p className="text-sm mt-2 text-muted-foreground">
-                                Se importarán <span className="font-bold text-foreground">{parsedData.filter(r => r.isValid).length}</span> de <span className="font-bold text-foreground">{parsedData.length}</span> registros. Las filas con errores serán ignoradas.
-                            </p>
+                <div className="flex-1 overflow-y-auto -mx-6 px-6">
+                    <div className="py-4 space-y-6">
+                        <div className="flex items-center justify-center w-full px-6">
+                            <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-background/80">
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <UploadCloud className="w-8 h-8 mb-4 text-muted-foreground" />
+                                    <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Haz clic para subir</span> o arrastra y suelta</p>
+                                    <p className="text-xs text-muted-foreground">XLSX, XLS o CSV</p>
+                                    {fileName && <p className="mt-4 text-xs font-semibold text-primary">{fileName}</p>}
+                                </div>
+                                <Input id="dropzone-file" type="file" className="hidden" onChange={handleFileChange} accept=".xlsx, .xls, .csv" />
+                            </label>
                         </div>
-                    )}
+
+                        {isProcessing && <div className="flex items-center justify-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Procesando archivo...</div>}
+                        
+                        {parsedData.length > 0 && (
+                            <div className="px-6">
+                                <h3 className="mb-2 font-semibold">Vista Previa de la Importación</h3>
+                                <ScrollArea className="h-64 border rounded-md">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="w-12">Estado</TableHead>
+                                                <TableHead>Nombre de Sala</TableHead>
+                                                <TableHead>Capacidad</TableHead>
+                                                <TableHead>Tipo (Inferido)</TableHead>
+                                                <TableHead>Errores</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {parsedData.map((row, index) => (
+                                                <TableRow key={index} className={!row.isValid ? 'bg-destructive/10' : ''}>
+                                                    <TableCell className="text-center">
+                                                        {row.isValid ? 
+                                                            <CheckCircle className="h-5 w-5 text-green-500" /> : 
+                                                            <AlertCircle className="h-5 w-5 text-destructive" />
+                                                        }
+                                                    </TableCell>
+                                                    <TableCell>{row.name}</TableCell>
+                                                    <TableCell>{row.capacity}</TableCell>
+                                                    <TableCell><Badge variant="outline">{row.type}</Badge></TableCell>
+                                                    <TableCell className="text-destructive text-xs">{row.errors.join(', ')}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </ScrollArea>
+                                <p className="text-sm mt-2 text-muted-foreground">
+                                    Se importarán <span className="font-bold text-foreground">{parsedData.filter(r => r.isValid).length}</span> de <span className="font-bold text-foreground">{parsedData.length}</span> registros. Las filas con errores serán ignoradas.
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="pt-6">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
                     <Button onClick={handleSave} disabled={isSaving || isProcessing || parsedData.filter(r => r.isValid).length === 0}>
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
