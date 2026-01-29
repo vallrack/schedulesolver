@@ -52,52 +52,44 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
             const worksheet = workbook.Sheets[sheetName];
             const json = XLSX.utils.sheet_to_json<any>(worksheet);
 
+            const allowedTypes = ['aula', 'sala de sistemas', 'auditorio'];
+
             const processedData = json.map(row => {
-                const nameHeader = Object.keys(row).find(k => k.toLowerCase().includes('sala') || k.toLowerCase().includes('aula')) || Object.keys(row)[0] || '';
-                const capacityHeader = Object.keys(row).find(k => k.toLowerCase().includes('cantidad') || k.toLowerCase().includes('capacidad')) || Object.keys(row)[1] || '';
-                const characteristicsHeader = Object.keys(row).find(k => k.toLowerCase().includes('características')) || '';
-                
-                const name = String(row[nameHeader] || '').trim();
+                const lowerCaseRow = Object.keys(row).reduce((acc, key) => {
+                    acc[key.toLowerCase().trim()] = row[key];
+                    return acc;
+                }, {} as {[key: string]: any});
 
-                // Filter out rows that are likely totals/summaries
-                if (name.toLowerCase().startsWith('total')) {
-                    return null;
-                }
+                const name = String(lowerCaseRow['name'] || '').trim();
+                const capacity = parseInt(String(lowerCaseRow['capacity'] || 0), 10);
+                const type = String(lowerCaseRow['type'] || '').trim().toLowerCase();
 
-                const capacity = parseInt(String(row[capacityHeader] || 0), 10);
-                const characteristics = String(row[characteristicsHeader] || '').toLowerCase();
-                
                 const classroom: ParsedClassroom = {
-                    name: name,
-                    capacity: capacity,
-                    type: 'aula', // Default type
+                    name,
+                    capacity,
+                    type: 'aula', // Default, will be validated
                     isValid: true,
                     errors: [],
                 };
                 
-                // --- VALIDATION ---
                 if (!name) {
                     classroom.isValid = false;
-                    classroom.errors.push('El nombre no puede estar vacío.');
+                    classroom.errors.push('La columna "name" no puede estar vacía.');
                 }
                 if (isNaN(capacity) || capacity <= 0) {
                     classroom.isValid = false;
-                    classroom.errors.push('La capacidad debe ser un número positivo.');
+                    classroom.errors.push('La columna "capacity" debe ser un número positivo.');
                 }
 
-                // --- INFERENCE ---
-                const lowerCaseName = name.toLowerCase();
-                const systemKeywords = ['sistemas', 'diseño', 'taller', 'redes', 'portátil', 'equipos', 'pc', 'computador', 'ssd', 'ram', 'intel', 'amd', 'core i', 'ryzen'];
-                
-                if (lowerCaseName.includes('auditorio')) {
-                    classroom.type = 'auditorio';
-                } else if (systemKeywords.some(keyword => lowerCaseName.includes(keyword) || characteristics.includes(keyword))) {
-                    classroom.type = 'sala de sistemas';
+                if (!type || !allowedTypes.includes(type)) {
+                    classroom.isValid = false;
+                    classroom.errors.push(`El tipo debe ser: ${allowedTypes.join(', ')}.`);
+                } else {
+                    classroom.type = type as Classroom['type'];
                 }
-                // otherwise it remains 'aula'
 
                 return classroom;
-            }).filter((c): c is ParsedClassroom => c !== null); // Filter out nulls
+            });
             
             setParsedData(processedData);
 
@@ -106,7 +98,7 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
             toast({
                 variant: 'destructive',
                 title: 'Error al procesar el archivo',
-                description: 'Asegúrate de que es un archivo .xlsx, .xls o .csv válido.',
+                description: 'Asegúrate de que es un archivo .xlsx, .xls o .csv válido y que sigue el formato correcto.',
             });
         } finally {
             setIsProcessing(false);
@@ -166,7 +158,7 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
                 <DialogHeader>
                     <DialogTitle>Importar Aulas desde Archivo</DialogTitle>
                     <DialogDescription>
-                        Selecciona un archivo Excel (.xlsx, .xls) o CSV. Asegúrate de que tenga columnas para el nombre de la sala (ej: "Sala / Aula") y la capacidad (ej: "Cantidad").
+                        Sube un archivo Excel (.xlsx, .xls) o CSV. El archivo debe tener las siguientes columnas con su encabezado exacto en la primera fila: <strong>name</strong>, <strong>capacity</strong>, <strong>type</strong>. El campo 'type' debe ser 'aula', 'sala de sistemas' o 'auditorio'.
                     </DialogDescription>
                 </DialogHeader>
                 
@@ -194,9 +186,9 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead className="w-12">Estado</TableHead>
-                                                <TableHead>Nombre de Sala</TableHead>
-                                                <TableHead>Capacidad</TableHead>
-                                                <TableHead>Tipo (Inferido)</TableHead>
+                                                <TableHead>name</TableHead>
+                                                <TableHead>capacity</TableHead>
+                                                <TableHead>type</TableHead>
                                                 <TableHead>Errores</TableHead>
                                             </TableRow>
                                         </TableHeader>
