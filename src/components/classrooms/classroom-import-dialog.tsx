@@ -12,7 +12,7 @@ import type { Classroom } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
-import { AlertCircle, CheckCircle, UploadCloud, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, UploadCloud, Loader2, Download } from 'lucide-react';
 
 type ParsedClassroom = Omit<Classroom, 'id'> & { isValid: boolean; errors: string[] };
 
@@ -36,6 +36,22 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
         setIsProcessing(false);
         setIsSaving(false);
     }
+    
+    const handleDownloadTemplate = () => {
+        const headers = [['name', 'capacity', 'type']];
+        const exampleData = [
+            ['Aula 101', 30, 'aula'],
+            ['Sala de Sistemas 1', 25, 'sala de sistemas'],
+            ['Auditorio Principal', 150, 'auditorio'],
+        ];
+        const ws = XLSX.utils.aoa_to_sheet([...headers, ...exampleData]);
+        
+        ws['!cols'] = [ { wch: 25 }, { wch: 10 }, { wch: 20 } ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
+        XLSX.writeFile(wb, 'plantilla_aulas.xlsx');
+    };
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -164,8 +180,15 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
                 <DialogHeader>
                     <DialogTitle>Importar Aulas desde Archivo</DialogTitle>
                     <DialogDescription>
-                        Sube un archivo Excel (.xlsx, .xls) o CSV. El archivo debe tener las siguientes columnas con su encabezado exacto en la primera fila: <strong>name</strong>, <strong>capacity</strong>, <strong>type</strong>. El campo 'type' debe ser 'aula', 'sala de sistemas' o 'auditorio'.
+                        Sube un archivo Excel (.xlsx, .xls) o CSV con las columnas: <strong>name</strong>, <strong>capacity</strong>, y <strong>type</strong>.
+                        El campo 'type' debe ser 'aula', 'sala de sistemas' o 'auditorio'.
                     </DialogDescription>
+                    <div className="pt-2">
+                        <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Descargar Plantilla
+                        </Button>
+                    </div>
                 </DialogHeader>
                 
                 <div className="flex-1 overflow-y-auto -mx-6 px-6">
