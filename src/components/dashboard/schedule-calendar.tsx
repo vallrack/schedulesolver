@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@/lib/utils';
 import type { ScheduleEvent, Teacher, Module, Classroom, Course, Group, Career } from '@/lib/types';
 import { Button } from '../ui/button';
@@ -121,21 +120,21 @@ interface ScheduleCalendarProps {
 
 export function ScheduleCalendar({ events, courses, modules, teachers, classrooms, groups, careers, onEditEvent, onDeleteEvent }: ScheduleCalendarProps) {
   return (
-    <div className="mt-6 border rounded-xl shadow-sm bg-card">
+    <div className="mt-6 border-t">
       <div className="grid grid-cols-[60px_repeat(6,1fr)]">
         {/* Corner */}
-        <div className="h-12 border-b border-r"></div>
+        <div className="h-12 border-b"></div>
 
         {/* Day Headers */}
         {DAYS_OF_WEEK.map((day) => (
-          <div key={day} className="h-12 text-center font-semibold flex items-center justify-center border-b border-r text-sm text-muted-foreground">
+          <div key={day} className="h-12 text-center font-semibold flex items-center justify-center border-b border-l text-sm text-muted-foreground bg-gray-50/50">
             {day}
           </div>
         ))}
         
         <div className='contents'>
             {/* Time Gutter */}
-            <div className="col-start-1 row-start-2 flex flex-col border-r">
+            <div className="col-start-1 row-start-2 flex flex-col">
                 {TIME_SLOTS.map((time) => (
                     <div key={time} className="h-18 border-t relative">
                         <span className="text-xs text-muted-foreground absolute top-0 right-2 -translate-y-1/2 bg-card px-1">{time}</span>
@@ -145,7 +144,7 @@ export function ScheduleCalendar({ events, courses, modules, teachers, classroom
 
             {/* Calendar Grid */}
             {DAYS_OF_WEEK.map((day, dayIndex) => (
-            <div key={day} className="relative border-r" style={{ gridColumnStart: dayIndex + 2, gridRowStart: 2 }}>
+            <div key={day} className="relative border-l" style={{ gridColumnStart: dayIndex + 2, gridRowStart: 2 }}>
                 {/* Hour lines */}
                 {TIME_SLOTS.map((_, index) => (
                 <div key={index} className={cn("h-18", "border-t")}></div>
