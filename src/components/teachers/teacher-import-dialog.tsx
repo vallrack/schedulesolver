@@ -210,7 +210,7 @@ export function TeacherImportDialog({ open, onOpenChange, onSuccess, modules }: 
             }
             onOpenChange(isOpen);
         }}>
-            <DialogContent className="max-w-4xl flex flex-col max-h-[90vh]">
+            <DialogContent className="max-w-4xl flex flex-col max-h-[80vh]">
                 <DialogHeader>
                     <DialogTitle>Importar Docentes desde Archivo</DialogTitle>
                     <DialogDescription>
