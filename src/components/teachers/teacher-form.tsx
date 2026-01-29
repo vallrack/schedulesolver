@@ -171,7 +171,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
 
         <FormItem>
             <FormLabel>Especialidades (Módulos)</FormLabel>
-            <Popover>
+            <Popover modal={true}>
                 <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between">
                         <span className="truncate">
