@@ -72,6 +72,16 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
 
   const form = useForm<FormValues>({
     resolver: zodResolver(scheduleEventSchema),
+    defaultValues: {
+        courseId: '',
+        teacherId: '',
+        classroomId: '',
+        days: [],
+        startTime: "07:00",
+        endTime: "09:00",
+        startDate: undefined,
+        endDate: undefined,
+    }
   });
 
   useEffect(() => {
