@@ -76,6 +76,8 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
 
   useEffect(() => {
     if (isEditMode && eventToEdit) {
+        if (courses.length === 0) return; // Wait for courses to be loaded
+
         const course = courses.find(c => c.id === eventToEdit.courseId);
         if (course) {
             const courseStartDate = new Date(course.startDate);
@@ -92,6 +94,13 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
                 startDate: eventStartDate,
                 endDate: eventEndDate,
             });
+        } else {
+            console.error(`Course with ID ${eventToEdit.courseId} not found.`);
+            toast({
+                variant: 'destructive',
+                title: 'Error de Datos',
+                description: 'No se pudo encontrar el curso asociado a esta clase. Los datos pueden estar desactualizados.'
+            });
         }
     } else {
         const course = courses.find(c => c.id === courseToSchedule?.id);
@@ -106,7 +115,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             endDate: course ? new Date(course.endDate) : undefined,
         });
     }
-  }, [eventToEdit, isEditMode, courses, courseToSchedule, form]);
+  }, [eventToEdit, isEditMode, courses, courseToSchedule, form, toast]);
   
   const selectedCourseId = form.watch('courseId');
 
@@ -265,7 +274,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
           render={({ field }) => (
             <FormItem>
               <FormLabel>Curso</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} disabled={!!courseToSchedule}>
+              <Select onValueChange={field.onChange} value={field.value} disabled={!!courseToSchedule || isEditMode}>
                   <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un curso..." /></SelectTrigger></FormControl>
                   <SelectContent>
                     <ScrollArea className="h-48">
