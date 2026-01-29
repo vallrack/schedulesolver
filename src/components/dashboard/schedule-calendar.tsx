@@ -3,7 +3,7 @@
 import React from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@/lib/utils';
-import type { ScheduleEvent, Teacher, Module, Classroom, Course, Group } from '@/lib/types';
+import type { ScheduleEvent, Teacher, Module, Classroom, Course, Group, Career } from '@/lib/types';
 
 const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const TIME_SLOTS = Array.from({ length: 16 }, (_, i) => `${(i + 7).toString().padStart(2, '0')}:00`); // 7 AM to 10 PM
@@ -23,17 +23,23 @@ const EventCard = ({
   modules,
   teachers,
   classrooms,
+  groups,
+  careers,
 }: {
   event: ScheduleEvent;
   courses: Course[];
   modules: Module[];
   teachers: Teacher[];
   classrooms: Classroom[];
+  groups: Group[];
+  careers: Career[];
 }) => {
   const course = courses.find(c => c.id === event.courseId);
   const module = modules.find((m) => m.id === course?.moduleId);
   const teacher = teachers.find((t) => t.id === event.teacherId);
   const classroom = classrooms.find((c) => c.id === event.classroomId);
+  const group = groups.find(g => g.id === course?.groupId);
+  const career = careers.find(c => c.id === group?.careerId);
 
   const startTimeInMinutes = timeToMinutes(event.startTime);
   const endTimeInMinutes = timeToMinutes(event.endTime);
@@ -73,6 +79,7 @@ const EventCard = ({
       <PopoverContent>
         <div className="p-2 space-y-2 text-sm">
             <h4 className="font-bold font-headline">{module?.name ?? "Evento Desconocido"}</h4>
+            {group && <p className="text-xs text-muted-foreground">{career?.name ?? 'Carrera desconocida'} / Sem {group.semester} G{group.name}</p>}
             <p><strong>Docente:</strong> {teacher?.name ?? "N/A"}</p>
             <p><strong>Aula:</strong> {classroom?.name ?? "N/A"}</p>
             <p><strong>Horario:</strong> {event.day}, {event.startTime} - {event.endTime}</p>
@@ -89,11 +96,12 @@ interface ScheduleCalendarProps {
   teachers: Teacher[];
   classrooms: Classroom[];
   groups: Group[];
+  careers: Career[];
 }
 
-export function ScheduleCalendar({ events, courses, modules, teachers, classrooms }: ScheduleCalendarProps) {
+export function ScheduleCalendar({ events, courses, modules, teachers, classrooms, groups, careers }: ScheduleCalendarProps) {
   return (
-    <div className="mt-6 border rounded-xl shadow-sm bg-card overflow-hidden">
+    <div className="mt-6 border rounded-xl shadow-sm bg-card">
       <div className="grid grid-cols-[60px_repeat(6,1fr)]">
         {/* Corner */}
         <div className="h-12 border-b border-r"></div>
@@ -104,38 +112,42 @@ export function ScheduleCalendar({ events, courses, modules, teachers, classroom
             {day}
           </div>
         ))}
-
-        {/* Time Gutter */}
-        <div className="row-span-full col-start-1 row-start-2 flex flex-col border-r">
-          {TIME_SLOTS.map((time, index) => (
-            <div key={time} className={cn("h-18 flex items-center justify-center", index > 0 && "border-t")}>
-              <span className="text-xs text-muted-foreground">{time}</span>
+        
+        <div className='contents'>
+            {/* Time Gutter */}
+            <div className="col-start-1 row-start-2 flex flex-col border-r">
+                {TIME_SLOTS.map((time, index) => (
+                    <div key={time} className={cn("h-18 flex items-center justify-center", index > 0 && "border-t")}>
+                    <span className="text-xs text-muted-foreground">{time}</span>
+                    </div>
+                ))}
             </div>
-          ))}
-        </div>
 
-        {/* Calendar Grid */}
-        {DAYS_OF_WEEK.map((day, dayIndex) => (
-          <div key={day} className="relative border-l" style={{ gridColumnStart: dayIndex + 2, gridRowStart: 2 }}>
-            {/* Hour lines */}
-            {TIME_SLOTS.map((time, index) => (
-              <div key={time} className={cn("h-18", index > 0 && "border-t")}></div>
+            {/* Calendar Grid */}
+            {DAYS_OF_WEEK.map((day, dayIndex) => (
+            <div key={day} className="relative border-l" style={{ gridColumnStart: dayIndex + 2, gridRowStart: 2 }}>
+                {/* Hour lines */}
+                {TIME_SLOTS.map((time, index) => (
+                <div key={time} className={cn("h-18", index > 0 && "border-t")}></div>
+                ))}
+                {/* Events */}
+                {events
+                .filter((event) => event.day === day)
+                .map((event) => (
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      courses={courses}
+                      modules={modules}
+                      teachers={teachers}
+                      classrooms={classrooms}
+                      groups={groups}
+                      careers={careers}
+                    />
+                ))}
+            </div>
             ))}
-            {/* Events */}
-            {events
-              .filter((event) => event.day === day)
-              .map((event) => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  courses={courses}
-                  modules={modules}
-                  teachers={teachers}
-                  classrooms={classrooms}
-                />
-              ))}
-          </div>
-        ))}
+        </div>
       </div>
     </div>
   );

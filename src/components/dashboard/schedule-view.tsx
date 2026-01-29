@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { generateInitialSchedule } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, PlusCircle } from 'lucide-react';
+import { Loader2, Sparkles, PlusCircle, AlertTriangle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ScheduleEvent, Teacher, Module, Classroom, Group, Career, Course } from '@/lib/types';
@@ -14,6 +14,7 @@ import { collection, writeBatch, getDocs, doc } from 'firebase/firestore';
 import { ScheduleCalendar } from './schedule-calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ManualScheduleForm } from './manual-schedule-form';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 
 export default function ScheduleView() {
@@ -32,13 +33,13 @@ export default function ScheduleView() {
   const careersCollection = useMemo(() => (firestore ? collection(firestore, 'careers') : null), [firestore]);
 
 
-  const { data: teachers, loading: loadingTeachers } = useCollection<Teacher>(teachersCollection);
-  const { data: courses, loading: loadingCourses } = useCollection<Course>(coursesCollection);
-  const { data: modules, loading: loadingModules } = useCollection<Module>(modulesCollection);
-  const { data: classrooms, loading: loadingClassrooms } = useCollection<Classroom>(classroomsCollection);
+  const { data: teachers, loading: loadingTeachers, error: errorTeachers } = useCollection<Teacher>(teachersCollection);
+  const { data: courses, loading: loadingCourses, error: errorCourses } = useCollection<Course>(coursesCollection);
+  const { data: modules, loading: loadingModules, error: errorModules } = useCollection<Module>(modulesCollection);
+  const { data: classrooms, loading: loadingClassrooms, error: errorClassrooms } = useCollection<Classroom>(classroomsCollection);
   const { data: scheduleEvents, loading: loadingSchedule, error: errorSchedule } = useCollection<ScheduleEvent>(schedulesCollection);
-  const { data: groups, loading: loadingGroups } = useCollection<Group>(groupsCollection);
-  const { data: careers, loading: loadingCareers } = useCollection<Career>(careersCollection);
+  const { data: groups, loading: loadingGroups, error: errorGroups } = useCollection<Group>(groupsCollection);
+  const { data: careers, loading: loadingCareers, error: errorCareers } = useCollection<Career>(careersCollection);
   
   const [selectedTeacher, setSelectedTeacher] = useState<string | undefined>(undefined);
   const [selectedGroup, setSelectedGroup] = useState<string | undefined>(undefined);
@@ -178,6 +179,7 @@ export default function ScheduleView() {
   };
   
   const loading = loadingTeachers || loadingCourses || loadingModules || loadingClassrooms || loadingSchedule || loadingGroups || loadingCareers;
+  const collectionsError = errorTeachers || errorCourses || errorModules || errorClassrooms || errorSchedule || errorGroups || errorCareers;
 
   const teacherEvents = useMemo(() => {
     if (!selectedTeacher) return [];
@@ -240,8 +242,19 @@ export default function ScheduleView() {
         </Dialog>
 
         {loading && <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>}
-        {errorSchedule && <div className="text-destructive text-center">Error al cargar el horario: {errorSchedule.message}</div>}
-        {!loading && !errorSchedule && (
+        
+        {collectionsError && (
+          <Alert variant="destructive" className="my-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Error al Cargar los Datos</AlertTitle>
+            <AlertDescription>
+              No se pudieron cargar todos los datos necesarios para mostrar el horario.
+              Error: {collectionsError.message}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {!loading && !collectionsError && (
           <Tabs defaultValue="teacher" className="w-full">
             <TabsList>
               <TabsTrigger value="teacher">Por Docente</TabsTrigger>
@@ -260,7 +273,7 @@ export default function ScheduleView() {
                     </SelectContent>
                  </Select>
                </div>
-               {selectedTeacher && <ScheduleCalendar events={teacherEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} />}
+               {selectedTeacher && <ScheduleCalendar events={teacherEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} />}
             </TabsContent>
             <TabsContent value="group" className="mt-4">
                <div className="max-w-sm">
@@ -273,7 +286,7 @@ export default function ScheduleView() {
                     </SelectContent>
                  </Select>
                </div>
-               {selectedGroup && <ScheduleCalendar events={groupEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} />}
+               {selectedGroup && <ScheduleCalendar events={groupEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} />}
             </TabsContent>
             <TabsContent value="classroom" className="mt-4">
               <div className="max-w-sm">
@@ -286,7 +299,7 @@ export default function ScheduleView() {
                     </SelectContent>
                  </Select>
                </div>
-               {selectedClassroom && <ScheduleCalendar events={classroomEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} />}
+               {selectedClassroom && <ScheduleCalendar events={classroomEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} />}
             </TabsContent>
           </Tabs>
         )}
