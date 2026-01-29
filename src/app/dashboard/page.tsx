@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Edit, Trash2, User, Clock, School, Download } from 'lucide-react';
 import AppLayout from '@/components/app-layout';
 import { useFirestore } from '@/firebase';
@@ -30,6 +30,7 @@ type ReportToPrint = {
     title: string;
     headers: string[];
     data: Record<string, any>[];
+    fileName: string;
 } | null;
 
 const PrintableReport = React.forwardRef<HTMLDivElement, { report: NonNullable<ReportToPrint> }>(({ report }, ref) => (
@@ -439,7 +440,7 @@ export default function DashboardPage() {
                 })
                 .sort((a, b) => a.startTime.localeCompare(b.startTime));
     
-        }, [selectedDate, allDataLoaded]);
+        }, [selectedDate, allDataLoaded, scheduleEvents, courses, modules, teachers, classrooms, groups, careers]);
         
         return (
             <div>
