@@ -385,10 +385,38 @@ export default function DashboardPage() {
                                             <PopoverContent className="w-72" onClick={(e) => e.stopPropagation()}>
                                                 <div className="grid gap-4">
                                                     <div className="space-y-1">
-                                                        <h4 className="font-medium leading-none">{course.moduleName}</h4>
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {course.careerName} / {course.groupInfo}
-                                                        </p>
+                                                        <div className="flex justify-between items-start">
+                                                            <div>
+                                                                <h4 className="font-medium leading-none">{course.moduleName}</h4>
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    {course.careerName} / {course.groupInfo}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex items-center -mt-1 -mr-2">
+                                                                <Button onClick={() => handleEditScheduleEvent(course.scheduleEvent)} variant="ghost" size="icon" className="h-8 w-8">
+                                                                    <Edit className="h-4 w-4" />
+                                                                </Button>
+                                                                <AlertDialog>
+                                                                    <AlertDialogTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </AlertDialogTrigger>
+                                                                    <AlertDialogContent>
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                                            <AlertDialogDescription>
+                                                                                Esta acción eliminará permanentemente la clase. No se puede deshacer.
+                                                                            </AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={() => handleDeleteScheduleEvent(course.scheduleEvent.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                     <div className="grid gap-2 text-sm">
                                                         <div className="flex items-center gap-2">
