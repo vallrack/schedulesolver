@@ -1,23 +1,19 @@
 'use client';
-import { useState, useMemo } from 'react';
-import { addMonths, subMonths, format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { useState, useMemo, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Plus, Edit, Trash2 } from 'lucide-react';
 import AppLayout from '@/components/app-layout';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { PlusCircle, Calendar as CalendarIcon, Clock, Trash2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, deleteDoc, doc } from 'firebase/firestore';
 import type { Career, Course, Group, Module } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { CourseForm } from '@/components/courses/course-form';
-import { MonthlyCalendar } from '@/components/academic-calendar/monthly-calendar';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 type CourseWithDetails = Course & {
     moduleName: string;
@@ -28,18 +24,17 @@ type CourseWithDetails = Course & {
 export default function AcademicCalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
-    const [dialogOpen, setDialogOpen] = useState(false);
-
-    const firestore = useFirestore();
+    const [currentView, setCurrentView] = useState('month');
+    const [showModal, setShowModal] = useState(false);
+    const [editingCourse, setEditingCourse] = useState<Course | null>(null);
     const { toast } = useToast();
+    const firestore = useFirestore();
 
     // Data fetching
     const { data: courses, loading: loadingCourses } = useCollection<Course>(useMemo(() => firestore ? collection(firestore, 'courses') : null, [firestore]));
     const { data: modules, loading: loadingModules } = useCollection<Module>(useMemo(() => firestore ? collection(firestore, 'modules') : null, [firestore]));
     const { data: groups, loading: loadingGroups } = useCollection<Group>(useMemo(() => firestore ? collection(firestore, 'groups') : null, [firestore]));
     const { data: careers, loading: loadingCareers } = useCollection<Career>(useMemo(() => firestore ? collection(firestore, 'careers') : null, [firestore]));
-
-    const loading = loadingCourses || loadingModules || loadingGroups || loadingCareers;
 
     const coursesWithDetails: CourseWithDetails[] = useMemo(() => {
         if (!courses || !groups || !careers || !modules) return [];
@@ -56,23 +51,39 @@ export default function AcademicCalendarPage() {
             }
         }).filter((c): c is CourseWithDetails => c !== null);
     }, [courses, modules, groups, careers]);
+
+    const navigateMonth = (direction: number) => {
+        setCurrentDate(current => {
+            const newDate = new Date(current);
+            newDate.setMonth(newDate.getMonth() + direction);
+            return newDate;
+        });
+    };
     
-    const eventsForSelectedDate = useMemo(() => {
-        const checkDate = new Date(selectedDate);
-        checkDate.setHours(0,0,0,0);
-        return coursesWithDetails.filter(event => {
-            const eventStartDate = new Date(event.startDate);
-            eventStartDate.setHours(0,0,0,0);
-            const eventEndDate = new Date(event.endDate);
-            eventEndDate.setHours(0,0,0,0);
-            return checkDate >= eventStartDate && checkDate <= eventEndDate;
-        }).sort((a,b) => a.moduleName.localeCompare(b.moduleName));
-    }, [selectedDate, coursesWithDetails]);
+    const isToday = (date: Date) => new Date().toDateString() === date.toDateString();
+    const isSelected = (date: Date) => selectedDate.toDateString() === date.toDateString();
 
+    const getCoursesForDate = (date: Date) => {
+        const checkDate = new Date(date);
+        checkDate.setHours(0, 0, 0, 0);
+        return coursesWithDetails.filter(course => {
+            const startDate = new Date(course.startDate);
+            startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(course.endDate);
+            endDate.setHours(0, 0, 0, 0);
+            return checkDate >= startDate && checkDate <= endDate;
+        });
+    };
 
-    const handlePreviousMonth = () => setCurrentDate(current => subMonths(current, 1));
-    const handleNextMonth = () => setCurrentDate(current => addMonths(current, 1));
-    const handleDateClick = (date: Date) => setSelectedDate(date);
+    const openModal = (course: Course | null = null) => {
+        setEditingCourse(course);
+        setShowModal(true);
+    };
+
+    const closeModal = () => {
+        setShowModal(false);
+        setEditingCourse(null);
+    };
 
     const handleDelete = async (courseId: string) => {
         if (!firestore) return;
@@ -84,131 +95,185 @@ export default function AcademicCalendarPage() {
                 title: 'Curso Eliminado',
                 description: 'El curso programado ha sido eliminado.',
             });
+            closeModal();
         } catch(e) {
             const permissionError = new FirestorePermissionError({ path: courseRef.path, operation: 'delete' });
             errorEmitter.emit('permission-error', permissionError);
         }
     };
     
-    const calculateDuration = (start: string, end: string) => {
-        const startDate = new Date(start);
-        const endDate = new Date(end);
-        const diff = endDate.getTime() - startDate.getTime();
-        const days = Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1; // +1 to be inclusive
-        const weeks = Math.floor(days / 7);
-        const remainingDays = days % 7;
-        if (weeks > 0 && remainingDays > 0) return `${weeks} sem. y ${remainingDays} d.`;
-        if (weeks > 0) return `${weeks} sem.`;
-        return `${days} d.`;
-    }
+    const MonthView = () => {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        const firstDayOfMonth = new Date(year, month, 1);
+        const startDate = new Date(firstDayOfMonth);
+        startDate.setDate(startDate.getDate() - startDate.getDay());
+
+        const days = Array.from({ length: 42 }, (_, i) => {
+            const date = new Date(startDate);
+            date.setDate(startDate.getDate() + i);
+            return date;
+        });
+
+        return (
+            <div>
+                <div className="grid grid-cols-7 text-center font-semibold text-sm text-gray-600">
+                    {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
+                        <div key={day} className="py-2">{day}</div>
+                    ))}
+                </div>
+                <div className="grid grid-cols-7 border rounded-lg overflow-hidden">
+                    {days.map((date, idx) => {
+                        const dayCourses = getCoursesForDate(date);
+                        const isOtherMonth = date.getMonth() !== month;
+                        
+                        return (
+                            <div
+                                key={idx}
+                                onClick={() => setSelectedDate(date)}
+                                className={`min-h-[120px] p-2 cursor-pointer transition-colors duration-150 border-t border-l ${
+                                    isOtherMonth ? 'bg-gray-50 text-gray-400' :
+                                    isToday(date) ? 'border-2 border-primary' : ''
+                                } ${
+                                    isSelected(date) ? 'bg-accent/20' : 'bg-white hover:bg-gray-50'
+                                }`}
+                            >
+                                <div className={`font-semibold text-right ${isToday(date) ? 'text-primary' : ''}`}>{date.getDate()}</div>
+                                <div className="space-y-1 mt-1">
+                                    {dayCourses.slice(0, 3).map(course => (
+                                        <div
+                                            key={course.id}
+                                            className="text-xs px-1.5 py-0.5 rounded truncate text-white font-medium cursor-pointer bg-primary/80 hover:bg-primary"
+                                            title={course.moduleName}
+                                            onClick={(e) => { e.stopPropagation(); openModal(course); }}
+                                        >
+                                            {course.moduleName}
+                                        </div>
+                                    ))}
+                                    {dayCourses.length > 3 && (
+                                        <div className="text-xs text-gray-500">+{dayCourses.length - 3} más</div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
+
+    const ViewPlaceholder = ({ viewName }: { viewName: string }) => (
+        <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
+            <p className="text-gray-500">La vista de '{viewName}' aún no está implementada.</p>
+        </div>
+    );
+    
+    const selectedDayEvents = getCoursesForDate(selectedDate);
 
     return (
         <AppLayout>
-            <div className="space-y-8">
-                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Card className="shadow-2xl">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center mb-6 pb-4 border-b">
+                    <div className="flex items-center gap-2">
+                        <Button onClick={() => navigateMonth(-1)} variant="outline" size="icon" className="h-9 w-9">
+                            <ChevronLeft className="w-5 h-5" />
+                        </Button>
+                        <h1 className="text-xl font-bold text-gray-800 w-40 text-center capitalize">
+                            {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+                        </h1>
+                        <Button onClick={() => navigateMonth(1)} variant="outline" size="icon" className="h-9 w-9">
+                            <ChevronRight className="w-5 h-5" />
+                        </Button>
+                    </div>
+
+                    <div className="flex gap-1 bg-muted p-1 rounded-md">
+                        {['month', 'week', 'day'].map(view => (
+                            <Button
+                                key={view}
+                                onClick={() => setCurrentView(view)}
+                                size="sm"
+                                variant={currentView === view ? 'default' : 'ghost'}
+                                className="capitalize h-8 text-xs px-3"
+                            >
+                                {view === 'month' ? 'Mes' : view === 'week' ? 'Semana' : 'Día'}
+                            </Button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="mb-8">
+                    {currentView === 'month' && <MonthView />}
+                    {currentView === 'week' && <ViewPlaceholder viewName="Semana" />}
+                    {currentView === 'day' && <ViewPlaceholder viewName="Día" />}
+                </div>
+
+                <div className="bg-white rounded-lg">
+                    <div className="flex justify-between items-center mb-4 pb-4 border-b">
+                        <h3 className="text-lg font-semibold text-gray-800">
+                            Cursos para el {selectedDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}
+                        </h3>
+                        <Button onClick={() => openModal()} size="sm">
+                            <Plus className="w-4 h-4 mr-2" />
+                            Programar Curso
+                        </Button>
+                    </div>
+
+                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                        {selectedDayEvents.length > 0 ? selectedDayEvents.map(course => (
+                            <div key={course.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
+                                <div className="w-2 h-8 rounded-full flex-shrink-0 bg-primary" />
+                                <div className="flex-1">
+                                    <div className="font-semibold text-gray-800">{course.moduleName}</div>
+                                    <div className="text-sm text-gray-600">{course.careerName} / {course.groupInfo}</div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button onClick={() => openModal(course)} variant="ghost" size="icon" className="w-8 h-8 text-blue-600 hover:text-blue-700">
+                                        <Edit className="w-4 h-4" />
+                                    </Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="w-8 h-8 text-red-600 hover:text-red-700"><Trash2 className="w-4 h-4" /></Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                <AlertDialogDescription>Esta acción eliminará permanentemente el curso. No se puede deshacer.</AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDelete(course.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                            </div>
+                        )) : (
+                            <p className="text-center text-gray-500 py-4">No hay cursos programados para este día.</p>
+                        )}
+                    </div>
+                </div>
+
+                <Dialog open={showModal} onOpenChange={closeModal}>
                     <DialogContent className="sm:max-w-xl">
                         <DialogHeader>
-                            <DialogTitle>Programar Nuevo Curso</DialogTitle>
+                            <DialogTitle>{editingCourse ? 'Editar Curso' : 'Programar Nuevo Curso'}</DialogTitle>
                             <DialogDescription>
-                               Rellena los detalles para programar un nuevo curso en el calendario.
+                                {editingCourse ? 'Actualiza los detalles del curso.' : `Programa un nuevo curso. Fecha seleccionada: ${selectedDate.toLocaleDateString('es-ES')}`}
                             </DialogDescription>
                         </DialogHeader>
                         <CourseForm 
-                            course={undefined} 
+                            course={editingCourse || undefined}
                             allCourses={courses || []}
                             modules={modules || []}
                             groups={groups || []}
                             careers={careers || []}
-                            onSuccess={() => setDialogOpen(false)} 
+                            onSuccess={closeModal} 
                         />
                     </DialogContent>
                 </Dialog>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2">
-                        <Card>
-                             <CardHeader className="flex flex-row items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                     <Button onClick={handlePreviousMonth} variant="outline" size="icon" className="h-9 w-9">
-                                        <ChevronLeft className="h-5 w-5" />
-                                    </Button>
-                                    <h2 className="text-lg font-semibold font-headline capitalize text-center w-40">
-                                        {format(currentDate, 'MMMM yyyy', { locale: es })}
-                                    </h2>
-                                    <Button onClick={handleNextMonth} variant="outline" size="icon" className="h-9 w-9">
-                                        <ChevronRight className="h-5 w-5" />
-                                    </Button>
-                                </div>
-                                <div className="hidden sm:flex items-center gap-1 bg-muted p-1 rounded-md">
-                                    <Button variant="default" size="sm" className="h-8 text-xs px-3">Mes</Button>
-                                    <Button variant="ghost" size="sm" className="h-8 text-xs px-3" disabled>Semana</Button>
-                                    <Button variant="ghost" size="sm" className="h-8 text-xs px-3" disabled>Día</Button>
-                                </div>
-                             </CardHeader>
-                             <CardContent>
-                                {loading ? <div className="flex justify-center items-center h-96"><Loader2 className="w-8 h-8 animate-spin"/></div> :
-                                    <MonthlyCalendar 
-                                        courses={coursesWithDetails} 
-                                        year={currentDate.getFullYear()} 
-                                        month={currentDate.getMonth()}
-                                        selectedDate={selectedDate}
-                                        onDateClick={handleDateClick}
-                                    />
-                                }
-                             </CardContent>
-                        </Card>
-                    </div>
-
-                    <div className="lg:col-span-1 space-y-6">
-                        <Card>
-                             <CardHeader>
-                                <CardTitle>Agenda del {format(selectedDate, "d 'de' MMMM", { locale: es })}</CardTitle>
-                             </CardHeader>
-                             <CardContent>
-                                <ScrollArea className="h-96">
-                                     <div className="space-y-4">
-                                        {loading && <div className="flex justify-center items-center h-24"><Loader2 className="w-6 h-6 animate-spin"/></div>}
-                                        {!loading && eventsForSelectedDate.length > 0 && eventsForSelectedDate.map(course => (
-                                            <div key={course.id} className="border rounded-lg p-3 hover:bg-muted/50 transition-colors">
-                                                <h3 className="font-semibold text-foreground text-sm">{course.moduleName}</h3>
-                                                <p className="text-xs text-muted-foreground">{course.careerName} / {course.groupInfo}</p>
-                                                <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
-                                                    <span className="flex items-center gap-1"><CalendarIcon className="w-3 h-3" /> {format(new Date(course.startDate), "d MMM", { locale: es })} - {format(new Date(course.endDate), "d MMM", { locale: es })}</span>
-                                                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {calculateDuration(course.startDate, course.endDate)}</span>
-                                                </div>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="text-destructive h-6 w-6 float-right -mt-8"><Trash2 className="w-4 h-4"/></Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                                            <AlertDialogDescription>Esta acción no se puede deshacer. Esto eliminará permanentemente el curso.</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDelete(course.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                        ))}
-                                         {!loading && eventsForSelectedDate.length === 0 && (
-                                            <div className="text-center text-muted-foreground py-10">
-                                                <p>No hay cursos programados para esta fecha.</p>
-                                            </div>
-                                         )}
-                                    </div>
-                                </ScrollArea>
-                                 <Button onClick={() => setDialogOpen(true)} className="w-full mt-4">
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Programar Nuevo Curso
-                                </Button>
-                             </CardContent>
-                        </Card>
-                    </div>
-                </div>
-            </div>
+              </CardContent>
+            </Card>
         </AppLayout>
     );
 }
