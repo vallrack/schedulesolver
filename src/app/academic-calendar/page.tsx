@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Edit, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Edit, Trash2, User } from 'lucide-react';
 import AppLayout from '@/components/app-layout';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -21,6 +21,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 
+type CourseWithDetails = Course & {
+    moduleName: string;
+    groupInfo: string;
+    careerName: string;
+    teacherName?: string;
+};
+
 const toISODateString = (date: Date) => {
     // Returns date as 'YYYY-MM-DD' in local timezone, not UTC
     const offset = date.getTimezoneOffset();
@@ -36,6 +43,7 @@ export default function AcademicCalendarPage() {
     const [editingCourse, setEditingCourse] = useState<Course | null>(null);
     const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [editingScheduleEvent, setEditingScheduleEvent] = useState<ScheduleEvent | undefined>(undefined);
+    const [courseToSchedule, setCourseToSchedule] = useState<CourseWithDetails | null>(null);
     
     const { toast } = useToast();
     const firestore = useFirestore();
@@ -49,21 +57,26 @@ export default function AcademicCalendarPage() {
     const { data: classrooms, loading: loadingClassrooms } = useCollection<Classroom>(useMemo(() => firestore ? collection(firestore, 'classrooms') : null, [firestore]));
     const { data: scheduleEvents, loading: loadingSchedules } = useCollection<ScheduleEvent>(useMemo(() => firestore ? collection(firestore, 'schedules') : null, [firestore]));
 
-    const coursesWithDetails = useMemo(() => {
-        if (!courses || !groups || !careers || !modules) return [];
+    const coursesWithDetails: CourseWithDetails[] = useMemo(() => {
+        if (!courses || !groups || !careers || !modules || !scheduleEvents || !teachers) return [];
         return courses.map(course => {
             const module = modules.find(m => m.id === course.moduleId);
             const group = groups.find(g => g.id === course.groupId);
             if (!group || !module) return null;
             const career = careers.find(c => c.id === group.careerId);
+            
+            const eventForCourse = scheduleEvents.find(e => e.courseId === course.id);
+            const teacher = eventForCourse ? teachers.find(t => t.id === eventForCourse.teacherId) : undefined;
+
             return {
                 ...course,
                 moduleName: module.name,
                 groupInfo: `Sem ${group.semester} - G ${group.name}`,
                 careerName: career?.name || 'Carrera Desconocida',
+                teacherName: teacher?.name,
             }
-        }).filter((c): c is NonNullable<typeof c> => c !== null);
-    }, [courses, modules, groups, careers]);
+        }).filter((c): c is CourseWithDetails => c !== null);
+    }, [courses, modules, groups, careers, scheduleEvents, teachers]);
 
     const navigateMonth = (direction: number) => {
         setCurrentDate(current => {
@@ -120,6 +133,13 @@ export default function AcademicCalendarPage() {
     const closeScheduleModal = () => {
         setShowScheduleModal(false);
         setEditingScheduleEvent(undefined);
+        setCourseToSchedule(null);
+    };
+    
+    const handleAssignTeacher = (course: CourseWithDetails) => {
+        setCourseToSchedule(course);
+        setEditingScheduleEvent(undefined);
+        setShowScheduleModal(true);
     };
 
 
@@ -314,11 +334,21 @@ export default function AcademicCalendarPage() {
 
                         <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
                             {selectedDayEvents.length > 0 ? selectedDayEvents.map(course => (
-                                <div key={course.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
-                                    <div className="w-2 h-8 rounded-full flex-shrink-0 bg-primary" />
+                                <div key={course.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
+                                    <div className="w-2 h-12 rounded-full flex-shrink-0 bg-primary mt-1" />
                                     <div className="flex-1">
                                         <div className="font-semibold text-gray-800">{course.moduleName}</div>
                                         <div className="text-sm text-gray-600">{course.careerName} / {course.groupInfo}</div>
+                                        <div className="flex items-center gap-2 mt-1 pt-1">
+                                            <User className="w-4 h-4 text-muted-foreground" />
+                                            {course.teacherName ? (
+                                                <span className="text-sm text-muted-foreground font-medium">{course.teacherName}</span>
+                                            ) : (
+                                                <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => handleAssignTeacher(course)}>
+                                                    Asignar Docente
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="flex gap-2">
                                         <Button onClick={() => openCourseModal(course)} variant="ghost" size="icon" className="w-8 h-8 text-blue-600 hover:text-blue-700">
@@ -370,13 +400,13 @@ export default function AcademicCalendarPage() {
                 <Dialog open={showScheduleModal} onOpenChange={closeScheduleModal}>
                     <DialogContent className="sm:max-w-lg">
                         <DialogHeader>
-                            <DialogTitle>{editingScheduleEvent ? "Editar Clase" : "Crear Evento de Horario Manualmente"}</DialogTitle>
+                            <DialogTitle>{editingScheduleEvent ? "Editar Clase" : "Asignar Horario a Curso"}</DialogTitle>
                             <DialogDescription>
-                            {editingScheduleEvent ? "Modifica los detalles de la clase." : "Añade una clase al horario. El sistema verificará conflictos."}
+                            {editingScheduleEvent ? "Modifica los detalles de la clase." : (courseToSchedule ? `Asignando horario para: ${courseToSchedule.moduleName}`: "Añade una clase al horario. El sistema verificará conflictos.")}
                             </DialogDescription>
                         </DialogHeader>
                         <ManualScheduleForm 
-                            key={editingScheduleEvent?.id || 'new-schedule-event'}
+                            key={editingScheduleEvent?.id || courseToSchedule?.id || 'new-schedule-event'}
                             courses={courses || []}
                             modules={modules || []}
                             groups={groups || []}
@@ -385,6 +415,7 @@ export default function AcademicCalendarPage() {
                             classrooms={classrooms || []}
                             scheduleEvents={scheduleEvents || []}
                             eventToEdit={editingScheduleEvent}
+                            courseToSchedule={courseToSchedule || undefined}
                             onSuccess={closeScheduleModal}
                         />
                     </DialogContent>

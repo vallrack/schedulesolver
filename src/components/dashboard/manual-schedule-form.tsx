@@ -52,6 +52,7 @@ interface ManualScheduleFormProps {
   classrooms: Classroom[];
   scheduleEvents: ScheduleEvent[];
   eventToEdit?: ScheduleEvent;
+  courseToSchedule?: Course;
   onSuccess: () => void;
 }
 
@@ -61,7 +62,7 @@ const timeToMinutes = (time: string): number => {
   return hours * 60 + minutes;
 };
 
-export function ManualScheduleForm({ courses, modules, groups, careers, teachers, classrooms, scheduleEvents, eventToEdit, onSuccess }: ManualScheduleFormProps) {
+export function ManualScheduleForm({ courses, modules, groups, careers, teachers, classrooms, scheduleEvents, eventToEdit, courseToSchedule, onSuccess }: ManualScheduleFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const isEditMode = !!eventToEdit;
@@ -78,7 +79,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         startWeek: eventToEdit.startWeek,
         endWeek: eventToEdit.endWeek,
     } : {
-        courseId: '',
+        courseId: courseToSchedule?.id || '',
         teacherId: '',
         classroomId: '',
         days: [],
@@ -89,25 +90,10 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
     },
   });
   
-  const selectedTeacherId = form.watch('teacherId');
+  const selectedCourseId = form.watch('courseId');
 
-  const teacherOptions = useMemo(() => teachers.sort((a,b) => a.name.localeCompare(b.name)), [teachers]);
-  const classroomOptions = useMemo(() => classrooms.sort((a,b) => a.name.localeCompare(b.name)), [classrooms]);
-
-  const filteredCourseOptions = useMemo(() => {
-    if (!selectedTeacherId) {
-        return [];
-    }
-    const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
-    if (!selectedTeacher || !selectedTeacher.specialties) {
-        return [];
-    }
-
-    const teacherSpecialtyModuleIds = selectedTeacher.specialties;
-
-    const filteredCourses = courses.filter(course => teacherSpecialtyModuleIds.includes(course.moduleId));
-    
-    return filteredCourses.map(course => {
+  const courseOptions = useMemo(() => {
+    return courses.map(course => {
         const module = modules.find(m => m.id === course.moduleId);
         const group = groups.find(g => g.id === course.groupId);
         const career = careers.find(c => c.id === group?.careerId);
@@ -116,17 +102,30 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             label: `${module?.name || '...'} | ${group ? `${career?.name || '...'} - Sem ${group.semester} - G ${group.name}` : '...'}`,
         }
     }).sort((a,b) => a.label.localeCompare(b.label));
-  }, [selectedTeacherId, teachers, courses, modules, groups, careers]);
+  }, [courses, modules, groups, careers]);
+
+  const teacherOptions = useMemo(() => {
+    if (!selectedCourseId && !courseToSchedule) return [];
+
+    const course = courses.find(c => c.id === (selectedCourseId || courseToSchedule?.id));
+    if (!course) return [];
+
+    const availableTeachers = teachers.filter(t => t.specialties?.includes(course.moduleId));
+    
+    return availableTeachers.sort((a,b) => a.name.localeCompare(b.name))
+  }, [selectedCourseId, courseToSchedule, teachers, courses]);
+  
+  const classroomOptions = useMemo(() => classrooms.sort((a,b) => a.name.localeCompare(b.name)), [classrooms]);
   
   useEffect(() => {
-    const currentCourseId = form.getValues('courseId');
-    if (currentCourseId && !isEditMode) {
-        const isCourseStillValid = filteredCourseOptions.some(opt => opt.value === currentCourseId);
-        if (!isCourseStillValid) {
-            form.setValue('courseId', '', { shouldValidate: true });
-        }
-    }
-  }, [selectedTeacherId, filteredCourseOptions, form, isEditMode]);
+      const currentTeacherId = form.getValues('teacherId');
+      if (currentTeacherId) {
+          const isTeacherStillValid = teacherOptions.some(opt => opt.id === currentTeacherId);
+          if (!isTeacherStillValid) {
+              form.setValue('teacherId', '', { shouldValidate: true });
+          }
+      }
+  }, [selectedCourseId, teacherOptions, form]);
 
 
   const onSubmit = async (data: FormValues) => {
@@ -230,15 +229,15 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
         <FormField
           control={form.control}
-          name="teacherId"
+          name="courseId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Docente</FormLabel>
-               <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un docente..." /></SelectTrigger></FormControl>
+              <FormLabel>Curso</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value} disabled={!!courseToSchedule}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un curso..." /></SelectTrigger></FormControl>
                   <SelectContent>
                     <ScrollArea className="h-48">
-                      {teacherOptions.map(option => <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>)}
+                      {courseOptions.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
                     </ScrollArea>
                   </SelectContent>
               </Select>
@@ -248,15 +247,15 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         />
         <FormField
           control={form.control}
-          name="courseId"
+          name="teacherId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Curso (Módulos Asignados al Docente)</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} disabled={!selectedTeacherId}>
-                  <FormControl><SelectTrigger><SelectValue placeholder={selectedTeacherId ? "Selecciona un curso..." : "Selecciona un docente primero"} /></SelectTrigger></FormControl>
+              <FormLabel>Docente</FormLabel>
+               <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCourseId && !courseToSchedule}>
+                  <FormControl><SelectTrigger><SelectValue placeholder={selectedCourseId || courseToSchedule ? "Selecciona un docente..." : "Selecciona un curso primero"} /></SelectTrigger></FormControl>
                   <SelectContent>
                     <ScrollArea className="h-48">
-                      {filteredCourseOptions.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                      {teacherOptions.map(option => <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>)}
                     </ScrollArea>
                   </SelectContent>
               </Select>
