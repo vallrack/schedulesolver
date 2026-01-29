@@ -51,15 +51,7 @@ const identifyScheduleConflictsFlow = ai.defineFlow(
     outputSchema: IdentifyScheduleConflictsOutputSchema,
   },
   async input => {
-    try {
-      const {output} = await identifyScheduleConflictsPrompt(input);
-      return output!;
-    } catch (error) {
-      console.error('Error in identifyScheduleConflictsFlow:', error);
-      if (error instanceof Error && error.message.includes('API key expired')) {
-        throw new Error('La clave API ha expirado. Por favor, renueva la clave API en tu configuración de entorno.');
-      }
-      throw new Error('Ocurrió un error al analizar los conflictos con la IA.');
-    }
+    const {output} = await identifyScheduleConflictsPrompt(input);
+    return output!;
   }
 );

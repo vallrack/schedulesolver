@@ -68,15 +68,7 @@ const generateInitialScheduleFlow = ai.defineFlow(
     outputSchema: GenerateInitialScheduleOutputSchema,
   },
   async input => {
-    try {
-        const {output} = await generateInitialSchedulePrompt(input);
-        return output!;
-    } catch (error) {
-        console.error('Error in generateInitialScheduleFlow:', error);
-        if (error instanceof Error && error.message.includes('API key expired')) {
-             throw new Error('La clave API ha expirado. Por favor, renueva la clave API en tu configuración de entorno.');
-        }
-        throw new Error('Ocurrió un error al generar el horario con la IA.');
-    }
+    const {output} = await generateInitialSchedulePrompt(input);
+    return output!;
   }
 );
