@@ -1,12 +1,12 @@
 'use client';
 import { useState, useMemo } from 'react';
-import { addMonths, subMonths, format } from 'date-fns';
+import { addMonths, subMonths, format, addYears, subYears } from 'date-fns';
 import { es } from 'date-fns/locale';
 import AppLayout from '@/components/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { PlusCircle, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Trash2 } from 'lucide-react';
+import { PlusCircle, Calendar as CalendarIcon, Clock, Trash2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, deleteDoc, doc } from 'firebase/firestore';
@@ -61,13 +61,10 @@ export default function AcademicCalendarPage() {
           .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
     }, [courses, modules, groups, careers]);
 
-    const handlePreviousMonth = () => {
-        setCurrentDate(current => subMonths(current, 1));
-    };
-
-    const handleNextMonth = () => {
-        setCurrentDate(current => addMonths(current, 1));
-    };
+    const handlePreviousMonth = () => setCurrentDate(current => subMonths(current, 1));
+    const handleNextMonth = () => setCurrentDate(current => addMonths(current, 1));
+    const handlePreviousYear = () => setCurrentDate(current => subYears(current, 1));
+    const handleNextYear = () => setCurrentDate(current => addYears(current, 1));
 
     const handleDelete = async (courseId: string) => {
         if (!firestore) return;
@@ -106,7 +103,7 @@ export default function AcademicCalendarPage() {
 
     return (
         <AppLayout>
-            <div className="space-y-6">
+            <div className="space-y-8">
                 <div className="flex items-center justify-between">
                     <h1 className="text-3xl font-bold font-headline tracking-tight">Calendario Académico</h1>
                     <Button onClick={() => setDialogOpen(true)}>
@@ -137,7 +134,7 @@ export default function AcademicCalendarPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Cursos Programados</CardTitle>
-                        <CardDescription>Lista de todos los módulos y materias programados.</CardDescription>
+                        <CardDescription>Lista de todos los módulos y materias programados para el semestre.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {loading ? <div className="flex justify-center items-center h-24"><Loader2 className="w-6 h-6 animate-spin"/></div> : (
@@ -175,27 +172,19 @@ export default function AcademicCalendarPage() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="capitalize">{format(currentDate, 'MMMM yyyy', { locale: es })}</CardTitle>
-                            <div className="flex items-center gap-2">
-                                <Button variant="outline" size="icon" onClick={handlePreviousMonth}><ChevronLeft className="h-4 w-4" /></Button>
-                                <Button variant="outline" size="icon" onClick={handleNextMonth}><ChevronRight className="h-4 w-4" /></Button>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                         {loading ? <div className="flex justify-center items-center h-96"><Loader2 className="w-8 h-8 animate-spin"/></div> :
-                            <MonthlyCalendar 
-                                courses={coursesWithDetails} 
-                                modules={modules || []}
-                                year={currentDate.getFullYear()} 
-                                month={currentDate.getMonth()}
-                            />
-                        }
-                    </CardContent>
-                </Card>
+                <div>
+                     {loading ? <div className="flex justify-center items-center h-96"><Loader2 className="w-8 h-8 animate-spin"/></div> :
+                        <MonthlyCalendar 
+                            courses={coursesWithDetails} 
+                            year={currentDate.getFullYear()} 
+                            month={currentDate.getMonth()}
+                            onPrevMonth={handlePreviousMonth}
+                            onNextMonth={handleNextMonth}
+                            onPrevYear={handlePreviousYear}
+                            onNextYear={handleNextYear}
+                        />
+                    }
+                </div>
 
             </div>
         </AppLayout>

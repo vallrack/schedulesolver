@@ -2,9 +2,10 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import type { Course, Module } from '@/lib/types';
-import { format } from 'date-fns';
+import type { Course } from '@/lib/types';
+import { format, getDay, isToday as checkIsToday } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Button } from '../ui/button';
 
 type CourseWithDetails = Course & {
     moduleName: string;
@@ -14,48 +15,37 @@ type CourseWithDetails = Course & {
 
 interface MonthlyCalendarProps {
     courses: CourseWithDetails[];
-    modules: Module[];
     year: number;
     month: number; // 0-11
+    onPrevYear: () => void;
+    onNextYear: () => void;
+    onPrevMonth: () => void;
+    onNextMonth: () => void;
 }
 
-const DayCell = ({ date, eventsInDay }: { date: Date, eventsInDay: CourseWithDetails[] }) => {
-    const day = date.getDate();
-    const today = new Date();
-    const isToday = date.toDateString() === today.toDateString();
-    
-    // Sort events to have a consistent order
-    const sortedEvents = useMemo(() => {
-        return [...eventsInDay].sort((a, b) => a.moduleName.localeCompare(b.moduleName));
-    }, [eventsInDay]);
-
-    return (
-      <div className={cn("min-h-28 border-t border-l p-1.5 flex flex-col", isToday && "bg-accent/20")}>
-        <div className={cn(
-            "text-xs font-semibold mb-1 w-6 h-6 flex items-center justify-center rounded-full", 
-            isToday ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-        )}>
-          {day}
-        </div>
-        <div className="space-y-1 overflow-hidden">
-          {sortedEvents.map(event => (
-            <EventPill key={event.id} event={event} />
-          ))}
-        </div>
-      </div>
-    );
-};
-
 const EventPill = ({ event }: { event: CourseWithDetails }) => {
-    const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-yellow-500', 'bg-indigo-500', 'bg-pink-500', 'bg-teal-500', 'bg-orange-500'];
-    const colorIndex = event.moduleId.charCodeAt(0) % colors.length;
+    // A simple hash function to get a color index
+    const getColorIndex = (str: string) => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return Math.abs(hash);
+    }
+    
+    const colors = [
+        'bg-blue-500', 'bg-green-500', 'bg-purple-500', 
+        'bg-yellow-500', 'bg-indigo-500', 'bg-pink-500', 
+        'bg-teal-500', 'bg-orange-500', 'bg-cyan-500', 'bg-lime-500'
+    ];
+    const colorIndex = getColorIndex(event.moduleId) % colors.length;
     const color = colors[colorIndex];
 
     return (
         <Popover>
             <PopoverTrigger asChild>
                 <div
-                className={cn(color, 'text-white text-xs p-1 rounded truncate cursor-pointer hover:opacity-80')}
+                className={cn(color, 'text-white text-[10px] px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80')}
                 title={`${event.moduleName} - ${event.careerName}`}
                 >
                 {event.moduleName}
@@ -74,56 +64,114 @@ const EventPill = ({ event }: { event: CourseWithDetails }) => {
     );
 };
 
-export function MonthlyCalendar({ courses, modules, year, month }: MonthlyCalendarProps) {
+const DayCell = ({ date, eventsInDay, isOutOfMonth }: { date: Date, eventsInDay: CourseWithDetails[], isOutOfMonth: boolean }) => {
+    const day = date.getDate();
+    const isToday = checkIsToday(date);
+    
+    const sortedEvents = useMemo(() => {
+        return [...eventsInDay].sort((a, b) => a.moduleName.localeCompare(b.moduleName));
+    }, [eventsInDay]);
+
+    return (
+      <div className={cn(
+          "min-h-28 rounded-lg border bg-white p-1.5 flex flex-col relative transition-all duration-150 ease-in-out",
+          isOutOfMonth ? "bg-muted/50 cursor-default opacity-50" : "cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:border-primary/50",
+          isToday && "border-2 border-primary shadow-lg"
+      )}>
+        <div className={cn(
+            "text-xs font-bold mb-1 w-6 h-6 flex items-center justify-center rounded-full", 
+            isToday && "bg-primary text-primary-foreground"
+        )}>
+          {day}
+        </div>
+        {!isOutOfMonth && 
+            <div className="space-y-1 overflow-hidden">
+            {sortedEvents.slice(0, 3).map(event => (
+                <EventPill key={event.id} event={event} />
+            ))}
+            {sortedEvents.length > 3 && <div className="text-xs text-muted-foreground mt-1">+{sortedEvents.length - 3} más</div>}
+            </div>
+        }
+        {isToday && !isOutOfMonth && (
+            <div className="absolute top-1.5 right-1.5 text-[9px] font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary">HOY</div>
+        )}
+      </div>
+    );
+};
+
+export function MonthlyCalendar({ courses, year, month, onPrevYear, onNextYear, onPrevMonth, onNextMonth }: MonthlyCalendarProps) {
     const calendarGrid = useMemo(() => {
         const firstDayOfMonth = new Date(year, month, 1);
         const lastDayOfMonth = new Date(year, month + 1, 0);
+        
         const daysInMonth = lastDayOfMonth.getDate();
-        // Sunday - 0, Monday - 1, etc.
-        const startDayOfWeek = firstDayOfMonth.getDay(); 
+        // Sunday - 0, Monday - 1, etc. getDay() is what we need.
+        const startDayOfWeek = getDay(firstDayOfMonth); 
         
         const days = [];
         
-        // Blank days before the start of the month
-        for (let i = 0; i < startDayOfWeek; i++) {
-            days.push(<div key={`blank-start-${i}`} className="border-t border-l bg-muted/50"></div>);
+        // Days from previous month
+        const prevMonthLastDay = new Date(year, month, 0);
+        const prevMonthDays = prevMonthLastDay.getDate();
+        for (let i = startDayOfWeek - 1; i >= 0; i--) {
+            const date = new Date(year, month - 1, prevMonthDays - i);
+            days.push(<DayCell key={`prev-${i}`} date={date} eventsInDay={[]} isOutOfMonth={true} />);
         }
         
-        // Days of the month
+        // Days of the current month
         for (let day = 1; day <= daysInMonth; day++) {
             const currentDate = new Date(year, month, day);
+            currentDate.setHours(0,0,0,0);
+
             const eventsForDay = courses.filter(event => {
                 const startDate = new Date(event.startDate);
                 startDate.setHours(0, 0, 0, 0);
                 const endDate = new Date(event.endDate);
-                endDate.setHours(23, 59, 59, 999);
+                endDate.setHours(0, 0, 0, 0);
                 return currentDate >= startDate && currentDate <= endDate;
             });
-            days.push(<DayCell key={day} date={currentDate} eventsInDay={eventsForDay} />);
+            days.push(<DayCell key={day} date={currentDate} eventsInDay={eventsForDay} isOutOfMonth={false} />);
         }
 
-        // Blank days after the end of the month to fill the grid
-        const totalCells = startDayOfWeek + daysInMonth;
+        // Days from next month
+        const totalCells = days.length;
         const remainingCells = (7 - (totalCells % 7)) % 7;
-        for (let i = 0; i < remainingCells; i++) {
-             days.push(<div key={`blank-end-${i}`} className="border-t border-l bg-muted/50"></div>);
+        for (let i = 1; i <= remainingCells; i++) {
+             const date = new Date(year, month + 1, i);
+             days.push(<DayCell key={`next-${i}`} date={date} eventsInDay={[]} isOutOfMonth={true} />);
         }
 
         return days;
-    }, [year, month, courses, modules]);
+    }, [year, month, courses]);
 
     const dayHeaders = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
     return (
-        <div className="border-r border-b">
-            <div className="grid grid-cols-7">
-                {dayHeaders.map(day => (
-                    <div key={day} className="p-2 text-center font-semibold text-sm border-t border-l">
+        <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-primary to-accent text-primary-foreground p-4">
+                 <div className="grid grid-cols-2 md:grid-cols-[1fr_1fr_auto_1fr_1fr] gap-2 items-center">
+                    <Button onClick={onPrevYear} variant="ghost" className="hover:bg-white/20 hover:text-white justify-start md:justify-center">« Año Anterior</Button>
+                    <Button onClick={onPrevMonth} variant="ghost" className="hover:bg-white/20 hover:text-white justify-end md:justify-center">‹ Mes Anterior</Button>
+                    <div className="col-span-2 md:col-span-1 order-first md:order-none text-center font-bold text-lg capitalize bg-white/20 border border-white/30 rounded-lg py-2">
+                        {format(new Date(year, month), 'MMMM, yyyy', { locale: es })}
+                    </div>
+                    <Button onClick={onNextMonth} variant="ghost" className="hover:bg-white/20 hover:text-white justify-start md:justify-center">Mes Siguiente ›</Button>
+                    <Button onClick={onNextYear} variant="ghost" className="hover:bg-white/20 hover:text-white justify-end md:justify-center">Año Siguiente »</Button>
+                </div>
+            </div>
+
+             <div className="grid grid-cols-7 gap-2 bg-slate-800 text-white p-2">
+                {dayHeaders.map((day, index) => (
+                    <div key={day} className={cn(
+                        "p-2 text-center font-bold text-xs rounded-md bg-white/5",
+                        (index === 0 || index === 6) && "bg-red-500/20 border border-red-500/30"
+                    )}>
                         {day}
                     </div>
                 ))}
             </div>
-            <div className="grid grid-cols-7">
+            
+            <div className="grid grid-cols-7 gap-2 p-2 bg-muted/30">
                 {calendarGrid}
             </div>
         </div>
