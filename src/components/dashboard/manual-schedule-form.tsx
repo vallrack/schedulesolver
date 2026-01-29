@@ -54,7 +54,7 @@ interface ManualScheduleFormProps {
   teachers: Teacher[];
   classrooms: Classroom[];
   scheduleEvents: ScheduleEvent[];
-  eventToEdit?: ScheduleEvent;
+  eventToEditInfo?: { event: ScheduleEvent, ids: string[] };
   courseToSchedule?: Course;
   onSuccess: () => void;
 }
@@ -65,25 +65,29 @@ const timeToMinutes = (time: string): number => {
   return hours * 60 + minutes;
 };
 
-export function ManualScheduleForm({ courses, modules, groups, careers, teachers, classrooms, scheduleEvents, eventToEdit, courseToSchedule, onSuccess }: ManualScheduleFormProps) {
+export function ManualScheduleForm({ courses, modules, groups, careers, teachers, classrooms, scheduleEvents, eventToEditInfo, courseToSchedule, onSuccess }: ManualScheduleFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const isEditMode = !!eventToEdit;
+  const isEditMode = !!eventToEditInfo;
 
   const initialValues = useMemo(() => {
-    if (isEditMode && eventToEdit && courses.length > 0) {
-        const course = courses.find(c => c.id === eventToEdit.courseId);
+    if (isEditMode && eventToEditInfo && courses.length > 0) {
+        const { event, ids } = eventToEditInfo;
+        const course = courses.find(c => c.id === event.courseId);
         if (course) {
+            const allEventsForGroup = scheduleEvents.filter(e => ids.includes(e.id));
+            const days = [...new Set(allEventsForGroup.map(e => e.day))];
+
             const courseWeekStartDate = getStartOfWeek(new Date(course.startDate), { weekStartsOn: 1 });
-            const eventStartDate = addWeeks(courseWeekStartDate, eventToEdit.startWeek - 1);
-            const eventEndDate = addWeeks(courseWeekStartDate, eventToEdit.endWeek - 1);
+            const eventStartDate = addWeeks(courseWeekStartDate, event.startWeek - 1);
+            const eventEndDate = addWeeks(courseWeekStartDate, event.endWeek - 1);
             return {
-                courseId: eventToEdit.courseId,
-                teacherId: eventToEdit.teacherId,
-                classroomId: eventToEdit.classroomId,
-                days: [eventToEdit.day],
-                startTime: eventToEdit.startTime,
-                endTime: eventToEdit.endTime,
+                courseId: event.courseId,
+                teacherId: event.teacherId,
+                classroomId: event.classroomId,
+                days: days,
+                startTime: event.startTime,
+                endTime: event.endTime,
                 startDate: eventStartDate,
                 endDate: eventEndDate,
             };
@@ -113,7 +117,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         startDate: undefined,
         endDate: undefined,
     };
-  }, [eventToEdit, isEditMode, courses, courseToSchedule]);
+  }, [eventToEditInfo, isEditMode, courses, scheduleEvents, courseToSchedule]);
 
 
   const form = useForm<FormValues>({
@@ -185,7 +189,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
 
     for (const day of data.days) {
         for (const existingEvent of scheduleEvents) {
-            if (isEditMode && existingEvent.id === eventToEdit.id) continue;
+            if (isEditMode && eventToEditInfo!.ids.includes(existingEvent.id)) continue;
             if (existingEvent.day !== day) continue;
 
             const timeOverlap = timeToMinutes(data.startTime) < timeToMinutes(existingEvent.endTime) && timeToMinutes(data.endTime) > timeToMinutes(existingEvent.startTime);
@@ -243,31 +247,28 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
 
 
     try {
-        if (isEditMode && eventToEdit) {
-            const scheduleRef = doc(firestore, 'schedules', eventToEdit.id);
-            const { days, startDate, endDate, ...restOfData } = data;
-            const eventDataForUpdate = {
-              ...restOfData,
-              day: data.days[0],
-              startWeek,
-              endWeek,
-            };
-      
-            await updateDoc(scheduleRef, eventDataForUpdate as any);
-            toast({ title: 'Clase Actualizada', description: 'La clase ha sido actualizada correctamente.' });
-        } else {
-            const batch = writeBatch(firestore);
-            const schedulesCol = collection(firestore, 'schedules');
-            const { days, startDate, endDate, ...restOfData } = data;
+        const batch = writeBatch(firestore);
 
-            days.forEach(day => {
-                const newEventRef = doc(schedulesCol);
-                const eventData = { ...restOfData, day, startWeek, endWeek };
-                batch.set(newEventRef, eventData);
+        if (isEditMode && eventToEditInfo) {
+            eventToEditInfo.ids.forEach(id => {
+                batch.delete(doc(firestore, 'schedules', id));
             });
+        }
+        
+        const schedulesCol = collection(firestore, 'schedules');
+        const { days, startDate, endDate, ...restOfData } = data;
 
-            await batch.commit();
+        days.forEach(day => {
+            const newEventRef = doc(schedulesCol);
+            const eventData = { ...restOfData, day, startWeek, endWeek };
+            batch.set(newEventRef, eventData);
+        });
 
+        await batch.commit();
+
+        if (isEditMode) {
+             toast({ title: 'Clase Actualizada', description: 'Las clases recurrentes han sido actualizadas.' });
+        } else {
             toast({ title: 'Horario Creado', description: `Se ha(n) añadido ${days.length} nueva(s) clase(s) al horario.` });
         }
         onSuccess();
@@ -275,7 +276,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         const { startDate, endDate, ...requestData} = data;
         const permissionError = new FirestorePermissionError({
             path: 'schedules',
-            operation: 'create',
+            operation: isEditMode ? 'update' : 'create',
             requestResourceData: { ...requestData, startWeek, endWeek },
         });
         errorEmitter.emit('permission-error', permissionError);
@@ -341,74 +342,59 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             </FormItem>
           )}
         />
-        {isEditMode ? (
-            <FormField
-                control={form.control}
-                name="days"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Día</FormLabel>
-                        <FormControl>
-                            <Input value={field.value?.[0] || ''} disabled />
-                        </FormControl>
-                    </FormItem>
-                )}
-            />
-        ) : (
-            <FormField
-                control={form.control}
-                name="days"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Días</FormLabel>
-                    <Popover modal={true}>
-                        <PopoverTrigger asChild>
-                        <FormControl>
-                            <Button
-                            variant="outline"
-                            className={cn(
-                                "w-full justify-between",
-                                !field.value?.length && "text-muted-foreground"
-                            )}
-                            >
-                            {field.value?.length
-                                ? `${field.value.length} día(s) seleccionado(s)`
-                                : "Selecciona uno o más días"}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                        </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                        <div className="p-4 space-y-2">
-                            {availableDays.map((day) => (
-                                <FormItem key={day} className="flex flex-row items-start space-x-3 space-y-0">
-                                    <FormControl>
-                                    <Checkbox
-                                        checked={field.value?.includes(day)}
-                                        onCheckedChange={(checked) => {
-                                        return checked
-                                            ? field.onChange([...(field.value || []), day])
-                                            : field.onChange(
-                                                (field.value || []).filter(
-                                                (value) => value !== day
-                                                )
+        <FormField
+            control={form.control}
+            name="days"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Días</FormLabel>
+                <Popover modal={true}>
+                    <PopoverTrigger asChild>
+                    <FormControl>
+                        <Button
+                        variant="outline"
+                        className={cn(
+                            "w-full justify-between",
+                            !field.value?.length && "text-muted-foreground"
+                        )}
+                        >
+                        {field.value?.length
+                            ? `${field.value.length} día(s) seleccionado(s)`
+                            : "Selecciona uno o más días"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <div className="p-4 space-y-2">
+                        {availableDays.map((day) => (
+                            <FormItem key={day} className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                <Checkbox
+                                    checked={field.value?.includes(day)}
+                                    onCheckedChange={(checked) => {
+                                    return checked
+                                        ? field.onChange([...(field.value || []), day])
+                                        : field.onChange(
+                                            (field.value || []).filter(
+                                            (value) => value !== day
                                             )
-                                        }}
-                                    />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">
-                                    {day}
-                                    </FormLabel>
-                                </FormItem>
-                            ))}
-                        </div>
-                        </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                    </FormItem>
-                )}
-            />
-        )}
+                                        )
+                                    }}
+                                />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                {day}
+                                </FormLabel>
+                            </FormItem>
+                        ))}
+                    </div>
+                    </PopoverContent>
+                </Popover>
+                <FormMessage />
+                </FormItem>
+            )}
+        />
         <div className="grid grid-cols-2 gap-4">
             <FormField
                 control={form.control}

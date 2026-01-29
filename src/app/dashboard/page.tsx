@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Plus, Edit, Trash2, User, Clock, School, Dow
 import AppLayout from '@/components/app-layout';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, deleteDoc, doc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import type { Career, Course, Group, Module, Teacher, Classroom, ScheduleEvent } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -66,18 +66,18 @@ type CourseWithDetails = Course & {
     careerName: string;
 };
 
-type ScheduledClassInfo = {
-    scheduleEventId: string;
-    courseId: string;
-    moduleName: string;
-    groupInfo: string;
-    teacherName: string;
-    classroomName: string;
-    day: string;
-    startTime: string;
-    endTime: string;
-    scheduleEvent: ScheduleEvent;
+type GroupedClassInfo = {
+  scheduleEventIds: string[];
+  representativeEvent: ScheduleEvent;
+  moduleName: string;
+  groupInfo: string;
+  teacherName: string;
+  classroomName: string;
+  startTime: string;
+  endTime: string;
+  days: string[];
 };
+
 
 const toISODateString = (date: Date) => {
     const offset = date.getTimezoneOffset();
@@ -92,7 +92,7 @@ export default function DashboardPage() {
     const [showCourseModal, setShowCourseModal] = useState(false);
     const [editingCourse, setEditingCourse] = useState<Course | null>(null);
     const [showScheduleModal, setShowScheduleModal] = useState(false);
-    const [editingScheduleEvent, setEditingScheduleEvent] = useState<ScheduleEvent | undefined>(undefined);
+    const [editingScheduleInfo, setEditingScheduleInfo] = useState<{ event: ScheduleEvent, ids: string[] } | undefined>(undefined);
     const [courseToSchedule, setCourseToSchedule] = useState<CourseWithDetails | null>(null);
     
     const [activeWeekTab, setActiveWeekTab] = useState('teacher');
@@ -160,59 +160,67 @@ export default function DashboardPage() {
         });
     
         const scheduledCourseIds = new Set<string>();
-        const scheduledClasses: ScheduledClassInfo[] = [];
-    
+
+        const tempGroupedClasses: { [key: string]: { events: ScheduleEvent[], days: string[] } } = {};
+        
         scheduleEvents!.forEach(event => {
-          const course = coursesWithDetails.find(c => c.id === event.courseId);
-          if (!course) return;
-    
-          const courseStart = new Date(course.startDate);
-          const courseEnd = new Date(course.endDate);
-          if (courseStart > monthEnd || courseEnd < monthStart) return;
-    
-          scheduledCourseIds.add(course.id);
-    
-          const teacher = teachers!.find(t => t.id === event.teacherId);
-          const classroom = classrooms!.find(c => c.id === event.classroomId);
-    
-          scheduledClasses.push({
-            scheduleEventId: event.id,
-            courseId: course.id,
-            moduleName: course.moduleName,
-            groupInfo: `${course.careerName} / ${course.groupInfo}`,
-            teacherName: teacher?.name || 'No asignado',
-            classroomName: classroom?.name || 'No asignada',
-            day: event.day,
-            startTime: event.startTime,
-            endTime: event.endTime,
-            scheduleEvent: event
-          });
+            const course = coursesWithDetails.find(c => c.id === event.courseId);
+            if (!course) return;
+        
+            const courseStart = new Date(course.startDate);
+            const courseEnd = new Date(course.endDate);
+            if (courseStart > monthEnd || courseEnd < monthStart) return;
+        
+            scheduledCourseIds.add(course.id);
+        
+            const groupKey = `${event.courseId}-${event.teacherId}-${event.classroomId}-${event.startTime}-${event.endTime}-${event.startWeek}-${event.endWeek}`;
+        
+            if (!tempGroupedClasses[groupKey]) {
+                tempGroupedClasses[groupKey] = { events: [], days: [] };
+            }
+            tempGroupedClasses[groupKey].events.push(event);
+            tempGroupedClasses[groupKey].days.push(event.day);
+        });
+
+        const dayOrder = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+        const finalScheduledClasses: GroupedClassInfo[] = Object.values(tempGroupedClasses).map(group => {
+            const firstEvent = group.events[0];
+            const course = coursesWithDetails.find(c => c.id === firstEvent.courseId)!;
+            const teacher = teachers!.find(t => t.id === firstEvent.teacherId);
+            const classroom = classrooms!.find(c => c.id === firstEvent.classroomId);
+
+            return {
+                scheduleEventIds: group.events.map(e => e.id),
+                representativeEvent: firstEvent,
+                moduleName: course.moduleName,
+                groupInfo: `${course.careerName} / ${course.groupInfo}`,
+                teacherName: teacher?.name || 'No asignado',
+                classroomName: classroom?.name || 'No asignada',
+                startTime: firstEvent.startTime,
+                endTime: firstEvent.endTime,
+                days: group.days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b)),
+            };
         });
     
-        const grouped = scheduledClasses.reduce((acc, currentClass) => {
+        const grouped = finalScheduledClasses.reduce((acc, currentClass) => {
           const key = currentClass.moduleName;
           if (!acc[key]) {
             acc[key] = [];
           }
           acc[key].push(currentClass);
           return acc;
-        }, {} as Record<string, ScheduledClassInfo[]>);
+        }, {} as Record<string, GroupedClassInfo[]>);
     
         for (const moduleName in grouped) {
-            grouped[moduleName].sort((a, b) => {
-                const dayOrder = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-                const dayCompare = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
-                if (dayCompare !== 0) return dayCompare;
-                return a.startTime.localeCompare(b.startTime);
-            });
+            grouped[moduleName].sort((a, b) => a.groupInfo.localeCompare(b.groupInfo));
         }
         
-        const sortedGroupedScheduledClasses: Record<string, ScheduledClassInfo[]> = Object.keys(grouped).sort().reduce(
+        const sortedGroupedScheduledClasses: Record<string, GroupedClassInfo[]> = Object.keys(grouped).sort().reduce(
           (obj, key) => { 
             obj[key] = grouped[key]; 
             return obj;
           }, 
-          {} as Record<string, ScheduledClassInfo[]>
+          {} as Record<string, GroupedClassInfo[]>
         );
     
         const unscheduled = activeCoursesInMonth.filter(course => !scheduledCourseIds.has(course.id))
@@ -257,24 +265,28 @@ export default function DashboardPage() {
         setEditingCourse(null);
     };
     
-    const handleEditScheduleEvent = (event: ScheduleEvent) => {
-        setEditingScheduleEvent(event);
+    const handleEditScheduleGroup = (event: ScheduleEvent, ids: string[]) => {
+        setEditingScheduleInfo({ event, ids });
         setShowScheduleModal(true);
     };
-    
-    const handleDeleteScheduleEvent = async (eventId: string) => {
+
+    const handleDeleteEvents = async (eventIds: string[]) => {
         if (!firestore) return;
-        const eventRef = doc(firestore, 'schedules', eventId);
+        const batch = writeBatch(firestore);
+        eventIds.forEach(id => {
+            const eventRef = doc(firestore, 'schedules', id);
+            batch.delete(eventRef);
+        });
         try {
-            await deleteDoc(eventRef);
+            await batch.commit();
             toast({
                 variant: 'destructive',
-                title: 'Clase Eliminada',
-                description: 'La clase ha sido eliminada del horario.',
+                title: eventIds.length > 1 ? 'Clases Eliminadas' : 'Clase Eliminada',
+                description: `Se ha(n) eliminado ${eventIds.length} clase(s) del horario.`,
             });
         } catch (e) {
             const permissionError = new FirestorePermissionError({
-                path: eventRef.path,
+                path: 'schedules',
                 operation: 'delete',
             });
             errorEmitter.emit('permission-error', permissionError);
@@ -283,13 +295,13 @@ export default function DashboardPage() {
     
     const closeScheduleModal = () => {
         setShowScheduleModal(false);
-        setEditingScheduleEvent(undefined);
+        setEditingScheduleInfo(undefined);
         setCourseToSchedule(null);
     };
     
     const handleAssignTeacher = (course: CourseWithDetails) => {
         setCourseToSchedule(course);
-        setEditingScheduleEvent(undefined);
+        setEditingScheduleInfo(undefined);
         setShowScheduleModal(true);
     };
 
@@ -396,7 +408,7 @@ export default function DashboardPage() {
                                                                 </p>
                                                             </div>
                                                             <div className="flex items-center -mt-1 -mr-2">
-                                                                <Button onClick={() => handleEditScheduleEvent(course.scheduleEvent)} variant="ghost" size="icon" className="h-8 w-8">
+                                                                <Button onClick={() => handleEditScheduleGroup(course.scheduleEvent, [course.scheduleEvent.id])} variant="ghost" size="icon" className="h-8 w-8">
                                                                     <Edit className="h-4 w-4" />
                                                                 </Button>
                                                                 <AlertDialog>
@@ -414,7 +426,7 @@ export default function DashboardPage() {
                                                                         </AlertDialogHeader>
                                                                         <AlertDialogFooter>
                                                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                            <AlertDialogAction onClick={() => handleDeleteScheduleEvent(course.scheduleEvent.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                                                            <AlertDialogAction onClick={() => handleDeleteEvents([course.scheduleEvent.id])} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
                                                                         </AlertDialogFooter>
                                                                     </AlertDialogContent>
                                                                 </AlertDialog>
@@ -472,15 +484,15 @@ export default function DashboardPage() {
                 
                 <TabsContent value="teacher" className="mt-4">
                    <div className="max-w-sm no-print"><Select onValueChange={setSelectedTeacher} value={selectedTeacher}><SelectTrigger><SelectValue placeholder="Selecciona un docente..." /></SelectTrigger><SelectContent>{teachers?.sort((a,b) => a.name.localeCompare(b.name)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select></div>
-                   {selectedTeacher && <ScheduleCalendar events={teacherEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} onEditEvent={handleEditScheduleEvent} onDeleteEvent={handleDeleteScheduleEvent} />}
+                   {selectedTeacher && <ScheduleCalendar events={teacherEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} onEditEvent={(e) => handleEditScheduleGroup(e, [e.id])} onDeleteEvent={(id) => handleDeleteEvents([id])} />}
                 </TabsContent>
                 <TabsContent value="group" className="mt-4">
                    <div className="max-w-sm no-print"><Select onValueChange={setSelectedGroup} value={selectedGroup}><SelectTrigger><SelectValue placeholder="Selecciona un grupo..." /></SelectTrigger><SelectContent>{groupOptions?.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}</SelectContent></Select></div>
-                   {selectedGroup && <ScheduleCalendar events={groupEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} onEditEvent={handleEditScheduleEvent} onDeleteEvent={handleDeleteScheduleEvent} />}
+                   {selectedGroup && <ScheduleCalendar events={groupEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} onEditEvent={(e) => handleEditScheduleGroup(e, [e.id])} onDeleteEvent={(id) => handleDeleteEvents([id])} />}
                 </TabsContent>
                 <TabsContent value="classroom" className="mt-4">
                   <div className="max-w-sm no-print"><Select onValueChange={setSelectedClassroom} value={selectedClassroom}><SelectTrigger><SelectValue placeholder="Selecciona un aula..." /></SelectTrigger><SelectContent>{classrooms?.sort((a, b) => a.name.localeCompare(b.name)).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
-                   {selectedClassroom && <ScheduleCalendar events={classroomEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} onEditEvent={handleEditScheduleEvent} onDeleteEvent={handleDeleteScheduleEvent} />}
+                   {selectedClassroom && <ScheduleCalendar events={classroomEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} onEditEvent={(e) => handleEditScheduleGroup(e, [e.id])} onDeleteEvent={(id) => handleDeleteEvents([id])} />}
                 </TabsContent>
             </Tabs>
         )
@@ -561,7 +573,7 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-1 ml-auto">
-                                        <Button onClick={() => handleEditScheduleEvent(event)} variant="outline" size="icon" className="h-8 w-8">
+                                        <Button onClick={() => handleEditScheduleGroup(event, [event.id])} variant="outline" size="icon" className="h-8 w-8">
                                             <Edit className="h-4 w-4" />
                                         </Button>
                                         <AlertDialog>
@@ -579,7 +591,7 @@ export default function DashboardPage() {
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeleteScheduleEvent(event.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                                    <AlertDialogAction onClick={() => handleDeleteEvents([event.id])} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>
@@ -663,7 +675,7 @@ export default function DashboardPage() {
                                         <AccordionItem value={moduleName} key={moduleName} className="border rounded-lg px-4 bg-gray-50/50">
                                             <AccordionTrigger className="hover:no-underline text-base font-semibold">
                                                 {moduleName}
-                                                <Badge variant="secondary" className="ml-2">{schedules.length} clase(s)</Badge>
+                                                <Badge variant="secondary" className="ml-2">{schedules.length} clase(s) recurrentes</Badge>
                                             </AccordionTrigger>
                                             <AccordionContent>
                                                 <Table>
@@ -678,14 +690,14 @@ export default function DashboardPage() {
                                                     </TableHeader>
                                                     <TableBody>
                                                         {schedules.map((s) => (
-                                                            <TableRow key={s.scheduleEventId}>
+                                                            <TableRow key={s.scheduleEventIds.join('-')}>
                                                                 <TableCell className="text-xs">{s.groupInfo}</TableCell>
                                                                 <TableCell>{s.teacherName}</TableCell>
-                                                                <TableCell>{s.day} {s.startTime} - {s.endTime}</TableCell>
+                                                                <TableCell>{s.days.join(', ')} {s.startTime} - {s.endTime}</TableCell>
                                                                 <TableCell>{s.classroomName}</TableCell>
                                                                 <TableCell className="text-right">
                                                                     <div className="flex gap-1 justify-end">
-                                                                        <Button onClick={() => handleEditScheduleEvent(s.scheduleEvent)} variant="ghost" size="icon" className="w-8 h-8 text-blue-600 hover:text-blue-700">
+                                                                        <Button onClick={() => handleEditScheduleGroup(s.representativeEvent, s.scheduleEventIds)} variant="ghost" size="icon" className="w-8 h-8 text-blue-600 hover:text-blue-700">
                                                                             <Edit className="w-4 h-4" />
                                                                         </Button>
                                                                         <AlertDialog>
@@ -695,11 +707,11 @@ export default function DashboardPage() {
                                                                             <AlertDialogContent>
                                                                                 <AlertDialogHeader>
                                                                                     <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                                                                    <AlertDialogDescription>Esta acción eliminará permanentemente la clase. No se puede deshacer.</AlertDialogDescription>
+                                                                                    <AlertDialogDescription>Esta acción eliminará {s.scheduleEventIds.length} clase(s) permanentemente. No se puede deshacer.</AlertDialogDescription>
                                                                                 </AlertDialogHeader>
                                                                                 <AlertDialogFooter>
                                                                                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                                    <AlertDialogAction onClick={() => handleDeleteScheduleEvent(s.scheduleEvent.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                                                                                    <AlertDialogAction onClick={() => handleDeleteEvents(s.scheduleEventIds)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
                                                                                 </AlertDialogFooter>
                                                                             </AlertDialogContent>
                                                                         </AlertDialog>
@@ -792,13 +804,13 @@ export default function DashboardPage() {
                         <Dialog open={showScheduleModal} onOpenChange={closeScheduleModal}>
                             <DialogContent className="sm:max-w-lg">
                                 <DialogHeader>
-                                    <DialogTitle>{editingScheduleEvent ? "Editar Clase" : "Asignar Horario a Curso"}</DialogTitle>
+                                    <DialogTitle>{editingScheduleInfo ? "Editar Clase" : "Asignar Horario a Curso"}</DialogTitle>
                                     <DialogDescription>
-                                    {editingScheduleEvent ? "Modifica los detalles de la clase." : (courseToSchedule ? `Asignando horario para: ${courseToSchedule.moduleName}`: "Añade una clase al horario. El sistema verificará conflictos.")}
+                                    {editingScheduleInfo ? "Modifica los detalles de la clase." : (courseToSchedule ? `Asignando horario para: ${courseToSchedule.moduleName}`: "Añade una clase al horario. El sistema verificará conflictos.")}
                                     </DialogDescription>
                                 </DialogHeader>
                                 <ManualScheduleForm 
-                                    key={editingScheduleEvent?.id || courseToSchedule?.id || 'new-schedule-event'}
+                                    key={editingScheduleInfo?.event.id || courseToSchedule?.id || 'new-schedule-event'}
                                     courses={courses || []}
                                     modules={modules || []}
                                     groups={groups || []}
@@ -806,7 +818,7 @@ export default function DashboardPage() {
                                     teachers={teachers || []}
                                     classrooms={classrooms || []}
                                     scheduleEvents={scheduleEvents || []}
-                                    eventToEdit={editingScheduleEvent}
+                                    eventToEditInfo={editingScheduleInfo}
                                     courseToSchedule={courseToSchedule || undefined}
                                     onSuccess={closeScheduleModal}
                                 />
