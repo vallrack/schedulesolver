@@ -58,40 +58,38 @@ const EventCard = ({
   const colorClasses = 'bg-primary/80 border border-primary text-primary-foreground';
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <div
-          className={cn(
-            'absolute w-[calc(100%-8px)] left-[4px] rounded-lg p-2 text-xs cursor-pointer hover:opacity-90 transition-opacity z-10',
-            colorClasses
-          )}
-          style={{ top: `${topPosition}rem`, height: `${height}rem` }}
-        >
-          <p className="font-bold truncate">{module?.name ?? 'Evento'}</p>
-          <p className="truncate text-xs opacity-80">{teacher?.name}</p>
-          <p className="truncate text-xs opacity-80">{classroom?.name}</p>
-        </div>
-      </PopoverTrigger>
-      <PopoverContent>
-        <div className="space-y-3 text-sm">
-            <h4 className="font-bold font-headline">{module?.name ?? "Evento Desconocido"}</h4>
-            {group && <p className="text-xs text-muted-foreground -mt-2 mb-2">{career?.name ?? '...'} / Sem {group.semester} G{group.name}</p>}
-            <p><strong>Docente:</strong> {teacher?.name ?? "N/A"}</p>
-            <p><strong>Aula:</strong> {classroom?.name ?? "N/A"}</p>
-            <p><strong>Horario:</strong> {event.day}, {event.startTime} - {event.endTime}</p>
-            <p><strong>Semanas:</strong> {event.startWeek} - {event.endWeek}</p>
-        </div>
-        <div className="flex justify-end gap-2 pt-4 mt-4 border-t">
-            <Button onClick={() => onEdit(event)} variant="ghost" size="icon" className="h-8 w-8">
+      <div
+        className={cn(
+          'group absolute w-[calc(100%-8px)] left-[4px] rounded-lg p-2 text-xs cursor-pointer hover:opacity-90 transition-opacity z-10',
+          colorClasses
+        )}
+        style={{ top: `${topPosition}rem`, height: `${height}rem` }}
+      >
+        <p className="font-bold truncate">{module?.name ?? 'Evento'}</p>
+        <p className="truncate text-xs opacity-80">{teacher?.name}</p>
+        <p className="truncate text-xs opacity-80">{classroom?.name}</p>
+        
+        <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <Button 
+              onClick={(e) => { e.stopPropagation(); onEdit(event); }} 
+              variant="ghost" 
+              size="icon" 
+              className="h-7 w-7 text-white hover:bg-white/20"
+            >
                 <Edit className="h-4 w-4" />
             </Button>
             <AlertDialog>
                 <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                    <Button 
+                      onClick={(e) => e.stopPropagation()} 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-7 w-7 text-white hover:bg-white/20"
+                    >
                         <Trash2 className="h-4 w-4" />
                     </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                         <AlertDialogDescription>
@@ -105,8 +103,7 @@ const EventCard = ({
                 </AlertDialogContent>
             </AlertDialog>
         </div>
-      </PopoverContent>
-    </Popover>
+      </div>
   );
 };
 
