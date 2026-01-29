@@ -71,7 +71,6 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
   const isEditMode = !!eventToEdit;
 
   const initialValues = useMemo(() => {
-    // EDIT MODE
     if (isEditMode && eventToEdit && courses.length > 0) {
         const course = courses.find(c => c.id === eventToEdit.courseId);
         if (course) {
@@ -90,7 +89,6 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             };
         }
     }
-    // CREATE MODE
     if (!isEditMode && courseToSchedule && courses.length > 0) {
          const course = courses.find(c => c.id === courseToSchedule.id);
          return {
@@ -105,9 +103,8 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         };
     }
     
-    // DEFAULT/EMPTY/LOADING STATE
     return {
-        courseId: courseToSchedule?.id || '',
+        courseId: '',
         teacherId: '',
         classroomId: '',
         days: [],
@@ -126,7 +123,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
 
   useEffect(() => {
     form.reset(initialValues);
-  }, [initialValues, form.reset]);
+  }, [initialValues, form]);
   
   const selectedCourseId = form.watch('courseId');
 
@@ -169,9 +166,6 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
   const onSubmit = async (data: FormValues) => {
     if (!firestore) return;
 
-    const startMinutes = timeToMinutes(data.startTime);
-    const endMinutes = timeToMinutes(data.endTime);
-
     // --- VALIDATION LOGIC ---
     const selectedCourse = courses.find(c => c.id === data.courseId);
     if (!selectedCourse) {
@@ -185,39 +179,53 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         toast({ variant: "destructive", title: "Conflicto de Capacidad", description: `El aula ${selectedClassroom.name} (${selectedClassroom.capacity}) no tiene capacidad para el grupo (${groupForCourse.studentCount} estudiantes).` });
         return;
     }
-    
+
+    const newEventAbsoluteStartDate = data.startDate;
+    const newEventAbsoluteEndDate = data.endDate;
+
     for (const day of data.days) {
-        for (const event of scheduleEvents) {
-            if (isEditMode && event.id === eventToEdit.id) continue;
-            if (event.day !== day) continue;
-            // More detailed check needed here, comparing week ranges
-            const timeOverlap = startMinutes < timeToMinutes(event.endTime) && endMinutes > timeToMinutes(event.startTime);
+        for (const existingEvent of scheduleEvents) {
+            if (isEditMode && existingEvent.id === eventToEdit.id) continue;
+            if (existingEvent.day !== day) continue;
+
+            const timeOverlap = timeToMinutes(data.startTime) < timeToMinutes(existingEvent.endTime) && timeToMinutes(data.endTime) > timeToMinutes(existingEvent.startTime);
             if (!timeOverlap) continue;
 
-            if (event.teacherId === data.teacherId) {
-                toast({ variant: "destructive", title: "Conflicto de Docente", description: `El docente ya tiene una clase programada el ${day} en ese horario.` });
-                return;
-            }
-            if (event.classroomId === data.classroomId) {
-                toast({ variant: "destructive", title: "Conflicto de Aula", description: `El aula ya está ocupada el ${day} en ese horario.` });
-                return;
-            }
-            const eventCourse = courses.find(c => c.id === event.courseId);
-            if (eventCourse?.groupId === selectedCourse?.groupId) {
-                 toast({ variant: "destructive", title: "Conflicto de Grupo", description: `El grupo ya tiene una clase programada el ${day} en ese horario.` });
-                 return;
+            const existingEventCourse = courses.find(c => c.id === existingEvent.courseId);
+            if (!existingEventCourse) continue;
+
+            const existingCourseStartDate = new Date(existingEventCourse.startDate);
+            const existingEventAbsoluteStartDate = addWeeks(existingCourseStartDate, existingEvent.startWeek - 1);
+            const existingEventAbsoluteEndDate = addWeeks(existingCourseStartDate, existingEvent.endWeek - 1);
+            const dateOverlap = newEventAbsoluteStartDate <= existingEventAbsoluteEndDate && existingEventAbsoluteStartDate <= newEventAbsoluteEndDate;
+
+            if (dateOverlap) {
+                if (existingEvent.teacherId === data.teacherId) {
+                    toast({ variant: "destructive", title: "Conflicto de Docente", description: `El docente ya tiene una clase programada el ${day} en ese horario durante un período que se cruza.` });
+                    return;
+                }
+                if (existingEvent.classroomId === data.classroomId) {
+                    toast({ variant: "destructive", title: "Conflicto de Aula", description: `El aula ya está ocupada el ${day} en ese horario durante un período que se cruza.` });
+                    return;
+                }
+                if (existingEventCourse.groupId === selectedCourse.groupId) {
+                    toast({ variant: "destructive", title: "Conflicto de Grupo", description: `El grupo ya tiene una clase programada el ${day} en ese horario durante un período que se cruza.` });
+                    return;
+                }
             }
         }
     }
     
     const selectedTeacher = teachers.find(t => t.id === data.teacherId);
     if(selectedTeacher) {
+        const startMinutes = timeToMinutes(data.startTime);
+        const endMinutes = timeToMinutes(data.endTime);
         const durationPerClass = (endMinutes - startMinutes) / 60;
         const hoursForNewClasses = durationPerClass * data.days.length;
         const currentHours = scheduleEvents.filter(e => e.teacherId === data.teacherId).reduce((acc, e) => acc + ((timeToMinutes(e.endTime) - timeToMinutes(e.startTime))/60) , 0);
         const newTotalHours = currentHours + hoursForNewClasses;
         if (newTotalHours > selectedTeacher.maxWeeklyHours) {
-            toast({ variant: "default", title: "Advertencia de Horas", description: `Con esta(s) clase(s), el docente superará sus horas semanales máximas (${newTotalHours.toFixed(2)} / ${selectedTeacher.maxWeeklyHours}).` });
+            toast({ title: "Advertencia de Horas", description: `Con esta(s) clase(s), el docente superará sus horas semanales máximas (${newTotalHours.toFixed(2)} / ${selectedTeacher.maxWeeklyHours}).`, duration: 5000 });
         }
     }
     
@@ -408,7 +416,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Hora Inicio</FormLabel>
-                    <FormControl><Input type="time" {...field} /></FormControl>
+                    <FormControl><Input type="time" {...field} value={field.value || ''} /></FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -419,7 +427,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Hora Fin</FormLabel>
-                    <FormControl><Input type="time" {...field} /></FormControl>
+                    <FormControl><Input type="time" {...field} value={field.value || ''} /></FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
