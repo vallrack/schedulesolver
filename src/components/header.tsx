@@ -11,10 +11,12 @@ import { useToast } from '@/hooks/use-toast';
 
 
 const titleMap: { [key: string]: string } = {
-  '/dashboard': 'Dashboard',
+  '/dashboard': 'Calendario',
   '/teachers': 'Gestión de Docentes',
   '/careers': 'Gestión de Carreras',
-  '/courses': 'Catálogo de Módulos',
+  '/courses': 'Cursos Programados',
+  '/modules': 'Catálogo de Módulos',
+  '/groups': 'Gestión de Grupos',
   '/classrooms': 'Gestión de Infraestructura',
   '/conflict-analyzer': 'Analizador de Conflictos con IA',
 };
@@ -51,7 +53,7 @@ export default function Header() {
     }
     
     return (
-        <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-card px-4 sm:px-6">
+        <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-card px-4 sm:px-6 no-print">
             <SidebarTrigger />
             <div className="flex-1">
                 <h1 className="text-xl font-semibold tracking-tight font-headline">{title}</h1>

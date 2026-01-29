@@ -83,4 +83,33 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  @media print {
+    body {
+      background-color: white !important;
+    }
+    header,
+    [data-sidebar="sidebar"],
+    [data-sidebar="trigger"],
+    .no-print {
+      display: none !important;
+    }
+    
+    @page {
+      size: A4 landscape;
+      margin: 1cm;
+    }
+
+    main {
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    .printable-area {
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+  }
 }

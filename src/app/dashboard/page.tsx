@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Edit, Trash2, User, Clock, School } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Edit, Trash2, User, Clock, School, FileDown, Printer } from 'lucide-react';
 import AppLayout from '@/components/app-layout';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import * as XLSX from 'xlsx';
 
 
 type CourseWithDetails = Course & {
@@ -47,6 +48,13 @@ export default function DashboardPage() {
     const [editingScheduleEvent, setEditingScheduleEvent] = useState<ScheduleEvent | undefined>(undefined);
     const [courseToSchedule, setCourseToSchedule] = useState<CourseWithDetails | null>(null);
     
+    // State for WeekView filters lifted up
+    const [activeWeekTab, setActiveWeekTab] = useState('teacher');
+    const [selectedTeacher, setSelectedTeacher] = useState<string | undefined>(undefined);
+    const [selectedGroup, setSelectedGroup] = useState<string | undefined>(undefined);
+    const [selectedClassroom, setSelectedClassroom] = useState<string | undefined>(undefined);
+
+
     const { toast } = useToast();
     const firestore = useFirestore();
 
@@ -79,6 +87,23 @@ export default function DashboardPage() {
             }
         }).filter((c): c is CourseWithDetails => c !== null);
     }, [courses, modules, groups, careers, scheduleEvents, teachers]);
+    
+    const groupOptions = useMemo(() => {
+        if (!groups || !careers) return [];
+        return groups.map(group => {
+            const career = careers.find(c => c.id === group.careerId);
+            return { id: group.id, name: `${career?.name || '...'} - Sem ${group.semester} - G ${group.name}` };
+        }).sort((a, b) => a.name.localeCompare(b.name));
+    }, [groups, careers]);
+
+    useEffect(() => {
+        if (currentView === 'week') {
+            if (teachers && teachers.length > 0 && !selectedTeacher) setSelectedTeacher(teachers.sort((a,b) => a.name.localeCompare(b.name))[0].id);
+            if (groupOptions.length > 0 && !selectedGroup) setSelectedGroup(groupOptions[0].id);
+            if (classrooms && classrooms.length > 0 && !selectedClassroom) setSelectedClassroom(classrooms.sort((a,b) => a.name.localeCompare(b.name))[0].id);
+        }
+    }, [currentView, teachers, groupOptions, classrooms, selectedTeacher, selectedGroup, selectedClassroom]);
+
 
     const navigateMonth = (direction: number) => {
         setCurrentDate(current => {
@@ -162,6 +187,134 @@ export default function DashboardPage() {
         }
     };
     
+    const handleExportExcel = () => {
+        const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+        if (currentView === 'week') {
+            let eventsToExport: ScheduleEvent[] = [];
+            let fileName = 'horario_semanal.xlsx';
+            let sheetName = 'Horario';
+    
+            if (activeWeekTab === 'teacher' && selectedTeacher) {
+                eventsToExport = scheduleEvents?.filter(e => e.teacherId === selectedTeacher) || [];
+                const teacherName = teachers?.find(t => t.id === selectedTeacher)?.name || 'docente';
+                fileName = `horario_${teacherName.replace(/ /g, '_')}.xlsx`;
+                sheetName = teacherName.substring(0, 31);
+            } else if (activeWeekTab === 'group' && selectedGroup) {
+                const groupCourseIds = courses?.filter(c => c.groupId === selectedGroup).map(c => c.id) || [];
+                eventsToExport = scheduleEvents?.filter(e => groupCourseIds.includes(e.courseId)) || [];
+                const groupName = groupOptions.find(g => g.id === selectedGroup)?.name || 'grupo';
+                fileName = `horario_${groupName.replace(/ /g, '_').replace(/[\\/?*:[\]]/g, '')}.xlsx`;
+                sheetName = groupName.substring(0, 31);
+            } else if (activeWeekTab === 'classroom' && selectedClassroom) {
+                 eventsToExport = scheduleEvents?.filter(e => e.classroomId === selectedClassroom) || [];
+                 const classroomName = classrooms?.find(c => c.id === selectedClassroom)?.name || 'aula';
+                 fileName = `horario_${classroomName.replace(/ /g, '_')}.xlsx`;
+                 sheetName = classroomName;
+            } else {
+                toast({ title: 'Selección Requerida', description: 'Por favor selecciona un docente, grupo o aula para exportar.'});
+                return;
+            }
+    
+            if (eventsToExport.length === 0) {
+                toast({ title: 'Sin Datos', description: 'No hay eventos para exportar en la selección actual.' });
+                return;
+            }
+    
+            const dataForSheet = eventsToExport.map(event => {
+                const course = courses?.find(c => c.id === event.courseId);
+                const module = modules?.find(m => m.id === course?.moduleId);
+                const teacher = teachers?.find(t => t.id === event.teacherId);
+                const classroom = classrooms?.find(c => c.id === event.classroomId);
+                const group = groups?.find(g => g.id === course?.groupId);
+                const career = careers?.find(c => c.id === group?.careerId);
+                const groupName = group ? `${career?.name || ''} - Sem ${group.semester} - G ${group.name}` : '';
+                return {
+                    'Día': event.day,
+                    'Hora Inicio': event.startTime,
+                    'Hora Fin': event.endTime,
+                    'Módulo': module?.name || '',
+                    'Docente': teacher?.name || '',
+                    'Grupo': groupName,
+                    'Aula': classroom?.name || ''
+                };
+            }).sort((a,b) => days.indexOf(a['Día']) - days.indexOf(b['Día']) || a['Hora Inicio'].localeCompare(b['Hora Inicio']));
+    
+            const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+            XLSX.writeFile(workbook, fileName);
+
+        } else if (currentView === 'month') {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const firstDayOfMonth = new Date(year, month, 1);
+            const lastDayOfMonth = new Date(year, month + 1, 0);
+            const dayOfWeekMap = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+            const dataForSheet: any[] = [];
+            
+            scheduleEvents?.forEach(event => {
+                const course = courses?.find(c => c.id === event.courseId);
+                if (!course) return;
+        
+                const courseStartDate = new Date(course.startDate);
+                const courseEndDate = new Date(course.endDate);
+                const eventDayIndex = dayOfWeekMap.indexOf(event.day);
+                if (eventDayIndex === -1) return;
+
+                for (let day = new Date(firstDayOfMonth); day <= lastDayOfMonth; day.setDate(day.getDate() + 1)) {
+                    if (day >= courseStartDate && day <= courseEndDate && day.getDay() === eventDayIndex) {
+                        const module = modules!.find(m => m.id === course.moduleId)!;
+                        const teacher = teachers!.find(t => t.id === event.teacherId)!;
+                        const classroom = classrooms!.find(c => c.id === event.classroomId)!;
+                        const group = groups!.find(g => g.id === course.groupId)!;
+                        const career = careers!.find(c => c.id === group.careerId)!;
+                        const groupName = `${career.name} - Sem ${group.semester} - G ${group.name}`;
+
+                        dataForSheet.push({
+                            'Fecha': new Date(day).toLocaleDateString('es-ES'),
+                            'Día': event.day,
+                            'Hora Inicio': event.startTime,
+                            'Hora Fin': event.endTime,
+                            'Módulo': module.name,
+                            'Docente': teacher.name,
+                            'Grupo': groupName,
+                            'Aula': classroom.name,
+                        });
+                    }
+                }
+            });
+        
+            if (dataForSheet.length === 0) {
+                toast({ title: 'Sin Datos', description: 'No hay eventos para exportar en el mes actual.' });
+                return;
+            }
+        
+            dataForSheet.sort((a, b) => {
+                const dateA = new Date(a.Fecha.split('/').reverse().join('-')).getTime();
+                const dateB = new Date(b.Fecha.split('/').reverse().join('-')).getTime();
+                if (dateA !== dateB) return dateA - dateB;
+                return a['Hora Inicio'].localeCompare(b['Hora Inicio']);
+            });
+            
+            const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, `Horario ${currentDate.toLocaleString('es-ES', { month: 'long' })}`);
+            XLSX.writeFile(workbook, `horario_${currentDate.toLocaleString('es-ES', { month: 'short', year: 'numeric' }).replace('.', '').replace(' ', '_')}.xlsx`);
+
+        } else {
+             toast({
+                title: 'Función no implementada',
+                description: 'La exportación para esta vista estará disponible próximamente.',
+            });
+        }
+    };
+    
+    const handlePrintPDF = () => {
+        window.print();
+    };
+
     const MonthView = () => {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
@@ -268,24 +421,6 @@ export default function DashboardPage() {
     };
     
     const WeekView = () => {
-        const [selectedTeacher, setSelectedTeacher] = useState<string | undefined>(undefined);
-        const [selectedGroup, setSelectedGroup] = useState<string | undefined>(undefined);
-        const [selectedClassroom, setSelectedClassroom] = useState<string | undefined>(undefined);
-    
-        const groupOptions = useMemo(() => {
-            if (!groups || !careers) return [];
-            return groups.map(group => {
-                const career = careers.find(c => c.id === group.careerId);
-                return { id: group.id, name: `${career?.name || '...'} - Sem ${group.semester} - G ${group.name}` };
-            }).sort((a, b) => a.name.localeCompare(b.name));
-        }, [groups, careers]);
-    
-        useEffect(() => {
-            if (teachers && teachers.length > 0 && !selectedTeacher) setSelectedTeacher(teachers.sort((a,b) => a.name.localeCompare(b.name))[0].id);
-            if (groupOptions.length > 0 && !selectedGroup) setSelectedGroup(groupOptions[0].id);
-            if (classrooms && classrooms.length > 0 && !selectedClassroom) setSelectedClassroom(classrooms.sort((a,b) => a.name.localeCompare(b.name))[0].id);
-        }, [teachers, groupOptions, classrooms, selectedTeacher, selectedGroup, selectedClassroom]);
-    
         const teacherEvents = useMemo(() => scheduleEvents?.filter(e => e.teacherId === selectedTeacher) || [], [scheduleEvents, selectedTeacher]);
         const groupEvents = useMemo(() => {
             if (!selectedGroup || !courses) return [];
@@ -299,23 +434,23 @@ export default function DashboardPage() {
         if (loading) return <div className="flex justify-center items-center h-96"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>;
 
         return (
-             <Tabs defaultValue="teacher" className="w-full">
-                <TabsList>
+             <Tabs defaultValue="teacher" className="w-full" onValueChange={setActiveWeekTab}>
+                <TabsList className="no-print">
                     <TabsTrigger value="teacher">Por Docente</TabsTrigger>
                     <TabsTrigger value="group">Por Grupo</TabsTrigger>
                     <TabsTrigger value="classroom">Por Aula</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="teacher" className="mt-4">
-                   <div className="max-w-sm"><Select onValueChange={setSelectedTeacher} value={selectedTeacher}><SelectTrigger><SelectValue placeholder="Selecciona un docente..." /></SelectTrigger><SelectContent>{teachers?.sort((a,b) => a.name.localeCompare(b.name)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select></div>
+                   <div className="max-w-sm no-print"><Select onValueChange={setSelectedTeacher} value={selectedTeacher}><SelectTrigger><SelectValue placeholder="Selecciona un docente..." /></SelectTrigger><SelectContent>{teachers?.sort((a,b) => a.name.localeCompare(b.name)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select></div>
                    {selectedTeacher && <ScheduleCalendar events={teacherEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} onEditEvent={handleEditScheduleEvent} onDeleteEvent={handleDeleteScheduleEvent} />}
                 </TabsContent>
                 <TabsContent value="group" className="mt-4">
-                   <div className="max-w-sm"><Select onValueChange={setSelectedGroup} value={selectedGroup}><SelectTrigger><SelectValue placeholder="Selecciona un grupo..." /></SelectTrigger><SelectContent>{groupOptions?.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}</SelectContent></Select></div>
+                   <div className="max-w-sm no-print"><Select onValueChange={setSelectedGroup} value={selectedGroup}><SelectTrigger><SelectValue placeholder="Selecciona un grupo..." /></SelectTrigger><SelectContent>{groupOptions?.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}</SelectContent></Select></div>
                    {selectedGroup && <ScheduleCalendar events={groupEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} onEditEvent={handleEditScheduleEvent} onDeleteEvent={handleDeleteScheduleEvent} />}
                 </TabsContent>
                 <TabsContent value="classroom" className="mt-4">
-                  <div className="max-w-sm"><Select onValueChange={setSelectedClassroom} value={selectedClassroom}><SelectTrigger><SelectValue placeholder="Selecciona un aula..." /></SelectTrigger><SelectContent>{classrooms?.sort((a, b) => a.name.localeCompare(b.name)).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
+                  <div className="max-w-sm no-print"><Select onValueChange={setSelectedClassroom} value={selectedClassroom}><SelectTrigger><SelectValue placeholder="Selecciona un aula..." /></SelectTrigger><SelectContent>{classrooms?.sort((a, b) => a.name.localeCompare(b.name)).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
                    {selectedClassroom && <ScheduleCalendar events={classroomEvents} courses={courses || []} modules={modules || []} teachers={teachers || []} classrooms={classrooms || []} groups={groups || []} careers={careers || []} onEditEvent={handleEditScheduleEvent} onDeleteEvent={handleDeleteScheduleEvent} />}
                 </TabsContent>
             </Tabs>
@@ -334,7 +469,7 @@ export default function DashboardPage() {
         <AppLayout>
             <Card className="shadow-lg">
               <CardContent className="p-6">
-                <div className="flex justify-between items-center mb-6 pb-4 border-b">
+                <div className="flex justify-between items-center mb-6 pb-4 border-b no-print">
                     <div className="flex items-center gap-2">
                         <Button onClick={() => navigateMonth(-1)} variant="outline" size="icon" className="h-9 w-9">
                             <ChevronLeft className="w-5 h-5" />
@@ -347,29 +482,43 @@ export default function DashboardPage() {
                         </Button>
                     </div>
 
-                    <div className="flex gap-1 bg-muted p-1 rounded-md">
-                        {['month', 'week', 'day'].map(view => (
-                            <Button
-                                key={view}
-                                onClick={() => setCurrentView(view)}
-                                size="sm"
-                                variant={currentView === view ? 'default' : 'ghost'}
-                                className="capitalize h-8 text-xs px-3"
-                            >
-                                {view === 'month' ? 'Mes' : view === 'week' ? 'Semana' : 'Día'}
+                    <div className="flex items-center gap-4">
+                        <div className="flex gap-2 border-r pr-4 mr-2">
+                            <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                                <FileDown className="mr-2 h-4 w-4" />
+                                Excel
                             </Button>
-                        ))}
+                            <Button variant="outline" size="sm" onClick={handlePrintPDF}>
+                                <Printer className="mr-2 h-4 w-4" />
+                                PDF
+                            </Button>
+                        </div>
+                        <div className="flex gap-1 bg-muted p-1 rounded-md">
+                            {['month', 'week', 'day'].map(view => (
+                                <Button
+                                    key={view}
+                                    onClick={() => setCurrentView(view)}
+                                    size="sm"
+                                    variant={currentView === view ? 'default' : 'ghost'}
+                                    className="capitalize h-8 text-xs px-3"
+                                >
+                                    {view === 'month' ? 'Mes' : view === 'week' ? 'Semana' : 'Día'}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="printable-area">
+                    <div className="mb-8">
+                        {currentView === 'month' && <MonthView />}
+                        {currentView === 'week' && <WeekView />}
+                        {currentView === 'day' && <ViewPlaceholder viewName="Día" />}
                     </div>
                 </div>
 
-                <div className="mb-8">
-                    {currentView === 'month' && <MonthView />}
-                    {currentView === 'week' && <WeekView />}
-                    {currentView === 'day' && <ViewPlaceholder viewName="Día" />}
-                </div>
-
                 {currentView === 'month' && (
-                    <div className="bg-white rounded-lg">
+                    <div className="bg-white rounded-lg no-print">
                         <div className="flex justify-between items-center mb-4 pb-4 border-b">
                             <h3 className="text-lg font-semibold text-gray-800">
                                 Cursos para el {selectedDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}
@@ -435,6 +584,7 @@ export default function DashboardPage() {
                             </DialogDescription>
                         </DialogHeader>
                         <CourseForm 
+                            key={editingCourse?.id || 'new-course'}
                             course={editingCourse || undefined}
                             allCourses={courses || []}
                             modules={modules || []}
