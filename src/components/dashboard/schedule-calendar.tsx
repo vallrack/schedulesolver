@@ -102,9 +102,9 @@ export function ScheduleCalendar({ events, courses, modules, teachers, classroom
         ))}
 
         {/* Time Gutter */}
-        <div className="row-span-full flex flex-col border-r">
-          {TIME_SLOTS.map((time) => (
-            <div key={time} className="h-18 flex items-center justify-center border-t">
+        <div className="flex flex-col border-r">
+          {TIME_SLOTS.map((time, index) => (
+            <div key={time} className={cn("h-18 flex items-center justify-center", index > 0 && "border-t")}>
               <span className="text-xs text-muted-foreground">{time}</span>
             </div>
           ))}
