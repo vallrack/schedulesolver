@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, PlusCircle, Trash2, ArrowUpDown } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Trash2, ArrowUpDown, Upload } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import { collection, deleteDoc, doc } from "firebase/firestore"
 import AppLayout from "@/components/app-layout"
 import type { Classroom } from "@/lib/types";
 import { ClassroomForm } from "@/components/classrooms/classroom-form";
+import { ClassroomImportDialog } from "@/components/classrooms/classroom-import-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -29,7 +30,8 @@ export default function ClassroomsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingClassroom, setEditingClassroom] = useState<Classroom | undefined>(undefined);
   const [filterText, setFilterText] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Classroom; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
@@ -73,12 +75,12 @@ export default function ClassroomsPage() {
 
   const handleAddNew = () => {
     setEditingClassroom(undefined);
-    setDialogOpen(true);
+    setFormDialogOpen(true);
   };
 
   const handleEdit = (classroom: Classroom) => {
     setEditingClassroom(classroom);
-    setDialogOpen(true);
+    setFormDialogOpen(true);
   };
 
   const handleDelete = async (classroomId: string) => {
@@ -116,15 +118,21 @@ export default function ClassroomsPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
             <h1 className="text-3xl font-bold font-headline tracking-tight">Gestión de Infraestructura</h1>
-             <Button onClick={handleAddNew}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Añadir Sala
-            </Button>
+            <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Importar desde Archivo
+                </Button>
+                <Button onClick={handleAddNew}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Añadir Sala
+                </Button>
+            </div>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={formDialogOpen} onOpenChange={setFormDialogOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>{editingClassroom ? 'Editar Sala' : 'Añadir Nueva Sala'}</DialogTitle>
@@ -134,11 +142,18 @@ export default function ClassroomsPage() {
                 </DialogHeader>
                 <ClassroomForm
                     classroom={editingClassroom} 
-                    onSuccess={() => setDialogOpen(false)} 
+                    onSuccess={() => setFormDialogOpen(false)} 
                 />
             </DialogContent>
         </Dialog>
-
+        
+        <ClassroomImportDialog 
+            open={importDialogOpen}
+            onOpenChange={setImportDialogOpen}
+            onSuccess={() => {
+                setImportDialogOpen(false);
+            }}
+        />
 
         <Card>
           <CardHeader>
