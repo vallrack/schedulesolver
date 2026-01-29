@@ -70,31 +70,15 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
   const { toast } = useToast();
   const isEditMode = !!eventToEdit;
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(scheduleEventSchema),
-    defaultValues: {
-        courseId: '',
-        teacherId: '',
-        classroomId: '',
-        days: [],
-        startTime: "07:00",
-        endTime: "09:00",
-        startDate: undefined,
-        endDate: undefined,
-    }
-  });
-
-  useEffect(() => {
-    if (isEditMode && eventToEdit) {
-        if (courses.length === 0) return; // Wait for courses to be loaded
-
+  const initialValues = useMemo(() => {
+    // EDIT MODE
+    if (isEditMode && eventToEdit && courses.length > 0) {
         const course = courses.find(c => c.id === eventToEdit.courseId);
         if (course) {
             const courseStartDate = new Date(course.startDate);
             const eventStartDate = addWeeks(courseStartDate, eventToEdit.startWeek - 1);
             const eventEndDate = addWeeks(courseStartDate, eventToEdit.endWeek - 1);
-
-            form.reset({
+            return {
                 courseId: eventToEdit.courseId,
                 teacherId: eventToEdit.teacherId,
                 classroomId: eventToEdit.classroomId,
@@ -103,19 +87,14 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
                 endTime: eventToEdit.endTime,
                 startDate: eventStartDate,
                 endDate: eventEndDate,
-            });
-        } else {
-            console.error(`Course with ID ${eventToEdit.courseId} not found.`);
-            toast({
-                variant: 'destructive',
-                title: 'Error de Datos',
-                description: 'No se pudo encontrar el curso asociado a esta clase. Los datos pueden estar desactualizados.'
-            });
+            };
         }
-    } else {
-        const course = courses.find(c => c.id === courseToSchedule?.id);
-        form.reset({
-            courseId: courseToSchedule?.id || '',
+    }
+    // CREATE MODE
+    if (!isEditMode && courseToSchedule && courses.length > 0) {
+         const course = courses.find(c => c.id === courseToSchedule.id);
+         return {
+            courseId: courseToSchedule.id,
             teacherId: '',
             classroomId: '',
             days: [],
@@ -123,9 +102,31 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             endTime: '09:00',
             startDate: course ? new Date(course.startDate) : undefined,
             endDate: course ? new Date(course.endDate) : undefined,
-        });
+        };
     }
-  }, [eventToEdit, isEditMode, courses, courseToSchedule, form, toast]);
+    
+    // DEFAULT/EMPTY/LOADING STATE
+    return {
+        courseId: courseToSchedule?.id || '',
+        teacherId: '',
+        classroomId: '',
+        days: [],
+        startTime: "07:00",
+        endTime: "09:00",
+        startDate: undefined,
+        endDate: undefined,
+    };
+  }, [eventToEdit, isEditMode, courses, courseToSchedule]);
+
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(scheduleEventSchema),
+    defaultValues: initialValues,
+  });
+
+  useEffect(() => {
+    form.reset(initialValues);
+  }, [initialValues, form.reset]);
   
   const selectedCourseId = form.watch('courseId');
 
