@@ -50,21 +50,21 @@ const EventCard = ({
   const topPosition = ((startTimeInMinutes - 7 * 60) / 60) * 4.5; // 4.5rem per hour (h-18)
   const height = (durationInMinutes / 60) * 4.5;
 
-  const colorClasses = 'bg-primary/10 border-primary/50 text-primary';
+  const colorClasses = 'bg-primary text-primary-foreground';
 
   return (
     <Popover>
       <PopoverTrigger asChild>
         <div
           className={cn(
-            'absolute w-[calc(100%-8px)] left-[4px] rounded-lg p-2 text-xs cursor-pointer hover:opacity-90 transition-opacity z-10 border',
+            'absolute w-[calc(100%-8px)] left-[4px] rounded-md p-2 text-xs cursor-pointer hover:opacity-90 transition-opacity z-10',
             colorClasses
           )}
           style={{ top: `${topPosition}rem`, height: `${height}rem` }}
         >
           <p className="font-bold truncate">{module?.name ?? 'Evento'}</p>
-          <p className="truncate text-xs">{teacher?.name}</p>
-          <p className="truncate text-xs">{classroom?.name}</p>
+          <p className="truncate text-xs opacity-80">{teacher?.name}</p>
+          <p className="truncate text-xs opacity-80">{classroom?.name}</p>
         </div>
       </PopoverTrigger>
       <PopoverContent>
@@ -92,7 +92,7 @@ interface ScheduleCalendarProps {
 
 export function ScheduleCalendar({ events, courses, modules, teachers, classrooms, groups, careers }: ScheduleCalendarProps) {
   return (
-    <div className="mt-6 border rounded-xl shadow-sm bg-card overflow-hidden">
+    <div className="mt-6 border rounded-xl shadow-sm bg-card">
       <div className="grid grid-cols-[60px_repeat(6,1fr)]">
         {/* Corner */}
         <div className="h-12 border-b border-r"></div>
@@ -107,9 +107,9 @@ export function ScheduleCalendar({ events, courses, modules, teachers, classroom
         <div className='contents'>
             {/* Time Gutter */}
             <div className="col-start-1 row-start-2 flex flex-col border-r">
-                {TIME_SLOTS.map((time, index) => (
-                    <div key={time} className="h-18 relative">
-                      <span className="text-xs text-muted-foreground absolute -top-2 right-2">{time}</span>
+                {TIME_SLOTS.map((time) => (
+                    <div key={time} className="h-18 border-t relative">
+                        <span className="text-xs text-muted-foreground absolute top-0 right-2 -translate-y-1/2 bg-card px-1">{time}</span>
                     </div>
                 ))}
             </div>
