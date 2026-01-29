@@ -23,8 +23,19 @@ export type GenerateInitialScheduleInput = z.infer<
   typeof GenerateInitialScheduleInputSchema
 >;
 
+const GeneratedScheduleEventSchema = z.object({
+  subjectId: z.string().describe("The ID of the course offering from the input 'subjects' list."),
+  teacherId: z.string(),
+  classroomId: z.string(),
+  day: z.string().describe("Day of the week, e.g., 'Lunes'."),
+  startTime: z.string().describe("Start time in 'HH:MM' format."),
+  endTime: z.string().describe("End time in 'HH:MM' format."),
+  startWeek: z.number(),
+  endWeek: z.number(),
+});
+
 const GenerateInitialScheduleOutputSchema = z.object({
-  schedule: z.string().describe('The generated schedule in JSON format.'),
+  schedule: z.array(GeneratedScheduleEventSchema).describe('The generated schedule as an array of event objects.'),
   explanation: z.string().describe('An explanation of how the schedule was generated.'),
 });
 
@@ -50,8 +61,8 @@ Classrooms: {{{classrooms}}}
 Groups: {{{groups}}}
 Constraints: {{{constraints}}}
 
-Generate the schedule in JSON format and provide an explanation of how you generated the schedule.
-The 'schedule' property in your output JSON must be a JSON string representing an array of event objects. Each event object must have the following properties: subjectId (string, THIS MUST BE THE ID OF THE COURSE OFFERING from the input 'subjects' list), teacherId (string), classroomId (string), day (string, e.g., 'Lunes'), startTime (string, 'HH:MM'), endTime (string, 'HH:MM'), startWeek (number), and endWeek (number).
+Generate a schedule and provide an explanation of how you generated it.
+The 'schedule' property in your output must be an array of event objects. Each event object must have the following properties: subjectId (string, THIS MUST BE THE ID OF THE COURSE OFFERING from the input 'subjects' list), teacherId (string), classroomId (string), day (string, e.g., 'Lunes'), startTime (string, 'HH:MM'), endTime (string, 'HH:MM'), startWeek (number), and endWeek (number).
 
 The most important constraint is to never assign a group to a classroom where the number of students in the group ('studentCount') exceeds the classroom's 'capacity'.
 

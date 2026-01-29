@@ -105,7 +105,7 @@ export default function ScheduleView() {
         ]),
       });
       
-      const newScheduleEvents = JSON.parse(result.schedule);
+      const newScheduleEvents = result.schedule;
 
       if (!Array.isArray(newScheduleEvents)) {
           throw new Error("La IA no devolvió un formato de horario válido.");
