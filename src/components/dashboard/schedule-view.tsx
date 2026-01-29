@@ -134,11 +134,11 @@ export default function ScheduleView() {
           'Regla de Oro: Un profesor, un grupo o un aula no pueden estar en dos lugares a la vez.',
           'Capacidad del Aula: Nunca asignes un grupo a un aula si el número de estudiantes (`studentCount`) supera la capacidad del aula (`capacity`).',
           'Especialidad del Docente: Asigna docentes solo a los módulos para los que son especialistas (compara `moduleId` del curso con el array `specialties` del docente).',
-          'Disponibilidad del Docente: Respeta estrictamente los días y horas definidos en el array `availability` de cada docente.',
+          'Disponibilidad del Docente: Respeta estrictamente los días y horas definidos en el array `availability` de cada docente. No inventes días ni horas fuera de esa disponibilidad.',
           'Horas Semanales: La carga horaria semanal de un docente no debe superar sus `maxWeeklyHours`.',
           'Horas del Curso: El total de horas de clase asignadas a un curso durante el semestre debe ser igual a sus `totalHours`.',
           'Duración de la Sesión: Cada sesión de clase individual debe durar exactamente 2 horas.',
-          'Días Hábiles: Las clases solo se pueden programar de Lunes a Sábado.',
+          'Días Hábiles: Las clases solo se pueden programar de Lunes a Viernes.',
         ]),
       });
       
