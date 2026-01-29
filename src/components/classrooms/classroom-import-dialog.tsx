@@ -52,9 +52,15 @@ export function ClassroomImportDialog({ open, onOpenChange, onSuccess }: Classro
             const worksheet = workbook.Sheets[sheetName];
             const json = XLSX.utils.sheet_to_json<any>(worksheet);
 
+            const jsonFiltered = json.filter(row => {
+                const nameKey = Object.keys(row).find(key => key.toLowerCase().trim() === 'name');
+                const nameValue = nameKey ? String(row[nameKey] || '').trim() : '';
+                return !nameValue.toLowerCase().startsWith('total');
+            });
+
             const allowedTypes = ['aula', 'sala de sistemas', 'auditorio'];
 
-            const processedData = json.map(row => {
+            const processedData = jsonFiltered.map(row => {
                 const lowerCaseRow = Object.keys(row).reduce((acc, key) => {
                     acc[key.toLowerCase().trim()] = row[key];
                     return acc;
