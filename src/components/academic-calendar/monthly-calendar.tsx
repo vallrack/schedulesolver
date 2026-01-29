@@ -18,8 +18,6 @@ interface MonthlyCalendarProps {
     courses: CourseWithDetails[];
     year: number;
     month: number; // 0-11
-    onPrevYear: () => void;
-    onNextYear: () => void;
     onPrevMonth: () => void;
     onNextMonth: () => void;
 }
@@ -29,7 +27,7 @@ const EventPill = ({ event }: { event: CourseWithDetails }) => {
         <Popover>
             <PopoverTrigger asChild>
                 <div
-                className="bg-background/80 backdrop-blur-sm border border-border/50 text-foreground text-[10px] px-1.5 py-0.5 rounded-sm truncate cursor-pointer hover:bg-background"
+                className="bg-white/90 text-black text-[10px] px-1.5 py-0.5 rounded-sm truncate cursor-pointer hover:bg-white"
                 title={`${event.moduleName} - ${event.careerName}`}
                 >
                 {event.moduleName}
@@ -48,93 +46,66 @@ const EventPill = ({ event }: { event: CourseWithDetails }) => {
     );
 };
 
-const DayCell = ({ date, eventsInDay, isOutOfMonth }: { date: Date, eventsInDay: CourseWithDetails[], isOutOfMonth: boolean }) => {
+const DayCell = ({ date, eventsInDay, isOutOfMonth, isToday }: { date: Date, eventsInDay: CourseWithDetails[], isOutOfMonth: boolean, isToday: boolean }) => {
     const day = date.getDate();
-    const isToday = checkIsToday(date);
     
-    const dayOfWeek = getDay(date); // 0 for Sunday
+    const cellClasses = cn(
+        "relative flex flex-col min-h-28 p-2",
+        isOutOfMonth ? "bg-muted/30" : "bg-background",
+        isToday && "bg-[hsl(var(--chart-2))]"
+    );
 
-    const dayBgColors = [
-        'hsl(var(--chart-1))', // Sunday (orangy red)
-        'hsl(var(--chart-5))', // Monday (orange)
-        'hsl(var(--chart-4))', // Tuesday (yellow)
-        'hsl(var(--chart-2))', // Wednesday (green)
-        'hsl(var(--accent))',  // Thursday (blue)
-        'hsl(var(--primary))', // Friday (indigo/purple)
-        'hsl(var(--chart-3))'  // Saturday (dark cyan)
-    ];
-    
-    const dayOfWeekColor = dayBgColors[dayOfWeek];
-
-    const sortedEvents = useMemo(() => {
-        return [...eventsInDay].sort((a, b) => a.moduleName.localeCompare(b.moduleName));
-    }, [eventsInDay]);
+    const dayNumberClasses = cn(
+        "text-sm font-semibold",
+        isOutOfMonth ? "text-muted-foreground/60" : "text-foreground/80",
+        isToday && "text-white"
+    );
 
     return (
-      <div 
-        className={cn(
-            "min-h-24 rounded-lg p-1 flex flex-col relative transition-all duration-150 ease-in-out aspect-square",
-            isOutOfMonth ? "bg-muted/30 cursor-default" : "cursor-pointer hover:-translate-y-0.5 hover:shadow-md",
-            isToday && "ring-2 ring-ring ring-offset-2 shadow-lg z-10"
-        )}
-        style={{ 
-            backgroundColor: isOutOfMonth ? undefined : `color-mix(in srgb, ${dayOfWeekColor} 15%, hsl(var(--card)))`
-        }}
-      >
-        <div className={cn(
-            "text-sm font-bold mb-1 w-7 h-7 flex items-center justify-center rounded-full self-end", 
-            isToday ? "bg-primary text-primary-foreground" : "text-card-foreground/60"
-        )}>
-          {day}
-        </div>
-        {!isOutOfMonth && 
-            <div className="space-y-1 overflow-hidden flex-1">
-            {sortedEvents.slice(0, 3).map(event => (
-                <EventPill key={event.id} event={event} />
-            ))}
-            {sortedEvents.length > 3 && <div className="text-xs text-muted-foreground mt-1 text-center">+{sortedEvents.length - 3} más</div>}
+      <div className={cellClasses}>
+        <div className={dayNumberClasses}>{day}</div>
+        {!isOutOfMonth && (
+             <div className="space-y-1 overflow-hidden flex-1 mt-1">
+                {eventsInDay.slice(0, 3).map(event => (
+                    <EventPill key={event.id} event={event} />
+                ))}
+                {eventsInDay.length > 3 && <div className="text-xs text-muted-foreground mt-1">+{eventsInDay.length - 3} más</div>}
             </div>
-        }
+        )}
       </div>
     );
 };
 
-export function MonthlyCalendar({ courses, year, month, onPrevYear, onNextYear, onPrevMonth, onNextMonth }: MonthlyCalendarProps) {
+export function MonthlyCalendar({ courses, year, month, onPrevMonth, onNextMonth }: MonthlyCalendarProps) {
     const calendarGrid = useMemo(() => {
-        const firstDayOfMonth = new Date(year, month, 1);
-        const lastDayOfMonth = new Date(year, month + 1, 0);
+        const startDate = new Date(year, month, 1);
         
-        const daysInMonth = lastDayOfMonth.getDate();
-        let startDayOfWeek = getDay(firstDayOfMonth);
+        const startDayOfWeek = startDate.getDay(); // 0 = Sunday
         
         const days = [];
-        
-        const prevMonthLastDay = new Date(year, month, 0);
-        const prevMonthDays = prevMonthLastDay.getDate();
-        for (let i = startDayOfWeek - 1; i >= 0; i--) {
-            const date = new Date(year, month - 1, prevMonthDays - i);
-            days.push({ key: `prev-${i}`, date, events: [], isOutOfMonth: true });
-        }
-        
-        for (let day = 1; day <= daysInMonth; day++) {
-            const currentDate = new Date(year, month, day);
-            currentDate.setHours(0,0,0,0);
-            
-            const eventsForDay = courses.filter(event => {
-                const startDate = new Date(event.startDate);
-                const endDate = new Date(event.endDate);
-                startDate.setHours(0,0,0,0);
-                endDate.setHours(0,0,0,0);
-                return currentDate >= startDate && currentDate <= endDate;
-            });
-            days.push({ key: `current-${day}`, date: currentDate, events: eventsForDay, isOutOfMonth: false });
-        }
 
-        const totalCells = days.length;
-        const remainingCells = (7 - (totalCells % 7)) % 7;
-        for (let i = 1; i <= remainingCells; i++) {
-             const date = new Date(year, month + 1, i);
-             days.push({ key: `next-${i}`, date, events: [], isOutOfMonth: true });
+        // Always 42 cells for a 6-week layout
+        for (let i = 0; i < 42; i++) {
+            const dayOffset = i - startDayOfWeek;
+            const date = new Date(year, month, dayOffset + 1);
+            date.setHours(0,0,0,0);
+            
+            const isCurrentMonth = date.getMonth() === month;
+
+            const eventsForDay = isCurrentMonth ? courses.filter(event => {
+                const eventStartDate = new Date(event.startDate);
+                eventStartDate.setHours(0,0,0,0);
+                const eventEndDate = new Date(event.endDate);
+                eventEndDate.setHours(0,0,0,0);
+                return date >= eventStartDate && date <= eventEndDate;
+            }) : [];
+
+            days.push({
+                key: date.toISOString(),
+                date: date,
+                events: eventsForDay,
+                isOutOfMonth: !isCurrentMonth,
+            });
         }
 
         return days;
@@ -143,33 +114,45 @@ export function MonthlyCalendar({ courses, year, month, onPrevYear, onNextYear, 
     const dayHeaders = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
     return (
-        <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b bg-muted/30">
-                <h2 className="text-xl font-bold font-headline capitalize">
-                    {format(new Date(year, month), 'MMMM, yyyy', { locale: es })}
-                </h2>
-                 <div className="flex items-center gap-2">
-                    <Button onClick={onPrevMonth} variant="outline" size="icon" className="h-9 w-9"><ChevronLeft className="h-4 w-4" /><span className="sr-only">Mes anterior</span></Button>
-                    <Button onClick={onNextMonth} variant="outline" size="icon" className="h-9 w-9"><ChevronRight className="h-4 w-4" /><span className="sr-only">Mes siguiente</span></Button>
+        <div className="bg-card rounded-lg border shadow-sm">
+            <div className="flex items-center justify-between p-3 border-b">
+                <div className="flex items-center gap-2">
+                    <Button onClick={onPrevMonth} variant="ghost" size="icon" className="h-9 w-9">
+                        <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <h2 className="text-lg font-semibold font-headline capitalize text-center w-36">
+                        {format(new Date(year, month), 'MMMM yyyy', { locale: es })}
+                    </h2>
+                    <Button onClick={onNextMonth} variant="ghost" size="icon" className="h-9 w-9">
+                        <ChevronRight className="h-5 w-5" />
+                    </Button>
+                </div>
+                 <div className="hidden sm:flex items-center gap-1 bg-muted p-1 rounded-md">
+                    <Button variant="default" size="sm" className="h-8 text-xs px-3">Mes</Button>
+                    <Button variant="ghost" size="sm" className="h-8 text-xs px-3">Semana</Button>
+                    <Button variant="ghost" size="sm" className="h-8 text-xs px-3">Día</Button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-7 gap-1 p-2">
-                {dayHeaders.map((day) => (
-                    <div key={day} className="p-2 text-center font-bold text-xs rounded-md text-muted-foreground">
+            <div className="grid grid-cols-7 divide-x border-b">
+                 {dayHeaders.map((day) => (
+                    <div key={day} className="p-2 text-center font-medium text-xs text-muted-foreground">
                         {day}
                     </div>
                 ))}
             </div>
-            
-            <div className="grid grid-cols-7 gap-1 p-2">
-                {calendarGrid.map(dayData => (
-                    <DayCell 
-                        key={dayData.key} 
-                        date={dayData.date} 
-                        eventsInDay={dayData.events} 
-                        isOutOfMonth={dayData.isOutOfMonth} 
-                    />
+             <div className="grid grid-cols-7 divide-y">
+                {calendarGrid.map((dayData, index) => (
+                     <div key={dayData.key} className="divide-x grid grid-cols-[repeat(7,1fr)]">
+                        <div className={cn(index % 7 === 0 ? '' : 'border-l')}>
+                           <DayCell 
+                                date={dayData.date} 
+                                eventsInDay={dayData.events} 
+                                isOutOfMonth={dayData.isOutOfMonth} 
+                                isToday={checkIsToday(dayData.date)}
+                            />
+                        </div>
+                     </div>
                 ))}
             </div>
         </div>

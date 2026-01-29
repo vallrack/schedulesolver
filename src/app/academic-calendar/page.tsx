@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo } from 'react';
-import { addMonths, subMonths, format, addYears, subYears } from 'date-fns';
+import { addMonths, subMonths, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import AppLayout from '@/components/app-layout';
 import { Button } from '@/components/ui/button';
@@ -63,8 +63,6 @@ export default function AcademicCalendarPage() {
 
     const handlePreviousMonth = () => setCurrentDate(current => subMonths(current, 1));
     const handleNextMonth = () => setCurrentDate(current => addMonths(current, 1));
-    const handlePreviousYear = () => setCurrentDate(current => subYears(current, 1));
-    const handleNextYear = () => setCurrentDate(current => addYears(current, 1));
 
     const handleDelete = async (courseId: string) => {
         if (!firestore) return;
@@ -180,8 +178,6 @@ export default function AcademicCalendarPage() {
                             month={currentDate.getMonth()}
                             onPrevMonth={handlePreviousMonth}
                             onNextMonth={handleNextMonth}
-                            onPrevYear={handlePreviousYear}
-                            onNextYear={handleNextYear}
                         />
                     }
                 </div>
