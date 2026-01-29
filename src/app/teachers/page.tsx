@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, PlusCircle, Trash2, UserX, UserCheck, ArrowUpDown } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash2, UserX, UserCheck, ArrowUpDown, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +20,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
+import { TeacherImportDialog } from '@/components/teachers/teacher-import-dialog';
 
 
 type TeacherWithHours = Teacher & { assignedHours: number };
@@ -30,6 +31,7 @@ export default function TeachersPage() {
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | undefined>(undefined);
   const [filterText, setFilterText] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortableTeacherKeys; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
@@ -260,10 +262,16 @@ export default function TeachersPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold font-headline tracking-tight">Gestión de Docentes</h1>
-          <Button onClick={handleAddNew}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Añadir Docente
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+              <Upload className="mr-2 h-4 w-4" />
+              Importar desde Archivo
+            </Button>
+            <Button onClick={handleAddNew}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Añadir Docente
+            </Button>
+          </div>
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -283,6 +291,13 @@ export default function TeachersPage() {
                 </div>
             </DialogContent>
         </Dialog>
+
+        <TeacherImportDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          onSuccess={() => setImportDialogOpen(false)}
+          modules={modules || []}
+        />
 
         <Card>
           <CardHeader>

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, PlusCircle, Trash2, ArrowUpDown } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Trash2, ArrowUpDown, Upload } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,7 @@ import { GroupForm } from "@/components/groups/group-form";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { Input } from "@/components/ui/input";
+import { GroupImportDialog } from "@/components/groups/group-import-dialog";
 
 
 type GroupWithCareer = Group & { careerName: string; };
@@ -34,6 +35,7 @@ export default function GroupsPage() {
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | undefined>(undefined);
   const [filterText, setFilterText] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortableGroupKeys; direction: 'ascending' | 'descending' } | null>({ key: 'careerName', direction: 'ascending' });
@@ -128,10 +130,16 @@ export default function GroupsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold font-headline tracking-tight">Gestión de Grupos</h1>
-            <Button onClick={handleAddNew}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Añadir Grupo
-            </Button>
+            <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Importar desde Archivo
+                </Button>
+                <Button onClick={handleAddNew}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Añadir Grupo
+                </Button>
+            </div>
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -149,7 +157,13 @@ export default function GroupsPage() {
                 />
             </DialogContent>
         </Dialog>
-
+        
+        <GroupImportDialog
+            open={importDialogOpen}
+            onOpenChange={setImportDialogOpen}
+            onSuccess={() => setImportDialogOpen(false)}
+            careers={careers || []}
+        />
 
         <Card>
           <CardHeader>
