@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection } from 'firebase/firestore';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -73,22 +73,46 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         endWeek: 16,
     },
   });
+  
+  const selectedTeacherId = form.watch('teacherId');
 
-  const courseOptions = useMemo(() => {
-    if (!courses || !modules || !groups || !careers) return [];
-    return courses.map(course => {
+  const teacherOptions = useMemo(() => teachers.sort((a,b) => a.name.localeCompare(b.name)), [teachers]);
+  const classroomOptions = useMemo(() => classrooms.sort((a,b) => a.name.localeCompare(b.name)), [classrooms]);
+
+  const filteredCourseOptions = useMemo(() => {
+    if (!selectedTeacherId) {
+        return [];
+    }
+    const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
+    if (!selectedTeacher || !selectedTeacher.specialties) {
+        return [];
+    }
+
+    const teacherSpecialtyModuleIds = selectedTeacher.specialties;
+
+    const filteredCourses = courses.filter(course => teacherSpecialtyModuleIds.includes(course.moduleId));
+    
+    return filteredCourses.map(course => {
         const module = modules.find(m => m.id === course.moduleId);
         const group = groups.find(g => g.id === course.groupId);
         const career = careers.find(c => c.id === group?.careerId);
         return {
             value: course.id,
-            label: `${module?.name || '...'} | ${career?.name || '...'} - Sem ${group?.semester} - G ${group?.name}`
+            label: `${module?.name || '...'} | ${group ? `${career?.name || '...'} - Sem ${group.semester} - G ${group.name}` : '...'}`,
         }
     }).sort((a,b) => a.label.localeCompare(b.label));
-  }, [courses, modules, groups, careers]);
+  }, [selectedTeacherId, teachers, courses, modules, groups, careers]);
   
-  const teacherOptions = useMemo(() => teachers.sort((a,b) => a.name.localeCompare(b.name)), [teachers]);
-  const classroomOptions = useMemo(() => classrooms.sort((a,b) => a.name.localeCompare(b.name)), [classrooms]);
+  useEffect(() => {
+    const currentCourseId = form.getValues('courseId');
+    if (currentCourseId) {
+        const isCourseStillValid = filteredCourseOptions.some(opt => opt.value === currentCourseId);
+        if (!isCourseStillValid) {
+            form.setValue('courseId', '', { shouldValidate: true });
+        }
+    }
+  }, [selectedTeacherId, filteredCourseOptions, form]);
+
 
   const onSubmit = async (data: FormValues) => {
     if (!firestore) return;
@@ -168,24 +192,6 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
         <FormField
           control={form.control}
-          name="courseId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Curso (Materia y Grupo)</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un curso..." /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    <ScrollArea className="h-48">
-                      {courseOptions.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
-                    </ScrollArea>
-                  </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
           name="teacherId"
           render={({ field }) => (
             <FormItem>
@@ -195,6 +201,24 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
                   <SelectContent>
                     <ScrollArea className="h-48">
                       {teacherOptions.map(option => <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>)}
+                    </ScrollArea>
+                  </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="courseId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Curso (Módulos Asignados al Docente)</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value} disabled={!selectedTeacherId}>
+                  <FormControl><SelectTrigger><SelectValue placeholder={selectedTeacherId ? "Selecciona un curso..." : "Selecciona un docente primero"} /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <ScrollArea className="h-48">
+                      {filteredCourseOptions.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
                     </ScrollArea>
                   </SelectContent>
               </Select>
