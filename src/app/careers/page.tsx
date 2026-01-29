@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, PlusCircle, Trash2, ArrowUpDown } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Trash2, ArrowUpDown, Upload } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,7 @@ import { CareerForm } from "@/components/careers/career-form";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { Input } from "@/components/ui/input";
+import { CareerImportDialog } from "@/components/careers/career-import-dialog";
 
 
 export default function CareersPage() {
@@ -30,6 +31,7 @@ export default function CareersPage() {
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingCareer, setEditingCareer] = useState<Career | undefined>(undefined);
   const [filterText, setFilterText] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Career; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
@@ -104,10 +106,16 @@ export default function CareersPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold font-headline tracking-tight">Gestión de Carreras</h1>
-            <Button onClick={handleAddNew}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Añadir Carrera
-            </Button>
+            <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Importar desde Archivo
+                </Button>
+                <Button onClick={handleAddNew}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Añadir Carrera
+                </Button>
+            </div>
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -124,6 +132,14 @@ export default function CareersPage() {
                 />
             </DialogContent>
         </Dialog>
+        
+        <CareerImportDialog 
+            open={importDialogOpen}
+            onOpenChange={setImportDialogOpen}
+            onSuccess={() => {
+                setImportDialogOpen(false);
+            }}
+        />
 
 
         <Card>
