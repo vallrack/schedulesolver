@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
-import { Upload, Download, AlertCircle, CheckCircle2, XCircle, FileText } from 'lucide-react';
+import { Upload, Download, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -284,7 +284,7 @@ export function TeacherImportDialog({ open, onOpenChange, onSuccess, modules }: 
               </Alert>
 
               <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                <input
+                <Input
                   ref={fileInputRef}
                   type="file"
                   accept=".xlsx,.xls"
