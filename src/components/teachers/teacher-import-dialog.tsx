@@ -7,11 +7,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
-import { Upload, Download, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { Upload, Download, AlertCircle, CheckCircle2, XCircle, FileText } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import type { Module } from '@/lib/types';
+import { Input } from '../ui/input';
 
 interface TeacherImportDialogProps {
   open: boolean;
@@ -223,7 +224,7 @@ export function TeacherImportDialog({ open, onOpenChange, onSuccess, modules }: 
       for (const result of validTeachers) {
         const teacherData = {
           ...result.teacher,
-          status: 'active',
+          status: 'active' as const,
           availability: [],
         };
 
