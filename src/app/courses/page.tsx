@@ -36,6 +36,8 @@ export default function CoursesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | undefined>(undefined);
   const [currentDate, setCurrentDate] = useState(new Date());
+  // State for the "more" dialog
+  const [dayWithCourses, setDayWithCourses] = useState<{ date: Date; courses: CourseWithDetails[] } | null>(null);
 
 
   const coursesCollection = useMemo(() => firestore ? collection(firestore, 'courses') : null, [firestore]);
@@ -90,6 +92,14 @@ export default function CoursesPage() {
     });
   };
 
+    const getColorForCourse = (moduleId: string) => {
+        let hash = 0;
+        for (let i = 0; i < moduleId.length; i++) {
+            hash = moduleId.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return `hsl(${hash % 360}, 70%, 60%)`;
+    }
+
   const MonthView = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -111,16 +121,10 @@ export default function CoursesPage() {
         return adjustedDate.toISOString().split('T')[0];
     }
     
-    const getColorForCourse = (moduleId: string) => {
-        let hash = 0;
-        for (let i = 0; i < moduleId.length; i++) {
-            hash = moduleId.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        return `hsl(${hash % 360}, 70%, 60%)`;
-    }
-
     if (loading) return <div className="text-center py-10">Cargando...</div>;
     if (error) return <div className="text-center py-10 text-destructive">Error: {error.message}</div>;
+
+    const COURSES_LIMIT_PER_DAY = 2;
 
     return (
         <div className="border rounded-lg overflow-hidden bg-background">
@@ -153,7 +157,9 @@ export default function CoursesPage() {
 
                     const uniqueScheduledCourses = Array.from(new Map(scheduledCoursesForDay.map(c => [c.id, c])).values())
                         .sort((a,b) => a.moduleName.localeCompare(b.moduleName));
-
+                    
+                    const visibleCourses = uniqueScheduledCourses.slice(0, COURSES_LIMIT_PER_DAY);
+                    const hiddenCoursesCount = uniqueScheduledCourses.length - visibleCourses.length;
 
                     return (
                         <div
@@ -164,7 +170,7 @@ export default function CoursesPage() {
                         >
                             <div className={cn('text-right text-xs font-semibold', isOtherMonth && 'opacity-50')}>{date.getDate()}</div>
                             <div className="space-y-1 mt-1">
-                                {uniqueScheduledCourses.map(course => (
+                                {visibleCourses.map(course => (
                                     <div
                                         key={course.id}
                                         className="text-xs flex items-center gap-1.5 px-1 py-0.5 rounded"
@@ -172,12 +178,19 @@ export default function CoursesPage() {
                                     >
                                         <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getColorForCourse(course.moduleId) }} />
                                         <div className="truncate font-medium">
-                                            <span className="font-semibold">{course.totalHours}</span>
-                                            <span className="ml-1">{course.moduleName}</span>
-                                            <span className="opacity-70"> | {course.groupInfo}</span>
+                                            <span className="font-semibold">{course.totalHours}h</span>
+                                            <span className="ml-1 opacity-80">{course.moduleName}</span>
                                         </div>
                                     </div>
                                 ))}
+                                {hiddenCoursesCount > 0 && (
+                                    <button 
+                                        className="text-xs text-primary font-semibold hover:underline mt-1 w-full text-left px-1"
+                                        onClick={() => setDayWithCourses({ date, courses: uniqueScheduledCourses })}
+                                    >
+                                        + {hiddenCoursesCount} más
+                                    </button>
+                                )}
                             </div>
                         </div>
                     );
@@ -215,6 +228,30 @@ export default function CoursesPage() {
                     careers={careers || []}
                     onSuccess={() => setDialogOpen(false)} 
                 />
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!dayWithCourses} onOpenChange={(isOpen) => !isOpen && setDayWithCourses(null)}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Cursos del {dayWithCourses?.date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</DialogTitle>
+                    <DialogDescription>
+                        Lista completa de cursos programados para este día.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto -mx-6 px-6">
+                    <div className="space-y-2 py-4">
+                        {dayWithCourses?.courses.map(course => (
+                            <div key={course.id} className="text-sm p-3 rounded-md border flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getColorForCourse(course.moduleId) }} />
+                                <div>
+                                    <p className="font-semibold">{course.moduleName} ({course.totalHours}h)</p>
+                                    <p className="text-muted-foreground">{course.groupInfo}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </DialogContent>
         </Dialog>
 
