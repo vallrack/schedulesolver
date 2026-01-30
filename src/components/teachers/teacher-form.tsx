@@ -88,7 +88,6 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
     }
   };
 
-  // Ordenar módulos alfabéticamente
   const sortedModules = React.useMemo(() => 
     [...modules].sort((a, b) => a.name.localeCompare(b.name)),
     [modules]
@@ -197,21 +196,13 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent 
-                    className="w-[400px] p-0" 
+                    className="w-[--radix-popover-trigger-width] p-0" 
                     align="start"
                     onPointerDownOutside={(e) => e.preventDefault()}
                 >
-                  <div className="p-2">
-                    <div className="text-sm font-medium text-muted-foreground px-2 pb-2">
-                      Selecciona los módulos que el docente puede impartir
-                    </div>
-                    <ScrollArea className="h-[240px]">
-                      <div className="space-y-1 p-2">
-                        {sortedModules.length === 0 ? (
-                          <div className="text-sm text-muted-foreground text-center py-4">
-                            No hay módulos disponibles
-                          </div>
-                        ) : (
+                    <ScrollArea className="h-60">
+                      <div className="p-2 space-y-1">
+                        {sortedModules.length > 0 ? (
                           sortedModules.map((module) => {
                             const isSelected = field.value?.includes(module.id) || false;
                             return (
@@ -221,7 +212,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
                                 onClick={() => {
                                   const currentValue = field.value || [];
                                   if (isSelected) {
-                                    field.onChange(currentValue.filter(id => id !== module.id));
+                                    field.onChange(currentValue.filter((id) => id !== module.id));
                                   } else {
                                     field.onChange([...currentValue, module.id]);
                                   }
@@ -229,36 +220,36 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
                               >
                                 <Checkbox
                                   checked={isSelected}
+                                  onClick={(e) => e.stopPropagation()}
                                   onCheckedChange={(checked) => {
                                     const currentValue = field.value || [];
                                     if (checked) {
                                       field.onChange([...currentValue, module.id]);
                                     } else {
-                                      field.onChange(currentValue.filter(id => id !== module.id));
+                                      field.onChange(currentValue.filter((id) => id !== module.id));
                                     }
                                   }}
-                                  onClick={(e) => e.stopPropagation()}
+                                  id={`module-${module.id}`}
                                 />
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium leading-none">
-                                    {module.name}
-                                  </div>
-                                  {module.code && (
-                                    <div className="text-xs text-muted-foreground mt-1">
-                                      {module.code}
-                                    </div>
-                                  )}
-                                </div>
+                                <label
+                                  htmlFor={`module-${module.id}`}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer"
+                                >
+                                  {module.name}
+                                </label>
                                 {isSelected && (
-                                  <Check className="h-4 w-4 text-primary" />
+                                  <Check className="h-4 w-4 text-primary ml-auto" />
                                 )}
                               </div>
                             );
                           })
+                        ) : (
+                          <div className="text-center text-sm text-muted-foreground p-4">
+                            No hay módulos disponibles
+                          </div>
                         )}
                       </div>
                     </ScrollArea>
-                  </div>
                 </PopoverContent>
               </Popover>
               
