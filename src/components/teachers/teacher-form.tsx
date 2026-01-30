@@ -55,9 +55,12 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
     },
   });
 
+  const { reset } = form;
+
   React.useEffect(() => {
     if (teacher) {
-      form.reset({
+      // If a teacher is provided, reset the form with their data for editing.
+      reset({
         name: teacher.name,
         email: teacher.email,
         contractType: teacher.contractType,
@@ -65,7 +68,8 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
         specialties: teacher.specialties || [],
       });
     } else {
-      form.reset({
+      // If no teacher is provided, reset the form to its default blank state for creation.
+      reset({
         name: '',
         email: '',
         contractType: undefined,
@@ -73,7 +77,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
         specialties: [],
       });
     }
-  }, [teacher, form.reset]);
+  }, [teacher, reset]);
 
 
   const onSubmit = async (data: TeacherFormValues) => {

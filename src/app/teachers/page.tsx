@@ -282,7 +282,7 @@ export default function TeachersPage() {
                        {editingTeacher ? 'Actualiza los detalles del docente.' : 'Rellena los detalles para el nuevo docente.'}
                     </DialogDescription>
                 </DialogHeader>
-                <TeacherForm 
+                <TeacherForm
                     teacher={editingTeacher} 
                     modules={modules || []} 
                     onSuccess={() => setDialogOpen(false)} 
