@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal, PlusCircle, Trash2, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react"
+import { PlusCircle, ChevronLeft, ChevronRight } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -10,16 +10,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useCollection } from "@/firebase/firestore/use-collection"
 import { useFirestore } from "@/firebase"
-import { collection, deleteDoc, doc } from "firebase/firestore"
+import { collection } from "firebase/firestore"
 import AppLayout from "@/components/app-layout"
-import type { Career, Course, Group, Module, ScheduleEvent } from "@/lib/types";
-import { useToast } from "@/hooks/use-toast";
+import type { Career, Course, Group, Module, ScheduleEvent, Teacher, Classroom } from "@/lib/types";
 import { CourseForm } from "@/components/courses/course-form";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
 
 type CourseWithDetails = Course & {
@@ -31,7 +27,6 @@ type CourseWithDetails = Course & {
 
 export default function CoursesPage() {
   const firestore = useFirestore();
-  const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | undefined>(undefined);
@@ -55,9 +50,15 @@ export default function CoursesPage() {
   const schedulesCollection = useMemo(() => firestore ? collection(firestore, 'schedules') : null, [firestore]);
   const { data: scheduleEvents, loading: loadingSchedules, error: errorSchedules } = useCollection<ScheduleEvent>(schedulesCollection);
 
+  const teachersCollection = useMemo(() => firestore ? collection(firestore, 'teachers') : null, [firestore]);
+  const { data: teachers, loading: loadingTeachers } = useCollection<Teacher>(teachersCollection);
+  
+  const classroomsCollection = useMemo(() => firestore ? collection(firestore, 'classrooms') : null, [firestore]);
+  const { data: classrooms, loading: loadingClassrooms } = useCollection<Classroom>(classroomsCollection);
 
-  const loading = loadingCourses || loadingModules || loadingCareers || loadingGroups || loadingSchedules;
-  const error = errorCourses || errorModules || errorCareers || errorGroups || errorSchedules;
+
+  const loading = loadingCourses || loadingModules || loadingCareers || loadingGroups || loadingSchedules || loadingTeachers || loadingClassrooms;
+  const error = errorCourses || errorModules || errorCareers || errorGroups || errorSchedules || errorSchedules;
 
   const coursesWithDetails: CourseWithDetails[] = useMemo(() => {
     if (!courses || !groups || !careers || !modules) return [];
@@ -96,8 +97,9 @@ export default function CoursesPage() {
         let hash = 0;
         for (let i = 0; i < moduleId.length; i++) {
             hash = moduleId.charCodeAt(i) + ((hash << 5) - hash);
+            hash = hash & hash; // Ensure 32bit integer
         }
-        return `hsl(${hash % 360}, 70%, 60%)`;
+        return `hsl(${hash % 360}, 90%, 45%)`;
     }
 
   const MonthView = () => {
@@ -173,14 +175,11 @@ export default function CoursesPage() {
                                 {visibleCourses.map(course => (
                                     <div
                                         key={course.id}
-                                        className="text-xs flex items-center gap-1.5 px-1 py-0.5 rounded"
+                                        className="text-xs text-white px-1.5 py-1 rounded truncate font-medium"
+                                        style={{ backgroundColor: getColorForCourse(course.moduleId) }}
                                         title={`${course.moduleName} | ${course.groupInfo}`}
                                     >
-                                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getColorForCourse(course.moduleId) }} />
-                                        <div className="truncate font-medium">
-                                            <span className="font-semibold">{course.totalHours}h</span>
-                                            <span className="ml-1 opacity-80">{course.moduleName}</span>
-                                        </div>
+                                        {course.moduleName}
                                     </div>
                                 ))}
                                 {hiddenCoursesCount > 0 && (
@@ -226,12 +225,15 @@ export default function CoursesPage() {
                     modules={modules || []}
                     groups={groups || []}
                     careers={careers || []}
+                    teachers={teachers || []}
+                    scheduleEvents={scheduleEvents || []}
+                    classrooms={classrooms || []}
                     onSuccess={() => setDialogOpen(false)} 
                 />
             </DialogContent>
         </Dialog>
 
-        <Dialog open={!!dayWithCourses} onOpenChange={(isOpen) => !isOpen && setDayWithCourses(null)}>
+        <Dialog open={!!dayWithCourses} onOpenChange={(isOpen) => { if (!isOpen) setDayWithCourses(null) }}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Cursos del {dayWithCourses?.date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</DialogTitle>
@@ -240,10 +242,13 @@ export default function CoursesPage() {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="max-h-[60vh] overflow-y-auto -mx-6 px-6">
-                    <div className="space-y-2 py-4">
+                    <div className="space-y-3 py-4">
                         {dayWithCourses?.courses.map(course => (
-                            <div key={course.id} className="text-sm p-3 rounded-md border flex items-center gap-3">
-                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getColorForCourse(course.moduleId) }} />
+                            <div 
+                                key={course.id} 
+                                className="text-sm p-3 rounded-md border flex items-center gap-3"
+                                style={{ borderLeftColor: getColorForCourse(course.moduleId), borderLeftWidth: '4px' }}
+                            >
                                 <div>
                                     <p className="font-semibold">{course.moduleName} ({course.totalHours}h)</p>
                                     <p className="text-muted-foreground">{course.groupInfo}</p>
@@ -259,9 +264,11 @@ export default function CoursesPage() {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-                <CardTitle className="capitalize text-lg">
-                  {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
-                </CardTitle>
+                 <div className="flex-1">
+                    <h2 className="text-lg font-semibold capitalize">
+                      {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+                    </h2>
+                </div>
                 <div className="flex items-center gap-2">
                     <Button onClick={() => navigateMonth(-1)} variant="outline" size="icon" className="h-8 w-8">
                         <ChevronLeft className="w-4 h-4" />
