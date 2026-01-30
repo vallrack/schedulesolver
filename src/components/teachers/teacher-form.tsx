@@ -13,7 +13,6 @@ import { useFirestore } from '@/firebase';
 import { addDoc, collection, doc, setDoc } from 'firebase/firestore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ChevronsUpDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -43,16 +42,25 @@ interface TeacherFormProps {
 export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [open, setOpen] = React.useState(false);
 
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(teacherSchema),
-    defaultValues: {
-      name: teacher?.name ?? '',
-      email: teacher?.email ?? '',
-      contractType: teacher?.contractType,
-      maxWeeklyHours: teacher?.maxWeeklyHours ?? 40,
-      specialties: teacher?.specialties ?? [],
-    },
+    defaultValues: teacher
+      ? {
+          name: teacher.name,
+          email: teacher.email,
+          contractType: teacher.contractType,
+          maxWeeklyHours: teacher.maxWeeklyHours,
+          specialties: teacher.specialties || [],
+        }
+      : {
+          name: '',
+          email: '',
+          contractType: 'Tiempo Completo', // Valor por defecto
+          maxWeeklyHours: 40,
+          specialties: [],
+        },
   });
 
 
@@ -118,7 +126,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
           render={({ field }) => (
             <FormItem>
                 <FormLabel>Tipo de Contrato</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl>
                         <SelectTrigger>
                             <SelectValue placeholder="Selecciona un tipo" />
@@ -152,38 +160,43 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
           render={({ field }) => (
             <FormItem>
                 <FormLabel>Especialidades (Módulos)</FormLabel>
-                <Popover modal={true}>
+                <Popover open={open} onOpenChange={setOpen}>
                     <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between">
+                        <Button variant="outline" className="w-full justify-between" type="button">
                             <span className="truncate">
                             {field.value?.length ? `${field.value.length} seleccionado(s)` : "Seleccionar módulos..."}
                             </span>
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                         <ScrollArea className="h-48">
                             <div className="p-4">
                             {[...modules].sort((a, b) => a.name.localeCompare(b.name)).map((module) => (
-                                <FormItem key={module.id} className="flex flex-row items-center space-x-3 space-y-0 mb-2">
-                                  <FormControl>
-                                    <Checkbox
-                                        checked={field.value?.includes(module.id)}
-                                        onCheckedChange={(checked) => {
-                                          return checked
-                                            ? field.onChange([...(field.value || []), module.id])
-                                            : field.onChange(
-                                                (field.value || []).filter(
-                                                  (value) => value !== module.id
-                                                )
-                                              )
-                                        }}
-                                    />
-                                    </FormControl>
-                                    <FormLabel className="text-sm font-normal">
-                                        {module.name}
-                                    </FormLabel>
-                                </FormItem>
+                                <div key={module.id} className="flex flex-row items-center space-x-3 space-y-0 mb-2">
+                                  <Checkbox
+                                      checked={field.value?.includes(module.id)}
+                                      onCheckedChange={(checked) => {
+                                        const currentValue = field.value || [];
+                                        if (checked) {
+                                          field.onChange([...currentValue, module.id]);
+                                        } else {
+                                          field.onChange(currentValue.filter(value => value !== module.id));
+                                        }
+                                      }}
+                                  />
+                                  <label className="text-sm font-normal cursor-pointer flex-1" onClick={() => {
+                                    const currentValue = field.value || [];
+                                    const isChecked = currentValue.includes(module.id);
+                                    if (isChecked) {
+                                      field.onChange(currentValue.filter(value => value !== module.id));
+                                    } else {
+                                      field.onChange([...currentValue, module.id]);
+                                    }
+                                  }}>
+                                      {module.name}
+                                  </label>
+                                </div>
                             ))}
                             </div>
                         </ScrollArea>
