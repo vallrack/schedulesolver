@@ -1,6 +1,6 @@
 'use client'
-import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { useState, useMemo, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, ChevronLeft, ChevronRight } from "lucide-react"
 import {
@@ -17,6 +17,7 @@ import AppLayout from "@/components/app-layout"
 import type { Career, Course, Group, Module, ScheduleEvent, Teacher, Classroom } from "@/lib/types";
 import { CourseForm } from "@/components/courses/course-form";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type CourseWithDetails = Course & {
     moduleName: string;
@@ -30,25 +31,30 @@ export default function CoursesPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | undefined>(undefined);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  // State for the "more" dialog
+  
+  // Defer date initialization to client-side to prevent hydration errors
+  const [currentDate, setCurrentDate] = useState<Date>();
+  useEffect(() => {
+    setCurrentDate(new Date());
+  }, []);
+
   const [dayWithCourses, setDayWithCourses] = useState<{ date: Date; courses: CourseWithDetails[] } | null>(null);
 
 
   const coursesCollection = useMemo(() => firestore ? collection(firestore, 'courses') : null, [firestore]);
-  const { data: courses, loading: loadingCourses, error: errorCourses } = useCollection<Course>(coursesCollection);
+  const { data: courses, loading: loadingCourses } = useCollection<Course>(coursesCollection);
 
   const modulesCollection = useMemo(() => firestore ? collection(firestore, 'modules') : null, [firestore]);
-  const { data: modules, loading: loadingModules, error: errorModules } = useCollection<Module>(modulesCollection);
+  const { data: modules, loading: loadingModules } = useCollection<Module>(modulesCollection);
 
   const careersCollection = useMemo(() => firestore ? collection(firestore, 'careers') : null, [firestore]);
-  const { data: careers, loading: loadingCareers, error: errorCareers } = useCollection<Career>(careersCollection);
+  const { data: careers, loading: loadingCareers } = useCollection<Career>(careersCollection);
 
   const groupsCollection = useMemo(() => firestore ? collection(firestore, 'groups') : null, [firestore]);
-  const { data: groups, loading: loadingGroups, error: errorGroups } = useCollection<Group>(groupsCollection);
+  const { data: groups, loading: loadingGroups } = useCollection<Group>(groupsCollection);
 
   const schedulesCollection = useMemo(() => firestore ? collection(firestore, 'schedules') : null, [firestore]);
-  const { data: scheduleEvents, loading: loadingSchedules, error: errorSchedules } = useCollection<ScheduleEvent>(schedulesCollection);
+  const { data: scheduleEvents, loading: loadingSchedules } = useCollection<ScheduleEvent>(schedulesCollection);
 
   const teachersCollection = useMemo(() => firestore ? collection(firestore, 'teachers') : null, [firestore]);
   const { data: teachers, loading: loadingTeachers } = useCollection<Teacher>(teachersCollection);
@@ -57,11 +63,10 @@ export default function CoursesPage() {
   const { data: classrooms, loading: loadingClassrooms } = useCollection<Classroom>(classroomsCollection);
 
 
-  const loading = loadingCourses || loadingModules || loadingCareers || loadingGroups || loadingSchedules || loadingTeachers || loadingClassrooms;
-  const error = errorCourses || errorModules || errorCareers || errorGroups || errorSchedules || errorSchedules;
+  const allDataLoaded = !loadingCourses && !loadingModules && !loadingCareers && !loadingGroups && !loadingSchedules && !loadingTeachers && !loadingClassrooms;
 
   const coursesWithDetails: CourseWithDetails[] = useMemo(() => {
-    if (!courses || !groups || !careers || !modules) return [];
+    if (!allDataLoaded || !courses || !groups || !careers || !modules) return [];
     return courses.map(course => {
         const module = modules.find(m => m.id === course.moduleId);
         const group = groups.find(g => g.id === course.groupId);
@@ -76,7 +81,7 @@ export default function CoursesPage() {
             careerName: career?.name || 'Carrera Desconocida',
         }
     }).filter((c): c is CourseWithDetails => c !== null);
-  }, [courses, modules, groups, careers]);
+  }, [allDataLoaded, courses, modules, groups, careers]);
 
 
   const handleAddNew = () => {
@@ -86,6 +91,7 @@ export default function CoursesPage() {
   
   const navigateMonth = (direction: number) => {
     setCurrentDate(current => {
+        if (!current) return new Date();
         const newDate = new Date(current);
         newDate.setDate(1); 
         newDate.setMonth(newDate.getMonth() + direction);
@@ -97,18 +103,41 @@ export default function CoursesPage() {
         let hash = 0;
         for (let i = 0; i < moduleId.length; i++) {
             hash = moduleId.charCodeAt(i) + ((hash << 5) - hash);
-            hash = hash & hash; // Ensure 32bit integer
+            hash = hash & hash;
         }
-        return `hsl(${hash % 360}, 90%, 45%)`;
+        return `hsl(${hash % 360}, 75%, 60%)`;
     }
+  
+  const handleCloseModal = () => setDayWithCourses(null);
 
   const MonthView = () => {
+    if (!currentDate || !allDataLoaded) {
+      return (
+        <div className="border rounded-lg bg-card">
+          <div className="grid grid-cols-7 bg-card">
+            {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
+              <div key={day} className="py-2 text-center font-semibold text-sm text-muted-foreground border-b border-l h-10"></div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 grid-rows-6">
+            {Array.from({ length: 42 }).map((_, idx) => (
+              <div key={idx} className="p-2 border-t border-l min-h-[6rem] bg-card">
+                <Skeleton className="h-4 w-6 ml-auto" />
+                <Skeleton className="h-5 w-full mt-2" />
+                <Skeleton className="h-5 w-full mt-1" />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const firstDayOfMonth = new Date(year, month, 1);
     const startDate = new Date(firstDayOfMonth);
-    const startDayOfWeek = startDate.getDay(); // 0 for Sunday, 1 for Monday...
-    startDate.setDate(startDate.getDate() - startDayOfWeek); // Start from the Sunday of the first week
+    const startDayOfWeek = startDate.getDay();
+    startDate.setDate(startDate.getDate() - startDayOfWeek);
 
     const days = Array.from({ length: 42 }, (_, i) => {
         const date = new Date(startDate);
@@ -123,9 +152,6 @@ export default function CoursesPage() {
         return adjustedDate.toISOString().split('T')[0];
     }
     
-    if (loading) return <div className="text-center py-10">Cargando...</div>;
-    if (error) return <div className="text-center py-10 text-destructive">Error: {error.message}</div>;
-
     const COURSES_LIMIT_PER_DAY = 2;
 
     return (
@@ -167,10 +193,10 @@ export default function CoursesPage() {
                         <div
                             key={idx}
                             className={cn(`relative p-2 border-t border-l min-h-[6rem]`,
-                                isOtherMonth ? 'bg-muted/30 text-muted-foreground' : 'bg-card'
+                                isOtherMonth ? 'bg-muted/30' : 'bg-card'
                             )}
                         >
-                            <div className={cn('text-right text-xs font-semibold', isOtherMonth && 'opacity-50')}>{date.getDate()}</div>
+                            <div className={cn('text-right text-xs font-semibold', isOtherMonth ? 'text-muted-foreground opacity-50' : 'text-foreground')}>{date.getDate()}</div>
                             <div className="space-y-1 mt-1">
                                 {visibleCourses.map(course => (
                                     <div
@@ -233,7 +259,7 @@ export default function CoursesPage() {
             </DialogContent>
         </Dialog>
 
-        <Dialog open={!!dayWithCourses} onOpenChange={(isOpen) => { if (!isOpen) setDayWithCourses(null) }}>
+        <Dialog open={!!dayWithCourses} onOpenChange={(isOpen) => !isOpen && handleCloseModal()}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Cursos del {dayWithCourses?.date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</DialogTitle>
@@ -266,14 +292,14 @@ export default function CoursesPage() {
             <div className="flex justify-between items-center">
                  <div className="flex-1">
                     <h2 className="text-lg font-semibold capitalize">
-                      {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+                      {currentDate ? currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }) : <Skeleton className="h-6 w-40" />}
                     </h2>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button onClick={() => navigateMonth(-1)} variant="outline" size="icon" className="h-8 w-8">
+                    <Button onClick={() => navigateMonth(-1)} variant="outline" size="icon" className="h-8 w-8" disabled={!currentDate}>
                         <ChevronLeft className="w-4 h-4" />
                     </Button>
-                     <Button onClick={() => navigateMonth(1)} variant="outline" size="icon" className="h-8 w-8">
+                     <Button onClick={() => navigateMonth(1)} variant="outline" size="icon" className="h-8 w-8" disabled={!currentDate}>
                         <ChevronRight className="w-4 h-4" />
                     </Button>
                 </div>
