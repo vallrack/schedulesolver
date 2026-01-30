@@ -34,6 +34,7 @@ export default function Header() {
     const auth = useAuth();
     const { user } = useUser();
     const { toast } = useToast();
+    const title = getTitleFromPathname(pathname);
     
     const handleLogout = async () => {
         try {
