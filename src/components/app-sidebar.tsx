@@ -2,7 +2,7 @@
 import { usePathname } from 'next/navigation';
 import { SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import AppLogo from '@/components/app-logo';
-import { LayoutDashboard, Users, Book, School, Puzzle, GraduationCap, Group, Package, CalendarClock, CalendarDays } from 'lucide-react';
+import { UserCog, School, Puzzle, GraduationCap, Group, Package, CalendarClock, CalendarDays, Users } from 'lucide-react';
 
 const menuItems = [
     { href: '/dashboard', label: 'Calendario', icon: CalendarDays },
@@ -12,6 +12,7 @@ const menuItems = [
     { href: '/modules', label: 'Módulos', icon: Package },
     { href: '/courses', label: 'Cursos Programados', icon: CalendarClock },
     { href: '/classrooms', label: 'Aulas', icon: School },
+    { href: '/users', label: 'Usuarios', icon: UserCog },
     { href: '/conflict-analyzer', label: 'Analizador de Conflictos', icon: Puzzle },
 ]
 

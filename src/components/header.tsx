@@ -18,6 +18,7 @@ const titleMap: { [key: string]: string } = {
   '/modules': 'Catálogo de Módulos',
   '/groups': 'Gestión de Grupos',
   '/classrooms': 'Gestión de Infraestructura',
+  '/users': 'Gestión de Usuarios',
   '/conflict-analyzer': 'Analizador de Conflictos con IA',
 };
 
@@ -33,7 +34,6 @@ export default function Header() {
     const auth = useAuth();
     const { user } = useUser();
     const { toast } = useToast();
-    const title = getTitleFromPathname(pathname);
     
     const handleLogout = async () => {
         try {
