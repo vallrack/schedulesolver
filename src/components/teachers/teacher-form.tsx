@@ -46,38 +46,22 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
 
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(teacherSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      contractType: undefined,
-      maxWeeklyHours: 40,
-      specialties: [],
-    },
+    defaultValues: teacher
+      ? {
+          name: teacher.name,
+          email: teacher.email,
+          contractType: teacher.contractType,
+          maxWeeklyHours: teacher.maxWeeklyHours,
+          specialties: teacher.specialties || [],
+        }
+      : {
+          name: '',
+          email: '',
+          contractType: undefined,
+          maxWeeklyHours: 40,
+          specialties: [],
+        },
   });
-
-  const { reset } = form;
-
-  React.useEffect(() => {
-    if (teacher) {
-      // If a teacher is provided, reset the form with their data for editing.
-      reset({
-        name: teacher.name,
-        email: teacher.email,
-        contractType: teacher.contractType,
-        maxWeeklyHours: teacher.maxWeeklyHours,
-        specialties: teacher.specialties || [],
-      });
-    } else {
-      // If no teacher is provided, reset the form to its default blank state for creation.
-      reset({
-        name: '',
-        email: '',
-        contractType: undefined,
-        maxWeeklyHours: 40,
-        specialties: [],
-      });
-    }
-  }, [teacher, reset]);
 
 
   const onSubmit = async (data: TeacherFormValues) => {

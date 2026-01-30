@@ -33,6 +33,7 @@ export default function TeachersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | undefined>(undefined);
+  const [teacherFormKey, setTeacherFormKey] = useState(0);
   const [filterText, setFilterText] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortableTeacherKeys; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
 
@@ -117,11 +118,13 @@ export default function TeachersPage() {
 
   const handleAddNew = () => {
     setEditingTeacher(undefined);
+    setTeacherFormKey(prevKey => prevKey + 1);
     setDialogOpen(true);
   };
 
   const handleEdit = (teacher: Teacher) => {
     setEditingTeacher(teacher);
+    setTeacherFormKey(prevKey => prevKey + 1);
     setDialogOpen(true);
   };
   
@@ -283,6 +286,7 @@ export default function TeachersPage() {
                     </DialogDescription>
                 </DialogHeader>
                 <TeacherForm
+                    key={teacherFormKey}
                     teacher={editingTeacher} 
                     modules={modules || []} 
                     onSuccess={() => setDialogOpen(false)} 
