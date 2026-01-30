@@ -14,7 +14,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { useEffect } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { ScrollArea } from '../ui/scroll-area';
@@ -46,36 +45,22 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
 
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(teacherSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      contractType: undefined,
-      maxWeeklyHours: 40,
-      specialties: [],
-    },
+    defaultValues: teacher
+      ? {
+          name: teacher.name,
+          email: teacher.email,
+          contractType: teacher.contractType,
+          maxWeeklyHours: teacher.maxWeeklyHours,
+          specialties: teacher.specialties || [],
+        }
+      : {
+          name: '',
+          email: '',
+          contractType: undefined,
+          maxWeeklyHours: 40,
+          specialties: [],
+        },
   });
-
-  const { reset } = form;
-
-  useEffect(() => {
-    if (teacher) {
-        reset({
-            name: teacher.name,
-            email: teacher.email,
-            contractType: teacher.contractType,
-            maxWeeklyHours: teacher.maxWeeklyHours,
-            specialties: teacher.specialties || [],
-        });
-    } else {
-        reset({
-            name: '',
-            email: '',
-            contractType: undefined,
-            maxWeeklyHours: 40,
-            specialties: [],
-        });
-    }
-  }, [teacher, reset]);
 
   const onSubmit = async (data: TeacherFormValues) => {
     if (!firestore) return;
