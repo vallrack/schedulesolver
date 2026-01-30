@@ -96,7 +96,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4 max-h-[60vh] overflow-y-auto pr-2">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4 max-h-[70vh] overflow-y-auto pr-2">
         <FormField
           control={form.control}
           name="name"
@@ -196,65 +196,60 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0" align="start">
-                  <div className="p-2">
-                    <div className="text-sm font-medium text-muted-foreground px-2 pb-2">
-                      Selecciona los módulos que el docente puede impartir
-                    </div>
-                    <ScrollArea className="h-[240px]">
-                      <div className="space-y-1 p-2">
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <ScrollArea className="h-48">
+                        <div className="p-4">
                         {sortedModules.length === 0 ? (
-                          <div className="text-sm text-muted-foreground text-center py-4">
-                            No hay módulos disponibles
-                          </div>
+                            <div className="text-sm text-muted-foreground text-center py-4">
+                                No hay módulos disponibles
+                            </div>
                         ) : (
-                          sortedModules.map((module) => {
-                            const isSelected = field.value?.includes(module.id) || false;
-                            return (
-                              <div
-                                key={module.id}
-                                className="flex items-center space-x-3 rounded-md p-2 hover:bg-accent cursor-pointer"
-                                onClick={() => {
-                                  const currentValue = field.value || [];
-                                  if (isSelected) {
-                                    field.onChange(currentValue.filter(id => id !== module.id));
-                                  } else {
-                                    field.onChange([...currentValue, module.id]);
-                                  }
-                                }}
-                              >
-                                <Checkbox
-                                  checked={isSelected}
-                                  onCheckedChange={(checked) => {
+                            sortedModules.map((module) => {
+                                const isSelected = field.value?.includes(module.id) || false;
+                                return (
+                                <div
+                                    key={module.id}
+                                    className="flex items-center space-x-3 rounded-md p-2 hover:bg-accent cursor-pointer"
+                                    onClick={() => {
                                     const currentValue = field.value || [];
-                                    if (checked) {
-                                      field.onChange([...currentValue, module.id]);
+                                    if (isSelected) {
+                                        field.onChange(currentValue.filter(id => id !== module.id));
                                     } else {
-                                      field.onChange(currentValue.filter(id => id !== module.id));
+                                        field.onChange([...currentValue, module.id]);
                                     }
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium leading-none">
-                                    {module.name}
-                                  </div>
-                                  {module.code && (
-                                    <div className="text-xs text-muted-foreground mt-1">
-                                      {module.code}
+                                    }}
+                                >
+                                    <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={(checked) => {
+                                        const currentValue = field.value || [];
+                                        if (checked) {
+                                        field.onChange([...currentValue, module.id]);
+                                        } else {
+                                        field.onChange(currentValue.filter(id => id !== module.id));
+                                        }
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    />
+                                    <div className="flex-1">
+                                    <div className="text-sm font-medium leading-none">
+                                        {module.name}
                                     </div>
-                                  )}
+                                    {module.code && (
+                                        <div className="text-xs text-muted-foreground mt-1">
+                                        {module.code}
+                                        </div>
+                                    )}
+                                    </div>
+                                    {isSelected && (
+                                    <Check className="h-4 w-4 text-primary" />
+                                    )}
                                 </div>
-                                {isSelected && (
-                                  <Check className="h-4 w-4 text-primary" />
-                                )}
-                              </div>
-                            );
-                          })
+                                );
+                            })
                         )}
-                      </div>
+                        </div>
                     </ScrollArea>
-                  </div>
                 </PopoverContent>
               </Popover>
               
