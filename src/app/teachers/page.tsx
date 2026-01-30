@@ -21,6 +21,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { TeacherImportDialog } from '@/components/teachers/teacher-import-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 
 type TeacherWithHours = Teacher & { assignedHours: number };
@@ -189,17 +190,45 @@ export default function TeachersPage() {
             <TableCell className="hidden lg:table-cell">{teacher.email}</TableCell>
             <TableCell className="hidden md:table-cell">{teacher.contractType}</TableCell>
              <TableCell>
-              <div className='w-28'>
+              <div className='w-32'>
                 <Progress value={((teacher.assignedHours ?? 0) / teacher.maxWeeklyHours) * 100} className="h-2" />
                 <span className="text-xs text-muted-foreground">{teacher.assignedHours ?? 0} / {teacher.maxWeeklyHours}h</span>
               </div>
             </TableCell>
             <TableCell>
-              <div className="flex flex-wrap gap-1 max-w-xs">
-                {teacher.specialties?.map((specId: string) => {
-                  const module = modules?.find(s => s.id === specId);
-                  return <Badge key={specId} variant="secondary">{module?.name ?? 'Desconocido'}</Badge>;
+              <div className="flex flex-wrap items-center gap-1 max-w-xs">
+                {teacher.specialties?.slice(0, 2).map((specId: string) => {
+                    const module = modules?.find(s => s.id === specId);
+                    return module ? (
+                        <Badge key={specId} variant="secondary" className="whitespace-nowrap">
+                            {module.name}
+                        </Badge>
+                    ) : null;
                 })}
+                {teacher.specialties && teacher.specialties.length > 2 && (
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Badge variant="outline" className="cursor-pointer">
+                                +{teacher.specialties.length - 2} más
+                            </Badge>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80" align="start">
+                            <div className="space-y-2">
+                                <h4 className="font-medium leading-none">Especialidades</h4>
+                                <div className="flex flex-wrap gap-1">
+                                    {teacher.specialties.map((specId: string) => {
+                                        const module = modules?.find(s => s.id === specId);
+                                        return module ? (
+                                            <Badge key={specId} variant="secondary">
+                                                {module.name}
+                                            </Badge>
+                                        ) : null;
+                                    })}
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+                )}
               </div>
             </TableCell>
             <TableCell className="hidden sm:table-cell">
