@@ -27,6 +27,7 @@ export type Group = {
 export type Module = {
   id: string;
   name: string;
+  code?: string;
   description?: string;
   totalHours: number;
 }

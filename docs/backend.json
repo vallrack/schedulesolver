@@ -112,6 +112,10 @@
       "description": "Un módulo o materia genérica que se puede impartir en la institución.",
       "type": "object",
       "properties": {
+        "code": {
+          "type": "string",
+          "description": "El código o identificador único del módulo. E.g., 'PROG-101'."
+        },
         "name": {
           "type": "string",
           "description": "El nombre del módulo. E.g., 'Fundamentos de Programación'."

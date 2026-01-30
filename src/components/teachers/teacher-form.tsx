@@ -12,13 +12,14 @@ import type { Module, Teacher } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection, doc, setDoc } from 'firebase/firestore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ChevronsUpDown } from 'lucide-react';
+import { ChevronsUpDown, Check } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { ScrollArea } from '../ui/scroll-area';
 import { Checkbox } from '../ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 
 const teacherSchema = z.object({
@@ -42,27 +43,18 @@ interface TeacherFormProps {
 export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [open, setOpen] = React.useState(false);
+  const [specialtiesOpen, setSpecialtiesOpen] = React.useState(false);
 
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(teacherSchema),
-    defaultValues: teacher
-      ? {
-          name: teacher.name,
-          email: teacher.email,
-          contractType: teacher.contractType,
-          maxWeeklyHours: teacher.maxWeeklyHours,
-          specialties: teacher.specialties || [],
-        }
-      : {
-          name: '',
-          email: '',
-          contractType: 'Tiempo Completo', // Valor por defecto
-          maxWeeklyHours: 40,
-          specialties: [],
-        },
+    defaultValues: {
+      name: teacher?.name || '',
+      email: teacher?.email || '',
+      contractType: teacher?.contractType || 'Tiempo Completo',
+      maxWeeklyHours: teacher?.maxWeeklyHours || 40,
+      specialties: teacher?.specialties || [],
+    },
   });
-
 
   const onSubmit = async (data: TeacherFormValues) => {
     if (!firestore) return;
@@ -82,6 +74,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
           await addDoc(collectionRef, teacherData);
           toast({ title: 'Docente Añadido', description: `Se ha añadido a ${data.name}.` });
         }
+        form.reset();
         onSuccess();
     } catch (e) {
         const path = teacher ? `teachers/${teacher.id}` : 'teachers';
@@ -95,6 +88,12 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
     }
   };
 
+  // Ordenar módulos alfabéticamente
+  const sortedModules = React.useMemo(() => 
+    [...modules].sort((a, b) => a.name.localeCompare(b.name)),
+    [modules]
+  );
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4 max-h-[60vh] overflow-y-auto pr-2">
@@ -104,51 +103,69 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Nombre Completo</FormLabel>
-              <FormControl><Input {...field} /></FormControl>
+              <FormControl>
+                <Input {...field} placeholder="Ej: Juan Pérez" />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="email"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Correo Electrónico</FormLabel>
-              <FormControl><Input type="email" {...field} /></FormControl>
+              <FormControl>
+                <Input type="email" {...field} placeholder="Ej: juan.perez@ejemplo.com" />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="contractType"
           render={({ field }) => (
             <FormItem>
-                <FormLabel>Tipo de Contrato</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                    <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Selecciona un tipo" />
-                        </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        <SelectItem value="Tiempo Completo">Tiempo Completo</SelectItem>
-                        <SelectItem value="Medio Tiempo">Medio Tiempo</SelectItem>
-                        <SelectItem value="Por Horas">Por Horas</SelectItem>
-                    </SelectContent>
-                </Select>
-                <FormMessage />
+              <FormLabel>Tipo de Contrato</FormLabel>
+              <Select 
+                onValueChange={field.onChange} 
+                defaultValue={field.value}
+                value={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un tipo de contrato" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Tiempo Completo">Tiempo Completo</SelectItem>
+                  <SelectItem value="Medio Tiempo">Medio Tiempo</SelectItem>
+                  <SelectItem value="Por Horas">Por Horas</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="maxWeeklyHours"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Horas Semanales Máximas</FormLabel>
-              <FormControl><Input type="number" {...field} /></FormControl>
+              <FormControl>
+                <Input 
+                  type="number" 
+                  {...field} 
+                  placeholder="Ej: 40"
+                  min="1"
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -158,64 +175,134 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
           control={form.control}
           name="specialties"
           render={({ field }) => (
-            <FormItem>
-                <FormLabel>Especialidades (Módulos)</FormLabel>
-                <Popover open={open} onOpenChange={setOpen}>
-                    <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between" type="button">
-                            <span className="truncate">
-                            {field.value?.length ? `${field.value.length} seleccionado(s)` : "Seleccionar módulos..."}
-                            </span>
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                        <ScrollArea className="h-48">
-                            <div className="p-4">
-                            {[...modules].sort((a, b) => a.name.localeCompare(b.name)).map((module) => (
-                                <div key={module.id} className="flex flex-row items-center space-x-3 space-y-0 mb-2">
-                                  <Checkbox
-                                      checked={field.value?.includes(module.id)}
-                                      onCheckedChange={(checked) => {
-                                        const currentValue = field.value || [];
-                                        if (checked) {
-                                          field.onChange([...currentValue, module.id]);
-                                        } else {
-                                          field.onChange(currentValue.filter(value => value !== module.id));
-                                        }
-                                      }}
-                                  />
-                                  <label className="text-sm font-normal cursor-pointer flex-1" onClick={() => {
+            <FormItem className="flex flex-col">
+              <FormLabel>Especialidades (Módulos)</FormLabel>
+              <Popover open={specialtiesOpen} onOpenChange={setSpecialtiesOpen}>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      type="button"
+                      className={cn(
+                        "w-full justify-between",
+                        !field.value?.length && "text-muted-foreground"
+                      )}
+                    >
+                      {field.value?.length
+                        ? `${field.value.length} módulo${field.value.length > 1 ? 's' : ''} seleccionado${field.value.length > 1 ? 's' : ''}`
+                        : "Seleccionar módulos..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <div className="p-2">
+                    <div className="text-sm font-medium text-muted-foreground px-2 pb-2">
+                      Selecciona los módulos que el docente puede impartir
+                    </div>
+                    <ScrollArea className="h-[240px]">
+                      <div className="space-y-1 p-2">
+                        {sortedModules.length === 0 ? (
+                          <div className="text-sm text-muted-foreground text-center py-4">
+                            No hay módulos disponibles
+                          </div>
+                        ) : (
+                          sortedModules.map((module) => {
+                            const isSelected = field.value?.includes(module.id) || false;
+                            return (
+                              <div
+                                key={module.id}
+                                className="flex items-center space-x-3 rounded-md p-2 hover:bg-accent cursor-pointer"
+                                onClick={() => {
+                                  const currentValue = field.value || [];
+                                  if (isSelected) {
+                                    field.onChange(currentValue.filter(id => id !== module.id));
+                                  } else {
+                                    field.onChange([...currentValue, module.id]);
+                                  }
+                                }}
+                              >
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={(checked) => {
                                     const currentValue = field.value || [];
-                                    const isChecked = currentValue.includes(module.id);
-                                    if (isChecked) {
-                                      field.onChange(currentValue.filter(value => value !== module.id));
-                                    } else {
+                                    if (checked) {
                                       field.onChange([...currentValue, module.id]);
+                                    } else {
+                                      field.onChange(currentValue.filter(id => id !== module.id));
                                     }
-                                  }}>
-                                      {module.name}
-                                  </label>
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium leading-none">
+                                    {module.name}
+                                  </div>
+                                  {module.code && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      {module.code}
+                                    </div>
+                                  )}
                                 </div>
-                            ))}
-                            </div>
-                        </ScrollArea>
-                    </PopoverContent>
-                </Popover>
-                <div className="pt-2 flex flex-wrap gap-1">
-                    {field.value?.map(id => {
-                        const module = modules.find(s => s.id === id);
-                        return module ? <Badge key={id} variant="secondary">{module.name}</Badge> : null;
-                    })}
+                                {isSelected && (
+                                  <Check className="h-4 w-4 text-primary" />
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              
+              {field.value && field.value.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {field.value.map(id => {
+                    const module = modules.find(m => m.id === id);
+                    return module ? (
+                      <Badge 
+                        key={id} 
+                        variant="secondary"
+                        className="cursor-pointer hover:bg-secondary/80"
+                        onClick={() => {
+                          field.onChange(field.value?.filter(selectedId => selectedId !== id));
+                        }}
+                      >
+                        {module.name}
+                        <span className="ml-1 text-xs">×</span>
+                      </Badge>
+                    ) : null;
+                  })}
                 </div>
-                <FormMessage />
+              )}
+              <FormMessage />
             </FormItem>
           )}
         />
 
-        <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
-          {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Docente'}
-        </Button>
+        <div className="flex gap-2 pt-4">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => {
+              form.reset();
+              onSuccess();
+            }}
+            className="flex-1"
+          >
+            Cancelar
+          </Button>
+          <Button 
+            type="submit" 
+            disabled={form.formState.isSubmitting}
+            className="flex-1"
+          >
+            {form.formState.isSubmitting ? 'Guardando...' : (teacher ? 'Actualizar' : 'Guardar')}
+          </Button>
+        </div>
       </form>
     </Form>
   );
