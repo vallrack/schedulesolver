@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -45,22 +46,35 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
 
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(teacherSchema),
-    defaultValues: teacher
-      ? {
-          name: teacher.name,
-          email: teacher.email,
-          contractType: teacher.contractType,
-          maxWeeklyHours: teacher.maxWeeklyHours,
-          specialties: teacher.specialties || [],
-        }
-      : {
-          name: '',
-          email: '',
-          contractType: undefined,
-          maxWeeklyHours: 40,
-          specialties: [],
-        },
+    defaultValues: {
+      name: '',
+      email: '',
+      contractType: undefined,
+      maxWeeklyHours: 40,
+      specialties: [],
+    },
   });
+
+  React.useEffect(() => {
+    if (teacher) {
+      form.reset({
+        name: teacher.name,
+        email: teacher.email,
+        contractType: teacher.contractType,
+        maxWeeklyHours: teacher.maxWeeklyHours,
+        specialties: teacher.specialties || [],
+      });
+    } else {
+      form.reset({
+        name: '',
+        email: '',
+        contractType: undefined,
+        maxWeeklyHours: 40,
+        specialties: [],
+      });
+    }
+  }, [teacher, form.reset]);
+
 
   const onSubmit = async (data: TeacherFormValues) => {
     if (!firestore) return;

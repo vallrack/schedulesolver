@@ -283,7 +283,6 @@ export default function TeachersPage() {
                     </DialogDescription>
                 </DialogHeader>
                 <TeacherForm 
-                    key={editingTeacher?.id || 'new-teacher'}
                     teacher={editingTeacher} 
                     modules={modules || []} 
                     onSuccess={() => setDialogOpen(false)} 
