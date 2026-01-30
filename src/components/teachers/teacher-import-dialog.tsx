@@ -1,298 +1,347 @@
 'use client';
 
-import { useState } from 'react';
-import * as XLSX from 'xlsx';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import * as React from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { Download, Upload, FileText } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import type { Module } from '@/lib/types';
 import { useFirestore } from '@/firebase';
-import { writeBatch, collection, doc } from 'firebase/firestore';
-import type { Teacher, Module } from '@/lib/types';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { ScrollArea } from '../ui/scroll-area';
-import { AlertCircle, CheckCircle, UploadCloud, Loader2, Download } from 'lucide-react';
-import { Badge } from '../ui/badge';
-
-type ParsedTeacher = Omit<Teacher, 'id' | 'specialties' | 'status' | 'availability'> & {
-    specialties: string; // Comma-separated names
-    isValid: boolean;
-    errors: string[];
-};
+import { collection, addDoc, writeBatch } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface TeacherImportDialogProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    onSuccess: () => void;
-    modules: Module[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+  modules: Module[];
+}
+
+interface TeacherRow {
+  Nombre: string;
+  Email: string;
+  'Tipo de Contrato': 'Tiempo Completo' | 'Medio Tiempo' | 'Por Horas';
+  'Horas Semanales Máximas': number;
+  'Especialidades (IDs separados por comas)': string;
+  [key: string]: any;
 }
 
 export function TeacherImportDialog({ open, onOpenChange, onSuccess, modules }: TeacherImportDialogProps) {
-    const firestore = useFirestore();
-    const { toast } = useToast();
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [parsedData, setParsedData] = useState<ParsedTeacher[]>([]);
-    const [fileName, setFileName] = useState('');
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const [file, setFile] = React.useState<File | null>(null);
+  const [importing, setImporting] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-    const resetState = () => {
-        setParsedData([]);
-        setFileName('');
-        setIsProcessing(false);
-        setIsSaving(false);
+  const handleDownloadTemplate = () => {
+    const instructionsData = [
+      ['INSTRUCCIONES PARA IMPORTAR DOCENTES'],
+      [''],
+      ['1. Complete la información en la hoja "Docentes"'],
+      ['2. Para las especialidades, use los IDs de la hoja "Módulos Disponibles"'],
+      ['3. Los IDs deben estar separados por comas (ejemplo: mod1,mod2,mod3)'],
+      ['4. El tipo de contrato debe ser exactamente: "Tiempo Completo", "Medio Tiempo" o "Por Horas"'],
+      ['5. Guarde el archivo y súbalo usando el botón "Seleccionar Archivo"'],
+    ];
+
+    const exampleData: TeacherRow[] = [
+      {
+        'Nombre': 'Juan Pérez',
+        'Email': 'juan.perez@ejemplo.com',
+        'Tipo de Contrato': 'Tiempo Completo',
+        'Horas Semanales Máximas': 40,
+        'Especialidades (IDs separados por comas)': modules.slice(0, 2).map(m => m.id).join(','),
+      },
+      {
+        'Nombre': 'María García',
+        'Email': 'maria.garcia@ejemplo.com',
+        'Tipo de Contrato': 'Medio Tiempo',
+        'Horas Semanales Máximas': 20,
+        'Especialidades (IDs separados por comas)': modules.slice(0, 1).map(m => m.id).join(','),
+      },
+    ];
+
+    const modulesData = [
+      ['ID del Módulo', 'Nombre del Módulo', 'Descripción'],
+      ...modules.map(module => [
+        module.id,
+        module.name,
+        `Use este ID para asignar el módulo "${module.name}" a un docente`,
+      ]),
+    ];
+
+    const wb = XLSX.utils.book_new();
+
+    const wsInstructions = XLSX.utils.aoa_to_sheet(instructionsData);
+    XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instrucciones');
+
+    const wsTeachers = XLSX.utils.json_to_sheet(exampleData);
+    XLSX.utils.book_append_sheet(wb, wsTeachers, 'Docentes');
+
+    const wsModules = XLSX.utils.aoa_to_sheet(modulesData);
+    XLSX.utils.book_append_sheet(wb, wsModules, 'Módulos Disponibles');
+
+    const maxWidths = {
+      instructions: [{ wch: 80 }],
+      teachers: [
+        { wch: 25 }, 
+        { wch: 30 }, 
+        { wch: 20 }, 
+        { wch: 25 },
+        { wch: 40 },
+      ],
+      modules: [
+        { wch: 25 },
+        { wch: 30 },
+        { wch: 50 },
+      ],
+    };
+
+    wsInstructions['!cols'] = maxWidths.instructions;
+    wsTeachers['!cols'] = maxWidths.teachers;
+    wsModules['!cols'] = maxWidths.modules;
+
+    XLSX.writeFile(wb, 'plantilla_docentes.xlsx');
+    
+    toast({
+      title: 'Plantilla Descargada',
+      description: 'La plantilla con los módulos del sistema ha sido descargada exitosamente.',
+    });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (!selectedFile.name.endsWith('.xlsx') && !selectedFile.name.endsWith('.xls')) {
+        toast({
+          variant: 'destructive',
+          title: 'Formato Inválido',
+          description: 'Por favor selecciona un archivo Excel (.xlsx o .xls)',
+        });
+        return;
+      }
+      setFile(selectedFile);
     }
-    
-    const allowedContractTypes: Teacher['contractType'][] = ['Tiempo Completo', 'Medio Tiempo', 'Por Horas'];
+  };
 
-    const handleDownloadTemplate = () => {
-        const headers = [['name', 'email', 'contractType', 'maxWeeklyHours', 'specialties']];
-        const exampleData = [
-            ['Juan Pérez', 'juan.perez@example.com', 'Tiempo Completo', 40, 'Fundamentos de Programación, Bases de Datos'],
-            ['Maria Rodriguez', 'maria.r@example.com', 'Por Horas', 10, 'Diseño Web'],
-        ];
-        const ws = XLSX.utils.aoa_to_sheet([...headers, ...exampleData]);
-        
-        ws['!cols'] = [ { wch: 25 }, { wch: 30 }, { wch: 20 }, { wch: 15 }, { wch: 50 } ];
+  const validateContractType = (value: string): 'Tiempo Completo' | 'Medio Tiempo' | 'Por Horas' | null => {
+    const normalized = value?.trim();
+    if (normalized === 'Tiempo Completo') return 'Tiempo Completo';
+    if (normalized === 'Medio Tiempo') return 'Medio Tiempo';
+    if (normalized === 'Por Horas') return 'Por Horas';
+    return null;
+  };
 
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
-        XLSX.writeFile(wb, 'plantilla_docentes.xlsx');
-    };
+  const handleImport = async () => {
+    if (!file || !firestore) return;
 
-    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
+    setImporting(true);
 
-        resetState();
-        setIsProcessing(true);
-        setFileName(file.name);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      
+      const sheetName = workbook.SheetNames.find(name => 
+        name.toLowerCase().includes('docente') || name.toLowerCase().includes('teacher')
+      ) || workbook.SheetNames[0];
+      
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData: TeacherRow[] = XLSX.utils.sheet_to_json(worksheet);
+
+      if (jsonData.length === 0) {
+        toast({
+          variant: 'destructive',
+          title: 'Archivo Vacío',
+          description: 'No se encontraron docentes en el archivo.',
+        });
+        setImporting(false);
+        return;
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      const teachersCollection = collection(firestore, 'teachers');
+      const batch = writeBatch(firestore);
+
+      for (let i = 0; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        const rowNum = i + 2;
 
         try {
-            const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data, { type: 'buffer' });
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
-            const json = XLSX.utils.sheet_to_json<any>(worksheet);
+          if (!row.Nombre?.trim()) {
+            errors.push(`Fila ${rowNum}: Falta el nombre`);
+            errorCount++;
+            continue;
+          }
 
-            const moduleNameMap = new Map(modules.map(m => [m.name.toLowerCase(), m.id]));
+          if (!row.Email?.trim()) {
+            errors.push(`Fila ${rowNum}: Falta el email`);
+            errorCount++;
+            continue;
+          }
 
-            const processedData = json.map(row => {
-                const lowerCaseRow = Object.keys(row).reduce((acc, key) => {
-                    acc[key.toLowerCase().trim()] = row[key];
-                    return acc;
-                }, {} as {[key: string]: any});
+          const contractType = validateContractType(row['Tipo de Contrato']);
+          if (!contractType) {
+            errors.push(`Fila ${rowNum}: Tipo de contrato inválido. Debe ser "Tiempo Completo", "Medio Tiempo" o "Por Horas"`);
+            errorCount++;
+            continue;
+          }
 
-                const name = String(lowerCaseRow['name'] || '').trim();
-                const email = String(lowerCaseRow['email'] || '').trim();
-                const contractType = String(lowerCaseRow['contracttype'] || '').trim();
-                const maxWeeklyHours = parseInt(String(lowerCaseRow['maxweeklyhours'] || 0), 10);
-                const specialties = String(lowerCaseRow['specialties'] || '').trim();
-                
-                const teacher: ParsedTeacher = {
-                    name,
-                    email,
-                    contractType: 'Por Horas', // default
-                    maxWeeklyHours,
-                    specialties,
-                    isValid: true,
-                    errors: [],
-                };
-                
-                if (!name) {
-                    teacher.isValid = false;
-                    teacher.errors.push('La columna "name" no puede estar vacía.');
-                }
-                if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
-                    teacher.isValid = false;
-                    teacher.errors.push('El "email" no es válido.');
-                }
-                if (!allowedContractTypes.find(c => c.toLowerCase() === contractType.toLowerCase())) {
-                    teacher.isValid = false;
-                    teacher.errors.push('El "contractType" no es válido.');
-                } else {
-                    // Find the correct case version of the contract type
-                    teacher.contractType = allowedContractTypes.find(c => c.toLowerCase() === contractType.toLowerCase())!;
-                }
+          const maxHours = Number(row['Horas Semanales Máximas']);
+          if (isNaN(maxHours) || maxHours <= 0) {
+            errors.push(`Fila ${rowNum}: Horas semanales inválidas`);
+            errorCount++;
+            continue;
+          }
 
-                if (isNaN(maxWeeklyHours) || maxWeeklyHours <= 0) {
-                    teacher.isValid = false;
-                    teacher.errors.push('Las "maxWeeklyHours" deben ser un número positivo.');
-                }
-                
-                const specialtyNames = specialties.split(',').map(s => s.trim()).filter(Boolean);
-                specialtyNames.forEach(specName => {
-                    if (!moduleNameMap.has(specName.toLowerCase())) {
-                        teacher.isValid = false;
-                        teacher.errors.push(`Especialidad "${specName}" no encontrada.`);
-                    }
-                });
+          let specialties: string[] = [];
+          if (row['Especialidades (IDs separados por comas)']?.trim()) {
+            const specialtyIds = row['Especialidades (IDs separados por comas)']
+              .toString()
+              .split(',')
+              .map((id: string) => id.trim())
+              .filter((id: string) => id);
 
+            const invalidIds = specialtyIds.filter(
+              id => !modules.find(m => m.id === id)
+            );
 
-                return teacher;
-            });
-            
-            setParsedData(processedData);
-
-        } catch (error) {
-            console.error(error);
-            toast({
-                variant: 'destructive',
-                title: 'Error al procesar el archivo',
-                description: 'Asegúrate de que es un archivo .xlsx, .xls o .csv válido y que sigue el formato correcto.',
-            });
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-    
-    const handleSave = async () => {
-        if (!firestore) return;
-        const validData = parsedData.filter(d => d.isValid);
-        if (validData.length === 0) {
-             toast({
-                variant: 'destructive',
-                title: 'No hay datos válidos para guardar',
-                description: 'Revisa la vista previa y corrige los errores en tu archivo.',
-            });
-            return;
-        }
-
-        setIsSaving(true);
-        try {
-            const batch = writeBatch(firestore);
-            const teachersCol = collection(firestore, 'teachers');
-            const moduleNameMap = new Map(modules.map(m => [m.name.toLowerCase(), m.id]));
-            
-            validData.forEach(teacher => {
-                const newDocRef = doc(teachersCol);
-                const specialtyIds = teacher.specialties
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(Boolean)
-                    .map(specName => moduleNameMap.get(specName.toLowerCase()))
-                    .filter((id): id is string => !!id);
-
-                const teacherData: Omit<Teacher, 'id'> = {
-                    name: teacher.name,
-                    email: teacher.email,
-                    contractType: teacher.contractType,
-                    maxWeeklyHours: teacher.maxWeeklyHours,
-                    specialties: specialtyIds,
-                    availability: [],
-                    status: 'active'
-                };
-                batch.set(newDocRef, teacherData);
-            });
-            
-            await batch.commit();
-
-            toast({
-                title: '¡Importación Exitosa!',
-                description: `Se han guardado ${validData.length} nuevos docentes.`,
-            });
-            onSuccess();
-        } catch (error) {
-             console.error(error);
-             toast({
-                variant: 'destructive',
-                title: 'Error al guardar los datos',
-                description: 'Ocurrió un error al intentar guardar en la base de datos.',
-            });
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={(isOpen) => {
-            if (!isOpen) {
-                resetState();
+            if (invalidIds.length > 0) {
+              errors.push(`Fila ${rowNum}: IDs de módulos inválidos: ${invalidIds.join(', ')}`);
+              errorCount++;
+              continue;
             }
-            onOpenChange(isOpen);
-        }}>
-            <DialogContent className="max-w-4xl flex flex-col max-h-[80vh]">
-                <DialogHeader>
-                    <DialogTitle>Importar Docentes desde Archivo</DialogTitle>
-                    <DialogDescription>
-                        Sube un archivo Excel (.xlsx, .xls) o CSV con las columnas: <strong>name</strong>, <strong>email</strong>, <strong>contractType</strong>, <strong>maxWeeklyHours</strong>, y <strong>specialties</strong> (opcional).
-                        Las especialidades deben ser nombres de módulos separados por comas.
-                    </DialogDescription>
-                    <div className="pt-2">
-                        <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
-                            <Download className="mr-2 h-4 w-4" />
-                            Descargar Plantilla
-                        </Button>
-                    </div>
-                </DialogHeader>
-                
-                <div className="flex-1 overflow-y-auto -mx-6 px-6">
-                    <div className="py-4 space-y-6">
-                        <div className="flex items-center justify-center w-full px-6">
-                            <label htmlFor="dropzone-file-teacher" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-background/80">
-                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                    <UploadCloud className="w-8 h-8 mb-4 text-muted-foreground" />
-                                    <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Haz clic para subir</span> o arrastra y suelta</p>
-                                    <p className="text-xs text-muted-foreground">XLSX, XLS o CSV</p>
-                                    {fileName && <p className="mt-4 text-xs font-semibold text-primary">{fileName}</p>}
-                                </div>
-                                <Input id="dropzone-file-teacher" type="file" className="hidden" onChange={handleFileChange} accept=".xlsx, .xls, .csv" />
-                            </label>
-                        </div>
 
-                        {isProcessing && <div className="flex items-center justify-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Procesando archivo...</div>}
-                        
-                        {parsedData.length > 0 && (
-                            <div className="px-6">
-                                <h3 className="mb-2 font-semibold">Vista Previa de la Importación</h3>
-                                <ScrollArea className="h-64 border rounded-md">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead className="w-12">Estado</TableHead>
-                                                <TableHead>name</TableHead>
-                                                <TableHead>email</TableHead>
-                                                <TableHead>contractType</TableHead>
-                                                <TableHead>Horas</TableHead>
-                                                <TableHead>Especialidades</TableHead>
-                                                <TableHead>Errores</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {parsedData.map((row, index) => (
-                                                <TableRow key={index} className={!row.isValid ? 'bg-destructive/10' : ''}>
-                                                    <TableCell className="text-center">
-                                                        {row.isValid ? 
-                                                            <CheckCircle className="h-5 w-5 text-green-500" /> : 
-                                                            <AlertCircle className="h-5 w-5 text-destructive" />
-                                                        }
-                                                    </TableCell>
-                                                    <TableCell>{row.name}</TableCell>
-                                                    <TableCell>{row.email}</TableCell>
-                                                    <TableCell><Badge variant="secondary">{row.contractType}</Badge></TableCell>
-                                                    <TableCell>{row.maxWeeklyHours}</TableCell>
-                                                    <TableCell className="max-w-[200px] truncate">{row.specialties}</TableCell>
-                                                    <TableCell className="text-destructive text-xs">{row.errors.join(', ')}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </ScrollArea>
-                                <p className="text-sm mt-2 text-muted-foreground">
-                                    Se importarán <span className="font-bold text-foreground">{parsedData.filter(r => r.isValid).length}</span> de <span className="font-bold text-foreground">{parsedData.length}</span> registros. Las filas con errores serán ignoradas.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </div>
+            specialties = specialtyIds;
+          }
 
-                <DialogFooter className="pt-6">
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                    <Button onClick={handleSave} disabled={isSaving || isProcessing || parsedData.filter(r => r.isValid).length === 0}>
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Guardar {parsedData.filter(r => r.isValid).length} Docentes
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
+          const teacherData = {
+            name: row.Nombre.trim(),
+            email: row.Email.trim().toLowerCase(),
+            contractType,
+            maxWeeklyHours: maxHours,
+            specialties,
+            status: 'active' as const,
+            availability: [],
+          };
+
+          const docRef = doc(teachersCollection);
+          batch.set(docRef, teacherData);
+          successCount++;
+        } catch (e) {
+          errors.push(`Fila ${rowNum}: Error al procesar - ${e instanceof Error ? e.message : 'Error desconocido'}`);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+          await batch.commit();
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: 'Importación Completada',
+          description: `${successCount} docente(s) importado(s) exitosamente${errorCount > 0 ? `. ${errorCount} error(es).` : '.'}`,
+        });
+      }
+
+      if (errors.length > 0) {
+        console.error('Errores de importación:', errors);
+        toast({
+          variant: 'destructive',
+          title: `${errorCount} Error(es) de Importación`,
+          description: errors.slice(0, 3).join('; ') + (errors.length > 3 ? '...' : ''),
+        });
+      }
+
+      if (successCount > 0) {
+        setFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        onSuccess();
+      }
+    } catch (e) {
+      console.error('Error al procesar archivo:', e);
+      const permissionError = new FirestorePermissionError({
+          path: 'teachers',
+          operation: 'create',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Importar Docentes desde Excel</DialogTitle>
+          <DialogDescription>
+            Descarga la plantilla, complétala con los datos de los docentes y súbela para importarlos al sistema.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Paso 1: Descarga la plantilla de Excel
+            </p>
+            <Button
+              onClick={handleDownloadTemplate}
+              variant="outline"
+              className="w-full"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Descargar Plantilla con Módulos
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Paso 2: Completa la plantilla y sube el archivo
+            </p>
+            <Input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileChange}
+              disabled={importing}
+            />
+            {file && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <FileText className="h-4 w-4" />
+                <span className="truncate">{file.name}</span>
+              </div>
+            )}
+          </div>
+
+          <Button
+            onClick={handleImport}
+            disabled={!file || importing}
+            className="w-full"
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            {importing ? 'Importando...' : 'Importar Docentes'}
+          </Button>
+
+          <div className="text-xs text-muted-foreground space-y-1 border-t pt-2">
+            <p className="font-semibold">Notas importantes:</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>La plantilla incluye todos los módulos actuales del sistema</li>
+              <li>Use los IDs exactos de la hoja "Módulos Disponibles"</li>
+              <li>Separe múltiples IDs con comas (sin espacios adicionales)</li>
+              <li>El tipo de contrato debe escribirse exactamente como se muestra</li>
+            </ul>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }

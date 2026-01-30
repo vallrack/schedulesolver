@@ -46,21 +46,13 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
 
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(teacherSchema),
-    defaultValues: teacher
-      ? {
-          name: teacher.name,
-          email: teacher.email,
-          contractType: teacher.contractType,
-          maxWeeklyHours: teacher.maxWeeklyHours,
-          specialties: teacher.specialties || [],
-        }
-      : {
-          name: '',
-          email: '',
-          contractType: undefined,
-          maxWeeklyHours: 40,
-          specialties: [],
-        },
+    defaultValues: {
+      name: teacher?.name ?? '',
+      email: teacher?.email ?? '',
+      contractType: teacher?.contractType,
+      maxWeeklyHours: teacher?.maxWeeklyHours ?? 40,
+      specialties: teacher?.specialties ?? [],
+    },
   });
 
 
