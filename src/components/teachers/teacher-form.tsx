@@ -177,7 +177,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Especialidades (Módulos)</FormLabel>
-              <Popover open={specialtiesOpen} onOpenChange={setSpecialtiesOpen}>
+              <Popover open={specialtiesOpen} onOpenChange={setSpecialtiesOpen} modal={false}>
                 <PopoverTrigger asChild>
                   <FormControl>
                     <Button
@@ -196,11 +196,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent 
-                  className="w-[400px] p-0" 
-                  align="start"
-                  onPointerDownOutside={(e) => e.preventDefault()}
-                >
+                <PopoverContent className="w-[400px] p-0" align="start">
                   <div className="p-2">
                     <div className="text-sm font-medium text-muted-foreground px-2 pb-2">
                       Selecciona los módulos que el docente puede impartir
