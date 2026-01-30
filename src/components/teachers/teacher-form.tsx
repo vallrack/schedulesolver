@@ -196,7 +196,11 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0" align="start">
+                <PopoverContent 
+                  className="w-[400px] p-0" 
+                  align="start"
+                  onPointerDownOutside={(e) => e.preventDefault()}
+                >
                   <div className="p-2">
                     <div className="text-sm font-medium text-muted-foreground px-2 pb-2">
                       Selecciona los módulos que el docente puede impartir
