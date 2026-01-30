@@ -55,9 +55,11 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
     },
   });
 
+  const { reset } = form;
+
   useEffect(() => {
     if (teacher) {
-        form.reset({
+        reset({
             name: teacher.name,
             email: teacher.email,
             contractType: teacher.contractType,
@@ -65,7 +67,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
             specialties: teacher.specialties || [],
         });
     } else {
-        form.reset({
+        reset({
             name: '',
             email: '',
             contractType: undefined,
@@ -73,7 +75,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
             specialties: [],
         });
     }
-  }, [teacher, form]);
+  }, [teacher, reset]);
 
   const onSubmit = async (data: TeacherFormValues) => {
     if (!firestore) return;
