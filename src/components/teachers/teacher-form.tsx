@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { ScrollArea } from '../ui/scroll-area';
@@ -29,6 +29,7 @@ const teacherSchema = z.object({
     required_error: 'Debes seleccionar un tipo de contrato.',
   }),
   maxWeeklyHours: z.coerce.number().min(1, { message: 'Debe ser un número positivo.' }),
+  specialties: z.array(z.string()).optional(),
 });
 
 type TeacherFormValues = z.infer<typeof teacherSchema>;
@@ -42,12 +43,6 @@ interface TeacherFormProps {
 export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
-
-  useEffect(() => {
-    setSelectedSpecialties(teacher?.specialties || []);
-  }, [teacher]);
-
 
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(teacherSchema),
@@ -55,7 +50,8 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
       name: '',
       email: '',
       contractType: undefined,
-      maxWeeklyHours: 0,
+      maxWeeklyHours: 40,
+      specialties: [],
     },
   });
 
@@ -66,6 +62,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
             email: teacher.email,
             contractType: teacher.contractType,
             maxWeeklyHours: teacher.maxWeeklyHours,
+            specialties: teacher.specialties || [],
         });
     } else {
         form.reset({
@@ -73,6 +70,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
             email: '',
             contractType: undefined,
             maxWeeklyHours: 40,
+            specialties: [],
         });
     }
   }, [teacher, form]);
@@ -81,18 +79,16 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
     if (!firestore) return;
     const teacherData = { 
         ...data,
-        specialties: selectedSpecialties,
-        status: teacher?.status || 'active' 
+        status: teacher?.status || 'active',
+        availability: teacher?.availability || [],
     };
 
     try {
         if (teacher) {
-          // Update existing teacher
           const teacherRef = doc(firestore, 'teachers', teacher.id);
           await setDoc(teacherRef, teacherData, { merge: true });
           toast({ title: 'Docente Actualizado', description: `Se ha actualizado a ${data.name}.` });
         } else {
-          // Create new teacher
           const collectionRef = collection(firestore, 'teachers');
           await addDoc(collectionRef, teacherData);
           toast({ title: 'Docente Añadido', description: `Se ha añadido a ${data.name}.` });
@@ -141,7 +137,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
           render={({ field }) => (
             <FormItem>
                 <FormLabel>Tipo de Contrato</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                         <SelectTrigger>
                             <SelectValue placeholder="Selecciona un tipo" />
@@ -169,52 +165,59 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
           )}
         />
 
-        <FormItem>
-            <FormLabel>Especialidades (Módulos)</FormLabel>
-            <Popover modal={true}>
-                <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between">
-                        <span className="truncate">
-                        {selectedSpecialties.length > 0 ? `${selectedSpecialties.length} seleccionado(s)` : "Seleccionar módulos..."}
-                        </span>
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <ScrollArea className="h-48">
-                        <div className="p-4">
-                        {[...modules].sort((a, b) => a.name.localeCompare(b.name)).map((module) => (
-                            <div key={module.id} className="flex items-center space-x-2 mb-2">
-                                <Checkbox
-                                    id={`specialty-${module.id}`}
-                                    checked={selectedSpecialties.includes(module.id)}
-                                    onCheckedChange={(checked) => {
-                                        setSelectedSpecialties(prev => 
-                                            checked 
-                                                ? [...prev, module.id] 
-                                                : prev.filter(id => id !== module.id)
-                                        );
-                                    }}
-                                />
-                                <label
-                                    htmlFor={`specialty-${module.id}`}
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                    {module.name}
-                                </label>
+        <FormField
+          control={form.control}
+          name="specialties"
+          render={({ field }) => (
+            <FormItem>
+                <FormLabel>Especialidades (Módulos)</FormLabel>
+                <Popover modal={true}>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between">
+                            <span className="truncate">
+                            {field.value?.length ? `${field.value.length} seleccionado(s)` : "Seleccionar módulos..."}
+                            </span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <ScrollArea className="h-48">
+                            <div className="p-4">
+                            {[...modules].sort((a, b) => a.name.localeCompare(b.name)).map((module) => (
+                                <FormItem key={module.id} className="flex flex-row items-center space-x-3 space-y-0 mb-2">
+                                  <FormControl>
+                                    <Checkbox
+                                        checked={field.value?.includes(module.id)}
+                                        onCheckedChange={(checked) => {
+                                          return checked
+                                            ? field.onChange([...(field.value || []), module.id])
+                                            : field.onChange(
+                                                (field.value || []).filter(
+                                                  (value) => value !== module.id
+                                                )
+                                              )
+                                        }}
+                                    />
+                                    </FormControl>
+                                    <FormLabel className="text-sm font-normal">
+                                        {module.name}
+                                    </FormLabel>
+                                </FormItem>
+                            ))}
                             </div>
-                        ))}
-                        </div>
-                    </ScrollArea>
-                </PopoverContent>
-            </Popover>
-            <div className="pt-2 flex flex-wrap gap-1">
-                {selectedSpecialties.map(id => {
-                    const module = modules.find(s => s.id === id);
-                    return module ? <Badge key={id} variant="secondary">{module.name}</Badge> : null;
-                })}
-            </div>
-        </FormItem>
+                        </ScrollArea>
+                    </PopoverContent>
+                </Popover>
+                <div className="pt-2 flex flex-wrap gap-1">
+                    {field.value?.map(id => {
+                        const module = modules.find(s => s.id === id);
+                        return module ? <Badge key={id} variant="secondary">{module.name}</Badge> : null;
+                    })}
+                </div>
+                <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
           {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Docente'}
