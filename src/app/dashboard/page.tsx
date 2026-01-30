@@ -131,12 +131,12 @@ export default function DashboardPage() {
 
 
     const coursesWithDetails: CourseWithDetails[] = useMemo(() => {
-        if (!allDataLoaded) return [];
-        return courses!.map(course => {
-            const module = modules!.find(m => m.id === course.moduleId);
-            const group = groups!.find(g => g.id === course.groupId);
+        if (!allDataLoaded || !courses || !modules || !groups || !careers) return [];
+        return courses.map(course => {
+            const module = modules.find(m => m.id === course.moduleId);
+            const group = groups.find(g => g.id === course.groupId);
             if (!group || !module) return null;
-            const career = careers!.find(c => c.id === group.careerId);
+            const career = careers.find(c => c.id === group.careerId);
 
             return {
                 ...course,
@@ -148,7 +148,7 @@ export default function DashboardPage() {
     }, [allDataLoaded, courses, modules, groups, careers]);
     
     const { groupedScheduledClasses, unscheduledCourses } = useMemo(() => {
-        if (!allDataLoaded) return { groupedScheduledClasses: {}, unscheduledCourses: [] };
+        if (!allDataLoaded || !coursesWithDetails || !scheduleEvents || !teachers || !classrooms) return { groupedScheduledClasses: {}, unscheduledCourses: [] };
     
         const monthStart = startOfMonth(currentDate);
         const monthEnd = endOfMonth(currentDate);
@@ -163,7 +163,7 @@ export default function DashboardPage() {
 
         const tempGroupedClasses: { [key: string]: { events: ScheduleEvent[], days: string[] } } = {};
         
-        scheduleEvents!.forEach(event => {
+        scheduleEvents.forEach(event => {
             const course = coursesWithDetails.find(c => c.id === event.courseId);
             if (!course) return;
         
@@ -185,9 +185,10 @@ export default function DashboardPage() {
         const dayOrder = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
         const finalScheduledClasses: GroupedClassInfo[] = Object.values(tempGroupedClasses).map(group => {
             const firstEvent = group.events[0];
-            const course = coursesWithDetails.find(c => c.id === firstEvent.courseId)!;
-            const teacher = teachers!.find(t => t.id === firstEvent.teacherId);
-            const classroom = classrooms!.find(c => c.id === firstEvent.classroomId);
+            const course = coursesWithDetails.find(c => c.id === firstEvent.courseId);
+            if (!course) return null;
+            const teacher = teachers.find(t => t.id === firstEvent.teacherId);
+            const classroom = classrooms.find(c => c.id === firstEvent.classroomId);
 
             return {
                 scheduleEventIds: group.events.map(e => e.id),
@@ -200,7 +201,7 @@ export default function DashboardPage() {
                 endTime: firstEvent.endTime,
                 days: group.days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b)),
             };
-        });
+        }).filter((c): c is GroupedClassInfo => c !== null);
     
         const grouped = finalScheduledClasses.reduce((acc, currentClass) => {
           const key = currentClass.moduleName;
@@ -351,7 +352,7 @@ export default function DashboardPage() {
                         const isTodayDate = date.toDateString() === new Date().toDateString();
                         const dayOfWeek = dayOfWeekMap[date.getDay()];
                         
-                        const scheduledCoursesForDay = coursesWithDetails.map(course => {
+                        const scheduledCoursesForDay = (coursesWithDetails || []).map(course => {
                             const dateStr = toISODateString(date);
                             const courseStartDate = course.startDate.split('T')[0];
                             const courseEndDate = course.endDate.split('T')[0];
@@ -503,15 +504,17 @@ export default function DashboardPage() {
         const dayOfWeek = dayOfWeekMap[selectedDate.getDay()];
     
         const eventsForDay = useMemo(() => {
-            if (!allDataLoaded) return [];
+            if (!allDataLoaded || !scheduleEvents || !courses || !modules || !teachers || !classrooms || !groups || !careers) {
+                return [];
+            }
             
             const selectedDateStr = toISODateString(selectedDate);
     
-            return scheduleEvents!
+            return scheduleEvents
                 .filter(event => {
                     if (event.day !== dayOfWeek) return false;
                     
-                    const course = courses!.find(c => c.id === event.courseId);
+                    const course = courses.find(c => c.id === event.courseId);
                     if (!course) return false;
                     
                     const courseStartDateStr = course.startDate.split('T')[0];
@@ -520,12 +523,18 @@ export default function DashboardPage() {
                     return selectedDateStr >= courseStartDateStr && selectedDateStr <= courseEndDateStr;
                 })
                 .map(event => {
-                    const course = courses!.find(c => c.id === event.courseId)!;
-                    const module = modules!.find(m => m.id === course.moduleId)!;
-                    const teacher = teachers!.find(t => t.id === event.teacherId)!;
-                    const classroom = classrooms!.find(c => c.id === event.classroomId)!;
-                    const group = groups!.find(g => g.id === course.groupId)!;
-                    const career = careers!.find(c => c.id === group.careerId)!;
+                    const course = courses.find(c => c.id === event.courseId);
+                    if (!course) return null;
+                    const module = modules.find(m => m.id === course.moduleId);
+                    if (!module) return null;
+                    const teacher = teachers.find(t => t.id === event.teacherId);
+                    if (!teacher) return null;
+                    const classroom = classrooms.find(c => c.id === event.classroomId);
+                    if (!classroom) return null;
+                    const group = groups.find(g => g.id === course.groupId);
+                    if (!group) return null;
+                    const career = careers.find(c => c.id === group.careerId);
+                    if (!career) return null;
     
                     return {
                         ...event,
@@ -535,9 +544,10 @@ export default function DashboardPage() {
                         groupInfo: `${career.name} - Sem ${group.semester} - G ${group.name}`
                     };
                 })
+                .filter((e): e is NonNullable<typeof e> => e !== null)
                 .sort((a, b) => a.startTime.localeCompare(b.startTime));
     
-        }, [selectedDate, allDataLoaded, scheduleEvents, courses, modules, teachers, classrooms, groups, careers]);
+        }, [selectedDate, allDataLoaded, scheduleEvents, courses, modules, teachers, classrooms, groups, careers, dayOfWeek]);
         
         return (
             <div>
