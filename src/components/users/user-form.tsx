@@ -38,15 +38,6 @@ interface UserFormProps {
   onSuccess: () => void;
 }
 
-// Inicializa una app secundaria para no desloguear al admin actual
-let secondaryApp;
-try {
-    secondaryApp = getApp("secondary");
-} catch (error) {
-    secondaryApp = initializeApp(firebaseConfig, "secondary");
-}
-const secondaryAuth = getAuth(secondaryApp);
-
 export function UserForm({ user, onSuccess }: UserFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -87,6 +78,16 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
             form.setError('password', { message: 'La contraseña es obligatoria.' });
             return;
         }
+        
+        // Inicializa una app secundaria para no desloguear al admin actual
+        let secondaryApp;
+        try {
+            secondaryApp = getApp("secondary");
+        } catch (error) {
+            secondaryApp = initializeApp(firebaseConfig, "secondary");
+        }
+        const secondaryAuth = getAuth(secondaryApp);
+
         try {
             const userCredential = await createUserWithEmailAndPassword(secondaryAuth, data.email, data.password);
             const newUser = userCredential.user;
