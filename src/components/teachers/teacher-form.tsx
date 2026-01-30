@@ -177,7 +177,7 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Especialidades (Módulos)</FormLabel>
-              <Popover open={specialtiesOpen} onOpenChange={setSpecialtiesOpen} modal={false}>
+              <Popover open={specialtiesOpen} onOpenChange={setSpecialtiesOpen}>
                 <PopoverTrigger asChild>
                   <FormControl>
                     <Button
