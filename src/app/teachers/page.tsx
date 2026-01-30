@@ -278,7 +278,7 @@ export default function TeachersPage() {
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>{editingTeacher ? 'Editar Docente' : 'Añadir Nuevo Docente'}</DialogTitle>
                     <DialogDescription>
