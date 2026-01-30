@@ -189,9 +189,11 @@ export function TeacherForm({ teacher, modules, onSuccess }: TeacherFormProps) {
                                     id={`specialty-${module.id}`}
                                     checked={selectedSpecialties.includes(module.id)}
                                     onCheckedChange={(checked) => {
-                                        return checked
-                                            ? setSelectedSpecialties([...selectedSpecialties, module.id])
-                                            : setSelectedSpecialties(selectedSpecialties.filter(id => id !== module.id));
+                                        setSelectedSpecialties(prev => 
+                                            checked 
+                                                ? [...prev, module.id] 
+                                                : prev.filter(id => id !== module.id)
+                                        );
                                     }}
                                 />
                                 <label
