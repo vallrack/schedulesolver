@@ -90,6 +90,12 @@ interface CourseFormProps {
   classrooms: Classroom[];
 }
 
+const safeParseDate = (dateString?: string): Date | undefined => {
+  if (!dateString) return undefined;
+  const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 export function CourseForm({ course, allCourses, modules, groups, careers, onSuccess, teachers, scheduleEvents, classrooms }: CourseFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -98,8 +104,8 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
   const defaultValues = useMemo(() => {
     const courseValues = course ? {
       ...course,
-      startDate: new Date(course.startDate),
-      endDate: new Date(course.endDate),
+      startDate: safeParseDate(course.startDate),
+      endDate: safeParseDate(course.endDate),
     } : {
       moduleId: '',
       groupId: '',

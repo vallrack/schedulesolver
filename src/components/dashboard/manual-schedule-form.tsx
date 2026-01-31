@@ -59,6 +59,12 @@ interface ManualScheduleFormProps {
   onSuccess: () => void;
 }
 
+const safeParseDate = (dateString?: string): Date | undefined => {
+  if (!dateString) return undefined;
+  const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 const timeToMinutes = (time: string): number => {
   if (!time) return 0;
   const [hours, minutes] = time.split(':').map(Number);
@@ -78,13 +84,13 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             const allEventsForGroup = scheduleEvents.filter(e => ids.includes(e.id));
             const days = [...new Set(allEventsForGroup.map(e => e.day))];
 
-            // Safely create date object ignoring timezone, by parsing only the date part
-            const courseStartDateString = course.startDate.split('T')[0];
-            const courseDateLocal = new Date(`${courseStartDateString}T00:00:00`);
+            const courseStartDate = safeParseDate(course.startDate);
+            if (!courseStartDate) return undefined;
 
-            const courseWeekStartDate = getStartOfWeek(courseDateLocal, { weekStartsOn: 1 });
+            const courseWeekStartDate = getStartOfWeek(courseStartDate, { weekStartsOn: 1 });
             const eventStartDate = addWeeks(courseWeekStartDate, event.startWeek - 1);
             const eventEndDate = addWeeks(courseWeekStartDate, event.endWeek - 1);
+            
             return {
                 courseId: event.courseId,
                 teacherId: event.teacherId,
@@ -106,8 +112,8 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             days: [],
             startTime: '07:00',
             endTime: '09:00',
-            startDate: course ? new Date(course.startDate) : undefined,
-            endDate: course ? new Date(course.endDate) : undefined,
+            startDate: course ? safeParseDate(course.startDate) : undefined,
+            endDate: course ? safeParseDate(course.endDate) : undefined,
         };
     }
     
@@ -201,8 +207,10 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
 
             const existingEventCourse = courses.find(c => c.id === existingEvent.courseId);
             if (!existingEventCourse) continue;
+            
+            const existingCourseStartDate = safeParseDate(existingEventCourse.startDate);
+            if (!existingCourseStartDate) continue;
 
-            const existingCourseStartDate = new Date(existingEventCourse.startDate);
             const existingEventAbsoluteStartDate = addWeeks(existingCourseStartDate, existingEvent.startWeek - 1);
             const existingEventAbsoluteEndDate = addWeeks(existingCourseStartDate, existingEvent.endWeek - 1);
             const dateOverlap = newEventAbsoluteStartDate <= existingEventAbsoluteEndDate && existingEventAbsoluteStartDate <= newEventAbsoluteEndDate;
@@ -237,11 +245,13 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         }
     }
     
-    // Convert dates to week numbers before saving
-    const courseStartDateString = selectedCourse.startDate.split('T')[0];
-    const courseDateLocal = new Date(`${courseStartDateString}T00:00:00`);
+    const courseStartDate = safeParseDate(selectedCourse.startDate);
+    if (!courseStartDate) {
+        toast({ variant: "destructive", title: "Error de Curso", description: "El curso seleccionado no tiene una fecha de inicio válida." });
+        return;
+    }
 
-    const courseWeekStartDate = getStartOfWeek(courseDateLocal, { weekStartsOn: 1 }); // week starts on Monday
+    const courseWeekStartDate = getStartOfWeek(courseStartDate, { weekStartsOn: 1 });
     const eventStartDate = getStartOfWeek(data.startDate, { weekStartsOn: 1 });
     const eventEndDate = getStartOfWeek(data.endDate, { weekStartsOn: 1 });
     const startWeek = differenceInCalendarWeeks(eventStartDate, courseWeekStartDate, { weekStartsOn: 1 }) + 1;
