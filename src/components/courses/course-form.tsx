@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import type { Career, Course, Group, Module, Teacher, ScheduleEvent, Classroom } from '@/lib/types';
 import { useFirestore } from '@/firebase';
-import { addDoc, collection, doc, setDoc, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, doc, setDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -240,11 +240,14 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
         return;
     }
 
-    const { teacherId, classroomId, days, startTime, endTime, ...courseRawData } = data;
+    const { teacherId, classroomId, days, startTime, endTime } = data;
     
-    // Guardar fechas en formato simple YYYY-MM-DD
+    // Explicitly build the data object for Firestore to ensure consistency
     const courseData = { 
-        ...courseRawData,
+        moduleId: data.moduleId,
+        groupId: data.groupId,
+        totalHours: data.totalHours,
+        durationWeeks: differenceInCalendarWeeks(data.endDate, data.startDate, { weekStartsOn: 1 }) + 1,
         startDate: formatDateToString(data.startDate),
         endDate: formatDateToString(data.endDate),
     };
@@ -254,7 +257,7 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
         // 1. Create or update course
         if (isEditMode && courseId) {
           const courseRef = doc(firestore, 'courses', courseId);
-          await setDoc(courseRef, courseData, { merge: true });
+          await updateDoc(courseRef, courseData);
           toast({ title: 'Curso Actualizado', description: `Se ha actualizado el curso programado.` });
         } else {
           const collectionRef = collection(firestore, 'courses');
