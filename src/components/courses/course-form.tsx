@@ -29,7 +29,7 @@ const courseAndScheduleSchema = z.object({
   // course fields
   moduleId: z.string().min(1, { message: 'El módulo es obligatorio.' }),
   groupId: z.string().min(1, { message: 'El grupo es obligatorio.' }),
-  durationWeeks: z.coerce.number().min(1, 'La duración debe ser al menos 1 semana.'),
+  durationWeeks: z.coerce.number(), // Ya no requiere validación de usuario
   totalHours: z.coerce.number().min(1, 'Las horas deben ser mayor a 0.'),
   startDate: z.date({ required_error: 'La fecha de inicio es obligatoria.' }),
   endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
@@ -169,6 +169,19 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
     defaultValues,
   });
 
+  const startDate = form.watch('startDate');
+  const endDate = form.watch('endDate');
+
+  useEffect(() => {
+    if (startDate && endDate && endDate > startDate) {
+      const weeks = differenceInCalendarWeeks(endDate, startDate, { weekStartsOn: 1 }) + 1;
+      form.setValue('durationWeeks', weeks, { shouldValidate: true });
+    } else {
+      form.setValue('durationWeeks', 0);
+    }
+  }, [startDate, endDate, form]);
+
+
   useEffect(() => {
     form.reset(defaultValues);
   }, [course, defaultValues, form]);
@@ -240,6 +253,16 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
         return;
     }
 
+    if (data.durationWeeks < 1) {
+        toast({
+            variant: "destructive",
+            title: "Error de Fechas",
+            description: "La duración debe ser de al menos 1 semana. Revisa las fechas de inicio y fin.",
+        });
+        return;
+    }
+
+
     const { teacherId, classroomId, days, startTime, endTime } = data;
     
     // Explicitly build the data object for Firestore to ensure consistency
@@ -247,7 +270,7 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
         moduleId: data.moduleId,
         groupId: data.groupId,
         totalHours: data.totalHours,
-        durationWeeks: differenceInCalendarWeeks(data.endDate, data.startDate, { weekStartsOn: 1 }) + 1,
+        durationWeeks: data.durationWeeks,
         startDate: formatDateToString(data.startDate),
         endDate: formatDateToString(data.endDate),
     };
@@ -281,7 +304,7 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
             }
 
             const startWeek = 1;
-            const endWeek = differenceInCalendarWeeks(data.endDate, data.startDate, { weekStartsOn: 1 }) + 1;
+            const endWeek = data.durationWeeks;
             
             const schedulesCol = collection(firestore, 'schedules');
             days.forEach(day => {
@@ -396,7 +419,7 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Duración (Semanas)</FormLabel>
-                <FormControl><Input type="number" {...field} /></FormControl>
+                <FormControl><Input type="number" {...field} disabled /></FormControl>
                 <FormMessage />
                 </FormItem>
             )}
@@ -581,7 +604,7 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Hora Inicio</FormLabel>
-                        <FormControl><Input type="time" {...field} /></FormControl>
+                        <FormControl><Input type="time" {...field} value={field.value || ''} /></FormControl>
                         <FormMessage />
                         </FormItem>
                     )}
@@ -592,7 +615,7 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Hora Fin</FormLabel>
-                        <FormControl><Input type="time" {...field} /></FormControl>
+                        <FormControl><Input type="time" {...field} value={field.value || ''} /></FormControl>
                         <FormMessage />
                         </FormItem>
                     )}
@@ -608,3 +631,5 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
     </Form>
   );
 }
+
+    
