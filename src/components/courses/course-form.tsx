@@ -13,7 +13,7 @@ import { addDoc, collection, doc, setDoc, writeBatch, updateDoc } from 'firebase
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, differenceInCalendarWeeks, startOfWeek as getStartOfWeek } from 'date-fns';
+import { format, differenceInCalendarWeeks } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { useEffect, useMemo } from 'react';
@@ -29,7 +29,6 @@ const courseAndScheduleSchema = z.object({
   // course fields
   moduleId: z.string().min(1, { message: 'El módulo es obligatorio.' }),
   groupId: z.string().min(1, { message: 'El grupo es obligatorio.' }),
-  durationWeeks: z.coerce.number(), // Ya no requiere validación de usuario
   totalHours: z.coerce.number().min(1, 'Las horas deben ser mayor a 0.'),
   startDate: z.date({ required_error: 'La fecha de inicio es obligatoria.' }),
   endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
@@ -132,7 +131,6 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
     } : {
       moduleId: '',
       groupId: '',
-      durationWeeks: 1,
       totalHours: 1,
       startDate: undefined,
       endDate: undefined,
@@ -168,19 +166,6 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
     resolver: zodResolver(courseAndScheduleSchema),
     defaultValues,
   });
-
-  const startDate = form.watch('startDate');
-  const endDate = form.watch('endDate');
-
-  useEffect(() => {
-    if (startDate && endDate && endDate > startDate) {
-      const weeks = differenceInCalendarWeeks(endDate, startDate, { weekStartsOn: 1 }) + 1;
-      form.setValue('durationWeeks', weeks, { shouldValidate: true });
-    } else {
-      form.setValue('durationWeeks', 0);
-    }
-  }, [startDate, endDate, form]);
-
 
   useEffect(() => {
     form.reset(defaultValues);
@@ -230,6 +215,16 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
     const newCourseStartDate = data.startDate;
     const newCourseEndDate = data.endDate;
     const newCourseGroupId = data.groupId;
+    
+    const weeks = differenceInCalendarWeeks(newCourseEndDate, newCourseStartDate, { weekStartsOn: 1 }) + 1;
+    if (weeks < 1) {
+        toast({
+            variant: "destructive",
+            title: "Error de Fechas",
+            description: "La duración debe ser de al menos 1 semana. Revisa las fechas de inicio y fin.",
+        });
+        return;
+    }
 
     const overlappingCourse = allCourses.find(existingCourse => {
         if (course && existingCourse.id === course.id) return false;
@@ -253,16 +248,6 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
         return;
     }
 
-    if (data.durationWeeks < 1) {
-        toast({
-            variant: "destructive",
-            title: "Error de Fechas",
-            description: "La duración debe ser de al menos 1 semana. Revisa las fechas de inicio y fin.",
-        });
-        return;
-    }
-
-
     const { teacherId, classroomId, days, startTime, endTime } = data;
     
     // Explicitly build the data object for Firestore to ensure consistency
@@ -270,7 +255,7 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
         moduleId: data.moduleId,
         groupId: data.groupId,
         totalHours: data.totalHours,
-        durationWeeks: data.durationWeeks,
+        durationWeeks: weeks,
         startDate: formatDateToString(data.startDate),
         endDate: formatDateToString(data.endDate),
     };
@@ -304,7 +289,7 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
             }
 
             const startWeek = 1;
-            const endWeek = data.durationWeeks;
+            const endWeek = weeks;
             
             const schedulesCol = collection(firestore, 'schedules');
             days.forEach(day => {
@@ -414,17 +399,86 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
-            control={form.control}
-            name="durationWeeks"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Duración (Semanas)</FormLabel>
-                <FormControl><Input type="number" {...field} disabled /></FormControl>
-                <FormMessage />
+              control={form.control}
+              name="startDate"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Fecha de Inicio del Curso</FormLabel>
+                  <Popover modal={true}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP", { locale: es })
+                          ) : (
+                            <span>Selecciona una fecha</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) => date < new Date("1900-01-01")}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
                 </FormItem>
-            )}
+              )}
             />
             <FormField
+              control={form.control}
+              name="endDate"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Fecha de Fin del Curso</FormLabel>
+                  <Popover modal={true}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP", { locale: es })
+                          ) : (
+                            <span>Selecciona una fecha</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) => date < (form.getValues("startDate") || new Date("1900-01-01"))}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+        </div>
+
+         <FormField
             control={form.control}
             name="totalHours"
             render={({ field }) => (
@@ -435,88 +489,6 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
                 </FormItem>
             )}
             />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="startDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Fecha de Inicio del Curso</FormLabel>
-                <Popover modal={true}>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "PPP", { locale: es })
-                        ) : (
-                          <span>Selecciona una fecha</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      disabled={(date) => date < new Date("1900-01-01")}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="endDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Fecha de Fin del Curso</FormLabel>
-                <Popover modal={true}>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "PPP", { locale: es })
-                        ) : (
-                          <span>Selecciona una fecha</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      disabled={(date) => date < (form.getValues("startDate") || new Date("1900-01-01"))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
 
         <Separator className="my-6" />
 
@@ -633,3 +605,4 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
 }
 
     
+ 
