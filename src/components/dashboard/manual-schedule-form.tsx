@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { ChevronsUpDown, CalendarIcon } from 'lucide-react';
 import { Checkbox } from '../ui/checkbox';
 import { cn } from '@/lib/utils';
-import { format, addWeeks, differenceInCalendarWeeks, startOfWeek as getStartOfWeek } from 'date-fns';
+import { format, addWeeks, differenceInCalendarWeeks, startOfWeek as getStartOfWeek, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar } from '../ui/calendar';
 
@@ -71,6 +71,27 @@ const timeToMinutes = (time: string): number => {
   return hours * 60 + minutes;
 };
 
+// Función helper para calcular fechas absolutas desde semanas relativas
+const calculateAbsoluteDates = (course: Course, startWeek: number, endWeek: number) => {
+  const courseStartDate = safeParseDate(course.startDate);
+  if (!courseStartDate) return { startDate: undefined, endDate: undefined };
+  
+  // El curso empieza en una fecha específica. Necesitamos encontrar el inicio de esa semana (lunes)
+  const courseWeekStart = getStartOfWeek(courseStartDate, { weekStartsOn: 1 });
+  
+  // Ahora calculamos cuándo empiezan y terminan las clases
+  // startWeek=1 significa la primera semana del curso, que empieza en courseWeekStart
+  // startWeek=2 significa la segunda semana, que empieza courseWeekStart + 1 semana
+  const eventWeekStart = addWeeks(courseWeekStart, startWeek - 1);
+  const eventWeekEnd = addWeeks(courseWeekStart, endWeek - 1);
+  
+  // Devolvemos el inicio de la semana de inicio y el fin de la semana de fin
+  return {
+    startDate: eventWeekStart,
+    endDate: endOfWeek(eventWeekEnd, { weekStartsOn: 1 })
+  };
+};
+
 export function ManualScheduleForm({ courses, modules, groups, careers, teachers, classrooms, scheduleEvents, eventToEditInfo, courseToSchedule, onSuccess }: ManualScheduleFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -84,12 +105,13 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             const allEventsForGroup = scheduleEvents.filter(e => ids.includes(e.id));
             const days = [...new Set(allEventsForGroup.map(e => e.day))];
 
-            const courseStartDate = safeParseDate(course.startDate);
-            if (!courseStartDate) return undefined;
-
-            const courseWeekStartDate = getStartOfWeek(courseStartDate, { weekStartsOn: 1 });
-            const eventStartDate = addWeeks(courseWeekStartDate, event.startWeek - 1);
-            const eventEndDate = addWeeks(courseWeekStartDate, event.endWeek - 1);
+            // Calcular las fechas absolutas desde las semanas almacenadas
+            const { startDate, endDate } = calculateAbsoluteDates(course, event.startWeek, event.endWeek);
+            
+            if (!startDate || !endDate) {
+                console.error('No se pudieron calcular las fechas para el evento');
+                return undefined;
+            }
             
             return {
                 courseId: event.courseId,
@@ -98,8 +120,8 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
                 days: days,
                 startTime: event.startTime,
                 endTime: event.endTime,
-                startDate: eventStartDate,
-                endDate: eventEndDate,
+                startDate: startDate,
+                endDate: endDate,
             };
         }
     }
@@ -208,12 +230,14 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             const existingEventCourse = courses.find(c => c.id === existingEvent.courseId);
             if (!existingEventCourse) continue;
             
-            const existingCourseStartDate = safeParseDate(existingEventCourse.startDate);
-            if (!existingCourseStartDate) continue;
-
-            const existingEventAbsoluteStartDate = addWeeks(existingCourseStartDate, existingEvent.startWeek - 1);
-            const existingEventAbsoluteEndDate = addWeeks(existingCourseStartDate, existingEvent.endWeek - 1);
-            const dateOverlap = newEventAbsoluteStartDate <= existingEventAbsoluteEndDate && existingEventAbsoluteStartDate <= newEventAbsoluteEndDate;
+            // Calcular las fechas absolutas del evento existente
+            const { startDate: existingEventAbsoluteStartDate, endDate: existingEventAbsoluteEndDate } = 
+                calculateAbsoluteDates(existingEventCourse, existingEvent.startWeek, existingEvent.endWeek);
+            
+            if (!existingEventAbsoluteStartDate || !existingEventAbsoluteEndDate) continue;
+            
+            const dateOverlap = newEventAbsoluteStartDate <= existingEventAbsoluteEndDate && 
+                               existingEventAbsoluteStartDate <= newEventAbsoluteEndDate;
 
             if (dateOverlap) {
                 if (existingEvent.teacherId === data.teacherId) {
@@ -251,14 +275,16 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         return;
     }
 
+    // Calcular startWeek y endWeek desde las fechas absolutas
     const courseWeekStartDate = getStartOfWeek(courseStartDate, { weekStartsOn: 1 });
-    const eventStartDate = getStartOfWeek(data.startDate, { weekStartsOn: 1 });
-    const eventEndDate = getStartOfWeek(data.endDate, { weekStartsOn: 1 });
-    const startWeek = differenceInCalendarWeeks(eventStartDate, courseWeekStartDate, { weekStartsOn: 1 }) + 1;
-    const endWeek = differenceInCalendarWeeks(eventEndDate, courseWeekStartDate, { weekStartsOn: 1 }) + 1;
+    const eventStartWeekDate = getStartOfWeek(data.startDate, { weekStartsOn: 1 });
+    const eventEndWeekDate = getStartOfWeek(data.endDate, { weekStartsOn: 1 });
+    
+    const startWeek = differenceInCalendarWeeks(eventStartWeekDate, courseWeekStartDate, { weekStartsOn: 1 }) + 1;
+    const endWeek = differenceInCalendarWeeks(eventEndWeekDate, courseWeekStartDate, { weekStartsOn: 1 }) + 1;
     
     if (startWeek < 1 || endWeek < 1) {
-        toast({ variant: "destructive", title: "Error de Fechas", description: "Las fechas de la clase deben ser posteriores a la fecha de inicio del curso." });
+        toast({ variant: "destructive", title: "Error de Fechas", description: "Las fechas de la clase deben ser posteriores o iguales a la fecha de inicio del curso." });
         return;
     }
 
