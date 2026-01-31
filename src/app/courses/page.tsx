@@ -33,8 +33,12 @@ export default function CoursesPage() {
   const [editingCourse, setEditingCourse] = useState<Course | undefined>(undefined);
   
   // Defer date initialization to client-side to prevent hydration errors
-  const [currentDate, setCurrentDate] = useState<Date>();
+  const [currentDate, setCurrentDate] = useState<Date | undefined>(undefined);
+  const [isClient, setIsClient] = useState(false);
+
   useEffect(() => {
+    // This effect runs only on the client, after the component has mounted.
+    setIsClient(true);
     setCurrentDate(new Date());
   }, []);
 
@@ -109,27 +113,29 @@ export default function CoursesPage() {
     }
   
   const handleCloseModal = () => setDayWithCourses(null);
+  
+  const MonthViewSkeleton = () => (
+    <div className="border rounded-lg bg-card">
+      <div className="grid grid-cols-7 bg-card">
+        {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
+          <div key={day} className="py-2 text-center font-semibold text-sm text-muted-foreground border-b border-l h-10"></div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 grid-rows-6">
+        {Array.from({ length: 42 }).map((_, idx) => (
+          <div key={idx} className="p-2 border-t border-l min-h-[6rem] bg-card">
+            <Skeleton className="h-4 w-6 ml-auto" />
+            <Skeleton className="h-5 w-full mt-2" />
+            <Skeleton className="h-5 w-full mt-1" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   const MonthView = () => {
-    if (!currentDate || !allDataLoaded) {
-      return (
-        <div className="border rounded-lg bg-card">
-          <div className="grid grid-cols-7 bg-card">
-            {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
-              <div key={day} className="py-2 text-center font-semibold text-sm text-muted-foreground border-b border-l h-10"></div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 grid-rows-6">
-            {Array.from({ length: 42 }).map((_, idx) => (
-              <div key={idx} className="p-2 border-t border-l min-h-[6rem] bg-card">
-                <Skeleton className="h-4 w-6 ml-auto" />
-                <Skeleton className="h-5 w-full mt-2" />
-                <Skeleton className="h-5 w-full mt-1" />
-              </div>
-            ))}
-          </div>
-        </div>
-      );
+    if (!currentDate) {
+        return <MonthViewSkeleton />;
     }
     
     const year = currentDate.getFullYear();
@@ -146,11 +152,10 @@ export default function CoursesPage() {
     });
 
     const dayOfWeekMap = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const toISODateString = (date: Date) => {
-        const offset = date.getTimezoneOffset();
-        const adjustedDate = new Date(date.getTime() - (offset*60*1000));
-        return adjustedDate.toISOString().split('T')[0];
-    }
+    // Use a timezone-safe method to get YYYY-MM-DD
+    const toYyyyMmDd = (date: Date) => {
+        return date.toLocaleDateString('sv'); // Swedish locale format is YYYY-MM-DD
+    };
     
     const COURSES_LIMIT_PER_DAY = 2;
 
@@ -168,7 +173,7 @@ export default function CoursesPage() {
                     
                     const scheduledCoursesForDay = coursesWithDetails
                         .map(course => {
-                            const dateStr = toISODateString(date);
+                            const dateStr = toYyyyMmDd(date);
                             const courseStartDate = course.startDate.split('T')[0];
                             const courseEndDate = course.endDate.split('T')[0];
 
@@ -261,28 +266,32 @@ export default function CoursesPage() {
 
         <Dialog open={!!dayWithCourses} onOpenChange={(isOpen) => !isOpen && handleCloseModal()}>
             <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Cursos del {dayWithCourses?.date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</DialogTitle>
-                    <DialogDescription>
-                        Lista completa de cursos programados para este día.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="max-h-[60vh] overflow-y-auto -mx-6 px-6">
-                    <div className="space-y-3 py-4">
-                        {dayWithCourses?.courses.map(course => (
-                            <div 
-                                key={course.id} 
-                                className="text-sm p-3 rounded-md border flex items-center gap-3"
-                                style={{ borderLeftColor: getColorForCourse(course.moduleId), borderLeftWidth: '4px' }}
-                            >
-                                <div>
-                                    <p className="font-semibold">{course.moduleName} ({course.totalHours}h)</p>
-                                    <p className="text-muted-foreground">{course.groupInfo}</p>
-                                </div>
+                {dayWithCourses && (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle>Cursos del {dayWithCourses.date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</DialogTitle>
+                            <DialogDescription>
+                                Lista completa de cursos programados para este día.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="max-h-[60vh] overflow-y-auto -mx-6 px-6">
+                            <div className="space-y-3 py-4">
+                                {dayWithCourses.courses.map(course => (
+                                    <div 
+                                        key={course.id} 
+                                        className="text-sm p-3 rounded-md border flex items-center gap-3"
+                                        style={{ borderLeftColor: getColorForCourse(course.moduleId), borderLeftWidth: '4px' }}
+                                    >
+                                        <div>
+                                            <p className="font-semibold">{course.moduleName} ({course.totalHours}h)</p>
+                                            <p className="text-muted-foreground">{course.groupInfo}</p>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
-                </div>
+                        </div>
+                    </>
+                )}
             </DialogContent>
         </Dialog>
 
@@ -306,7 +315,7 @@ export default function CoursesPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <MonthView />
+            {(!isClient || !allDataLoaded) ? <MonthViewSkeleton /> : <MonthView />}
           </CardContent>
         </Card>
       </div>
