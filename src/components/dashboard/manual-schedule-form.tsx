@@ -78,7 +78,11 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             const allEventsForGroup = scheduleEvents.filter(e => ids.includes(e.id));
             const days = [...new Set(allEventsForGroup.map(e => e.day))];
 
-            const courseWeekStartDate = getStartOfWeek(new Date(course.startDate), { weekStartsOn: 1 });
+            // Safely create date object ignoring timezone, by parsing only the date part
+            const courseStartDateString = course.startDate.split('T')[0];
+            const courseDateLocal = new Date(`${courseStartDateString}T00:00:00`);
+
+            const courseWeekStartDate = getStartOfWeek(courseDateLocal, { weekStartsOn: 1 });
             const eventStartDate = addWeeks(courseWeekStartDate, event.startWeek - 1);
             const eventEndDate = addWeeks(courseWeekStartDate, event.endWeek - 1);
             return {
@@ -234,11 +238,14 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
     }
     
     // Convert dates to week numbers before saving
-    const courseStartDate = getStartOfWeek(new Date(selectedCourse.startDate), { weekStartsOn: 1 }); // week starts on Monday
+    const courseStartDateString = selectedCourse.startDate.split('T')[0];
+    const courseDateLocal = new Date(`${courseStartDateString}T00:00:00`);
+
+    const courseWeekStartDate = getStartOfWeek(courseDateLocal, { weekStartsOn: 1 }); // week starts on Monday
     const eventStartDate = getStartOfWeek(data.startDate, { weekStartsOn: 1 });
     const eventEndDate = getStartOfWeek(data.endDate, { weekStartsOn: 1 });
-    const startWeek = differenceInCalendarWeeks(eventStartDate, courseStartDate, { weekStartsOn: 1 }) + 1;
-    const endWeek = differenceInCalendarWeeks(eventEndDate, courseStartDate, { weekStartsOn: 1 }) + 1;
+    const startWeek = differenceInCalendarWeeks(eventStartDate, courseWeekStartDate, { weekStartsOn: 1 }) + 1;
+    const endWeek = differenceInCalendarWeeks(eventEndDate, courseWeekStartDate, { weekStartsOn: 1 }) + 1;
     
     if (startWeek < 1 || endWeek < 1) {
         toast({ variant: "destructive", title: "Error de Fechas", description: "Las fechas de la clase deben ser posteriores a la fecha de inicio del curso." });
