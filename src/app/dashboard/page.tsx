@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Plus, Edit, Trash2, User, Clock, School, Dow
 import AppLayout from '@/components/app-layout';
 import { useFirestore } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, deleteDoc, doc, writeBatch } from 'firebase/firestore';
+import { collection, deleteDoc, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import type { Career, Course, Group, Module, Teacher, Classroom, ScheduleEvent } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -309,17 +309,40 @@ export default function DashboardPage() {
 
     const handleDeleteCourse = async (courseId: string) => {
         if (!firestore) return;
+    
+        const batch = writeBatch(firestore);
+    
+        // 1. Reference to the course document
         const courseRef = doc(firestore, 'courses', courseId);
+        
+        // 2. Find associated schedule events
+        const schedulesCol = collection(firestore, 'schedules');
+        const q = query(schedulesCol, where("courseId", "==", courseId));
+        
         try {
-            await deleteDoc(courseRef);
+            const querySnapshot = await getDocs(q);
+            
+            let deletedSchedulesCount = 0;
+            querySnapshot.forEach((doc) => {
+                batch.delete(doc.ref);
+                deletedSchedulesCount++;
+            });
+    
+            // Also delete the course itself
+            batch.delete(courseRef);
+    
+            // 3. Commit the batch
+            await batch.commit();
+    
             toast({
                 variant: 'destructive',
                 title: 'Curso Eliminado',
-                description: 'El curso programado ha sido eliminado.',
+                description: `El curso y sus ${deletedSchedulesCount > 0 ? `${deletedSchedulesCount} ` : ''}clase(s) asociada(s) han sido eliminados.`,
             });
-            closeCourseModal();
+            closeCourseModal(); 
         } catch(e) {
-            const permissionError = new FirestorePermissionError({ path: courseRef.path, operation: 'delete' });
+            console.error("Error deleting course and schedules:", e);
+            const permissionError = new FirestorePermissionError({ path: `courses/${courseId}`, operation: 'delete' });
             errorEmitter.emit('permission-error', permissionError);
         }
     };
