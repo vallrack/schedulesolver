@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { ChevronsUpDown, CalendarIcon } from 'lucide-react';
 import { Checkbox } from '../ui/checkbox';
 import { cn } from '@/lib/utils';
-import { format, addWeeks, differenceInCalendarWeeks, startOfWeek as getStartOfWeek, addDays } from 'date-fns';
+import { format, addWeeks, differenceInCalendarWeeks, startOfWeek as getStartOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar } from '../ui/calendar';
 
@@ -59,10 +59,25 @@ interface ManualScheduleFormProps {
   onSuccess: () => void;
 }
 
+// Función mejorada para parsear fechas que maneja múltiples formatos
 const safeParseDate = (dateString?: string): Date | undefined => {
   if (!dateString) return undefined;
-  const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
-  return new Date(year, month - 1, day);
+  
+  try {
+    // Si es formato ISO completo (con T y hora)
+    if (dateString.includes('T')) {
+      const [datePart] = dateString.split('T');
+      const [year, month, day] = datePart.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+    
+    // Si es formato simple YYYY-MM-DD
+    const [year, month, day] = dateString.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  } catch (error) {
+    console.error('Error parsing date:', dateString, error);
+    return undefined;
+  }
 };
 
 const timeToMinutes = (time: string): number => {
@@ -71,33 +86,12 @@ const timeToMinutes = (time: string): number => {
   return hours * 60 + minutes;
 };
 
-// Función helper para calcular fechas absolutas desde semanas relativas
-const weekDayOrder = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-const calculateAbsoluteDates = (course: Course, startWeek: number, endWeek: number, daysOfWeek: string[]) => {
-  const courseStartDate = safeParseDate(course.startDate);
-  if (!courseStartDate) return { startDate: undefined, endDate: undefined };
-
-  const courseWeekStart = getStartOfWeek(courseStartDate, { weekStartsOn: 1 }); // This is a Monday
-
-  const eventStartWeek = addWeeks(courseWeekStart, startWeek - 1);
-  const eventEndWeek = addWeeks(courseWeekStart, endWeek - 1);
+// CORREGIDO: Esta función ahora simplemente devuelve las fechas del curso directamente
+// porque un evento de calendario cubre TODO el curso desde su inicio hasta su fin
+const getCourseDatesForSchedule = (course: Course) => {
+  const startDate = safeParseDate(course.startDate);
+  const endDate = safeParseDate(course.endDate);
   
-  // Find the first and last day of the week the event is active on
-  let firstDayIndex = 0; // Default to Monday
-  if(daysOfWeek.length > 0) {
-    const sortedDays = [...daysOfWeek].sort((a, b) => weekDayOrder.indexOf(a) - weekDayOrder.indexOf(b));
-    firstDayIndex = weekDayOrder.indexOf(sortedDays[0]);
-  }
-
-  let lastDayIndex = 4; // Default to Friday
-  if(daysOfWeek.length > 0) {
-    const sortedDays = [...daysOfWeek].sort((a, b) => weekDayOrder.indexOf(a) - weekDayOrder.indexOf(b));
-    lastDayIndex = weekDayOrder.indexOf(sortedDays[sortedDays.length - 1]);
-  }
-  
-  const startDate = addDays(eventStartWeek, firstDayIndex);
-  const endDate = addDays(eventEndWeek, lastDayIndex);
-
   return {
     startDate,
     endDate
@@ -117,11 +111,11 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             const allEventsForGroup = scheduleEvents.filter(e => ids.includes(e.id));
             const days = [...new Set(allEventsForGroup.map(e => e.day))];
 
-            // Calcular las fechas absolutas desde las semanas almacenadas
-            const { startDate, endDate } = calculateAbsoluteDates(course, event.startWeek, event.endWeek, days);
+            // CORREGIDO: Usar las fechas del curso directamente
+            const { startDate, endDate } = getCourseDatesForSchedule(course);
             
             if (!startDate || !endDate) {
-                console.error('No se pudieron calcular las fechas para el evento');
+                console.error('No se pudieron obtener las fechas del curso');
                 return undefined;
             }
             
@@ -242,9 +236,9 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             const existingEventCourse = courses.find(c => c.id === existingEvent.courseId);
             if (!existingEventCourse) continue;
             
-            // Calcular las fechas absolutas del evento existente
-            const { startDate: existingEventAbsoluteStartDate, endDate: existingEventAbsoluteEndDate } = 
-                calculateAbsoluteDates(existingEventCourse, existingEvent.startWeek, existingEvent.endWeek, [existingEvent.day]);
+            // Usar las fechas del curso directamente para validación
+            const existingEventAbsoluteStartDate = safeParseDate(existingEventCourse.startDate);
+            const existingEventAbsoluteEndDate = safeParseDate(existingEventCourse.endDate);
             
             if (!existingEventAbsoluteStartDate || !existingEventAbsoluteEndDate) continue;
             
@@ -328,6 +322,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
         }
         onSuccess();
     } catch (e) {
+        console.error('Error saving schedule:', e);
         const { startDate, endDate, ...requestData} = data;
         const permissionError = new FirestorePermissionError({
             path: 'schedules',
