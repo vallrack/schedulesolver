@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { cn, getColorForCourse } from '@/lib/utils';
 import type { ScheduleEvent, Teacher, Module, Classroom, Course, Group, Career } from '@/lib/types';
 import { Button } from '../ui/button';
 import { Edit, Trash2 } from 'lucide-react';
@@ -53,16 +53,19 @@ const EventCard = ({
 
   const topPosition = ((startTimeInMinutes - 7 * 60) / 60) * 4.5; // 4.5rem per hour (h-[4.5rem])
   const height = (durationInMinutes / 60) * 4.5;
+  const backgroundColor = getColorForCourse(module?.id);
 
-  const colorClasses = 'bg-primary text-primary-foreground';
 
   return (
       <div
         className={cn(
-          'group absolute w-full rounded-lg p-2 text-xs cursor-pointer hover:opacity-90 transition-opacity z-10',
-          colorClasses
+          'group absolute w-full rounded-lg p-2 text-xs cursor-pointer hover:opacity-90 transition-opacity z-10 text-primary-foreground'
         )}
-        style={{ top: `${topPosition}rem`, height: `${height}rem` }}
+        style={{ 
+            top: `${topPosition}rem`, 
+            height: `${height}rem`,
+            backgroundColor: backgroundColor
+        }}
       >
         <p className="font-bold truncate">{module?.name ?? 'Evento'}</p>
         <p className="truncate text-xs opacity-80">{teacher?.name}</p>

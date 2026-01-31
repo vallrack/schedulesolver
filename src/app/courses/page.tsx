@@ -16,7 +16,7 @@ import { collection } from "firebase/firestore"
 import AppLayout from "@/components/app-layout"
 import type { Career, Course, Group, Module, ScheduleEvent, Teacher, Classroom } from "@/lib/types";
 import { CourseForm } from "@/components/courses/course-form";
-import { cn } from "@/lib/utils";
+import { cn, getColorForCourse } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type CourseWithDetails = Course & {
@@ -102,15 +102,6 @@ export default function CoursesPage() {
         return newDate;
     });
   };
-
-    const getColorForCourse = (moduleId: string) => {
-        let hash = 0;
-        for (let i = 0; i < moduleId.length; i++) {
-            hash = moduleId.charCodeAt(i) + ((hash << 5) - hash);
-            hash = hash & hash;
-        }
-        return `hsl(${hash % 360}, 75%, 60%)`;
-    }
   
   const handleCloseModal = () => setDayWithCourses(null);
   

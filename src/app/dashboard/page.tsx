@@ -13,7 +13,7 @@ import { CourseForm } from '@/components/courses/course-form';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { cn, getColorForCourse } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScheduleCalendar } from '@/components/dashboard/schedule-calendar';
 import { ManualScheduleForm } from '@/components/dashboard/manual-schedule-form';
@@ -391,7 +391,8 @@ export default function DashboardPage() {
                                         <Popover key={course.id}>
                                             <PopoverTrigger asChild>
                                                 <div
-                                                    className="text-xs px-1.5 py-0.5 rounded truncate text-white font-medium cursor-pointer bg-primary/80"
+                                                    className="text-xs px-1.5 py-0.5 rounded truncate text-white font-medium cursor-pointer"
+                                                    style={{ backgroundColor: getColorForCourse(course.moduleId) }}
                                                     title={course.moduleName}
                                                     onClick={(e) => e.stopPropagation()} // Prevent day selection
                                                 >
