@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { ChevronsUpDown, CalendarIcon } from 'lucide-react';
 import { Checkbox } from '../ui/checkbox';
 import { cn } from '@/lib/utils';
-import { format, addWeeks, differenceInCalendarWeeks, startOfWeek as getStartOfWeek, endOfWeek } from 'date-fns';
+import { format, addWeeks, differenceInCalendarWeeks, startOfWeek as getStartOfWeek, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar } from '../ui/calendar';
 
@@ -72,23 +72,35 @@ const timeToMinutes = (time: string): number => {
 };
 
 // Función helper para calcular fechas absolutas desde semanas relativas
-const calculateAbsoluteDates = (course: Course, startWeek: number, endWeek: number) => {
+const weekDayOrder = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const calculateAbsoluteDates = (course: Course, startWeek: number, endWeek: number, daysOfWeek: string[]) => {
   const courseStartDate = safeParseDate(course.startDate);
   if (!courseStartDate) return { startDate: undefined, endDate: undefined };
+
+  const courseWeekStart = getStartOfWeek(courseStartDate, { weekStartsOn: 1 }); // This is a Monday
+
+  const eventStartWeek = addWeeks(courseWeekStart, startWeek - 1);
+  const eventEndWeek = addWeeks(courseWeekStart, endWeek - 1);
   
-  // El curso empieza en una fecha específica. Necesitamos encontrar el inicio de esa semana (lunes)
-  const courseWeekStart = getStartOfWeek(courseStartDate, { weekStartsOn: 1 });
+  // Find the first and last day of the week the event is active on
+  let firstDayIndex = 0; // Default to Monday
+  if(daysOfWeek.length > 0) {
+    const sortedDays = [...daysOfWeek].sort((a, b) => weekDayOrder.indexOf(a) - weekDayOrder.indexOf(b));
+    firstDayIndex = weekDayOrder.indexOf(sortedDays[0]);
+  }
+
+  let lastDayIndex = 4; // Default to Friday
+  if(daysOfWeek.length > 0) {
+    const sortedDays = [...daysOfWeek].sort((a, b) => weekDayOrder.indexOf(a) - weekDayOrder.indexOf(b));
+    lastDayIndex = weekDayOrder.indexOf(sortedDays[sortedDays.length - 1]);
+  }
   
-  // Ahora calculamos cuándo empiezan y terminan las clases
-  // startWeek=1 significa la primera semana del curso, que empieza en courseWeekStart
-  // startWeek=2 significa la segunda semana, que empieza courseWeekStart + 1 semana
-  const eventWeekStart = addWeeks(courseWeekStart, startWeek - 1);
-  const eventWeekEnd = addWeeks(courseWeekStart, endWeek - 1);
-  
-  // Devolvemos el inicio de la semana de inicio y el fin de la semana de fin
+  const startDate = addDays(eventStartWeek, firstDayIndex);
+  const endDate = addDays(eventEndWeek, lastDayIndex);
+
   return {
-    startDate: eventWeekStart,
-    endDate: endOfWeek(eventWeekEnd, { weekStartsOn: 1 })
+    startDate,
+    endDate
   };
 };
 
@@ -106,7 +118,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             const days = [...new Set(allEventsForGroup.map(e => e.day))];
 
             // Calcular las fechas absolutas desde las semanas almacenadas
-            const { startDate, endDate } = calculateAbsoluteDates(course, event.startWeek, event.endWeek);
+            const { startDate, endDate } = calculateAbsoluteDates(course, event.startWeek, event.endWeek, days);
             
             if (!startDate || !endDate) {
                 console.error('No se pudieron calcular las fechas para el evento');
@@ -232,7 +244,7 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
             
             // Calcular las fechas absolutas del evento existente
             const { startDate: existingEventAbsoluteStartDate, endDate: existingEventAbsoluteEndDate } = 
-                calculateAbsoluteDates(existingEventCourse, existingEvent.startWeek, existingEvent.endWeek);
+                calculateAbsoluteDates(existingEventCourse, existingEvent.startWeek, existingEvent.endWeek, [existingEvent.day]);
             
             if (!existingEventAbsoluteStartDate || !existingEventAbsoluteEndDate) continue;
             
