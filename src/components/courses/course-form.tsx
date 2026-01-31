@@ -38,8 +38,8 @@ const courseAndScheduleSchema = z.object({
   days: z.array(z.string()).optional(),
   startTime: z.string().optional(),
   endTime: z.string().optional(),
-}).refine(data => data.endDate > data.startDate, {
-    message: 'La fecha de fin debe ser posterior a la fecha de inicio.',
+}).refine(data => data.endDate >= data.startDate, {
+    message: 'La fecha de fin debe ser posterior o igual a la fecha de inicio.',
     path: ['endDate'],
 }).superRefine((data, ctx) => {
     // If any optional schedule field is filled, all must be filled
@@ -216,16 +216,6 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
     const newCourseEndDate = data.endDate;
     const newCourseGroupId = data.groupId;
     
-    const weeks = differenceInCalendarWeeks(newCourseEndDate, newCourseStartDate, { weekStartsOn: 1 }) + 1;
-    if (weeks < 1) {
-        toast({
-            variant: "destructive",
-            title: "Error de Fechas",
-            description: "La duración debe ser de al menos 1 semana. Revisa las fechas de inicio y fin.",
-        });
-        return;
-    }
-
     const overlappingCourse = allCourses.find(existingCourse => {
         if (course && existingCourse.id === course.id) return false;
         if (existingCourse.groupId !== newCourseGroupId) return false;
@@ -242,15 +232,63 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
         const module = modules.find(m => m.id === overlappingCourse.moduleId);
         toast({
             variant: "destructive",
-            title: "Conflicto de Horario Detectado",
+            title: "Conflicto de Horario de Grupo",
             description: `El grupo ya tiene el curso "${module?.name || 'Desconocido'}" programado durante ese período de tiempo.`,
         });
         return;
     }
 
     const { teacherId, classroomId, days, startTime, endTime } = data;
+    const scheduleFieldsArePresent = teacherId && classroomId && days && days.length > 0 && startTime && endTime;
+
+    if (scheduleFieldsArePresent) {
+        const timeToMinutes = (time: string): number => {
+          if (!time) return 0;
+          const [hours, minutes] = time.split(':').map(Number);
+          return hours * 60 + minutes;
+        };
+
+        for (const day of data.days!) {
+            for (const existingEvent of scheduleEvents) {
+                if (isEditMode && course && existingEvent.courseId === course.id) continue;
+                if (existingEvent.day !== day) continue;
+
+                const timeOverlap = timeToMinutes(data.startTime!) < timeToMinutes(existingEvent.endTime) && timeToMinutes(data.endTime!) > timeToMinutes(existingEvent.startTime);
+                if (!timeOverlap) continue;
+                
+                const existingEventCourse = allCourses.find(c => c.id === existingEvent.courseId);
+                if (!existingEventCourse) continue;
+
+                const existingCourseStartDate = safeParseDate(existingEventCourse.startDate);
+                const existingCourseEndDate = safeParseDate(existingEventCourse.endDate);
+
+                if (!existingCourseStartDate || !existingCourseEndDate) continue;
+
+                const dateOverlap = newCourseStartDate <= existingCourseEndDate && existingCourseStartDate <= newCourseEndDate;
+
+                if (dateOverlap) {
+                    if (existingEvent.teacherId === data.teacherId) {
+                        const conflictingModule = modules.find(m => m.id === existingEventCourse.moduleId);
+                        toast({ variant: "destructive", title: "Conflicto de Docente", description: `El docente ya tiene "${conflictingModule?.name || 'otra clase'}" programada el ${day} a esa hora.` });
+                        return;
+                    }
+                    if (existingEvent.classroomId === data.classroomId) {
+                        const conflictingModule = modules.find(m => m.id === existingEventCourse.moduleId);
+                        toast({ variant: "destructive", title: "Conflicto de Aula", description: `El aula ya está ocupada por "${conflictingModule?.name || 'otra clase'}" el ${day} a esa hora.` });
+                        return;
+                    }
+                    if (existingEventCourse.groupId === data.groupId) {
+                        const conflictingModule = modules.find(m => m.id === existingEventCourse.moduleId);
+                        toast({ variant: "destructive", title: "Conflicto de Grupo", description: `El grupo ya tiene "${conflictingModule?.name || 'otra clase'}" programada el ${day} a esa hora.` });
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    const weeks = differenceInCalendarWeeks(newCourseEndDate, newCourseStartDate, { weekStartsOn: 1 }) + 1;
     
-    // Explicitly build the data object for Firestore to ensure consistency
     const courseData = { 
         moduleId: data.moduleId,
         groupId: data.groupId,
@@ -262,32 +300,25 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
 
     try {
         let courseId = course?.id;
-        // 1. Create or update course
+        const batch = writeBatch(firestore);
+
         if (isEditMode && courseId) {
           const courseRef = doc(firestore, 'courses', courseId);
-          await updateDoc(courseRef, courseData);
+          batch.update(courseRef, courseData);
           toast({ title: 'Curso Actualizado', description: `Se ha actualizado el curso programado.` });
         } else {
-          const collectionRef = collection(firestore, 'courses');
-          const courseDocRef = await addDoc(collectionRef, courseData);
-          courseId = courseDocRef.id;
+          const courseRef = doc(collection(firestore, 'courses'));
+          batch.set(courseRef, courseData);
+          courseId = courseRef.id;
           toast({ title: 'Curso Añadido', description: `Se ha programado un nuevo curso.` });
         }
 
-        // 2. Handle schedule events
-        const scheduleFieldsArePresent = teacherId && classroomId && days && startTime && endTime;
-
         const existingEvents = scheduleEvents.filter(e => e.courseId === courseId);
-        
-        // If editing and there are schedule fields, or if creating and there are schedule fields
+        if (existingEvents.length > 0) {
+            existingEvents.forEach(e => batch.delete(doc(firestore, 'schedules', e.id)));
+        }
+
         if (scheduleFieldsArePresent && courseId) {
-            const batch = writeBatch(firestore);
-
-            // Delete old events if they exist
-            if (existingEvents.length > 0) {
-                existingEvents.forEach(e => batch.delete(doc(firestore, 'schedules', e.id)));
-            }
-
             const startWeek = 1;
             const endWeek = weeks;
             
@@ -306,16 +337,16 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
                 };
                 batch.set(newEventRef, eventData);
             });
-            await batch.commit();
-            toast({ title: 'Clases Programadas', description: `Se han creado/actualizado ${days.length} clase(s) recurrente(s).` });
+            if(isEditMode) {
+              toast({ title: 'Clases Actualizadas', description: `Se han actualizado las clases recurrentes.` });
+            } else {
+              toast({ title: 'Clases Programadas', description: `Se han creado ${days.length} clase(s) recurrente(s).` });
+            }
         } else if (isEditMode && existingEvents.length > 0) {
-            // If editing and schedule fields are removed, delete existing events
-            const deleteBatch = writeBatch(firestore);
-            existingEvents.forEach(e => deleteBatch.delete(doc(firestore, 'schedules', e.id)));
-            await deleteBatch.commit();
             toast({ title: 'Clases Desasignadas', description: 'Se han eliminado las clases asociadas a este curso.' });
         }
 
+        await batch.commit();
         onSuccess();
     } catch(e) {
         console.error('Error saving course:', e);
@@ -606,3 +637,5 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
 
     
  
+
+    
