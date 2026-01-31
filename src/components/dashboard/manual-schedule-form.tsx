@@ -61,14 +61,8 @@ interface ManualScheduleFormProps {
 
 const safeParseDate = (dateString?: string): Date | undefined => {
   if (!dateString) return undefined;
-  try {
-    // Handles both ISO strings and yyyy-MM-dd.
-    // The key is to extract the UTC date parts to avoid timezone shifts.
-    const date = new Date(dateString);
-    return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-  } catch (e) {
-    return undefined;
-  }
+  const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
+  return new Date(year, month - 1, day);
 };
 
 const timeToMinutes = (time: string): number => {
@@ -555,5 +549,3 @@ export function ManualScheduleForm({ courses, modules, groups, careers, teachers
     </Form>
   );
 }
-
-    

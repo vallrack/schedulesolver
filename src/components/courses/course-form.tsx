@@ -13,7 +13,7 @@ import { addDoc, collection, doc, setDoc, writeBatch } from 'firebase/firestore'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, differenceInCalendarWeeks } from 'date-fns';
+import { format, differenceInCalendarWeeks, startOfWeek as getStartOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { useEffect, useMemo } from 'react';
@@ -90,16 +90,33 @@ interface CourseFormProps {
   classrooms: Classroom[];
 }
 
+// Función mejorada para parsear fechas que maneja múltiples formatos
 const safeParseDate = (dateString?: string): Date | undefined => {
   if (!dateString) return undefined;
+  
   try {
-    // Handles both ISO strings and yyyy-MM-dd.
-    // The key is to extract the UTC date parts to avoid timezone shifts.
-    const date = new Date(dateString);
-    return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-  } catch (e) {
+    // Si es formato ISO completo (con T y hora)
+    if (dateString.includes('T')) {
+      const [datePart] = dateString.split('T');
+      const [year, month, day] = datePart.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+    
+    // Si es formato simple YYYY-MM-DD
+    const [year, month, day] = dateString.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  } catch (error) {
+    console.error('Error parsing date:', dateString, error);
     return undefined;
   }
+};
+
+// Función para convertir Date a formato YYYY-MM-DD (sin zona horaria)
+const formatDateToString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 export function CourseForm({ course, allCourses, modules, groups, careers, onSuccess, teachers, scheduleEvents, classrooms }: CourseFormProps) {
@@ -205,8 +222,11 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
         if (course && existingCourse.id === course.id) return false;
         if (existingCourse.groupId !== newCourseGroupId) return false;
 
-        const existingStartDate = new Date(existingCourse.startDate);
-        const existingEndDate = new Date(existingCourse.endDate);
+        const existingStartDate = safeParseDate(existingCourse.startDate);
+        const existingEndDate = safeParseDate(existingCourse.endDate);
+        
+        if (!existingStartDate || !existingEndDate) return false;
+        
         return newCourseStartDate <= existingEndDate && existingStartDate <= newCourseEndDate;
     });
 
@@ -221,10 +241,12 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
     }
 
     const { teacherId, classroomId, days, startTime, endTime, ...courseRawData } = data;
+    
+    // Guardar fechas en formato simple YYYY-MM-DD
     const courseData = { 
         ...courseRawData,
-        startDate: format(data.startDate, 'yyyy-MM-dd'),
-        endDate: format(data.endDate, 'yyyy-MM-dd'),
+        startDate: formatDateToString(data.startDate),
+        endDate: formatDateToString(data.endDate),
     };
 
     try {
@@ -285,6 +307,7 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
 
         onSuccess();
     } catch(e) {
+        console.error('Error saving course:', e);
         const path = course ? `courses/${course.id}` : 'courses';
         const operation = course ? 'update' : 'create';
         const permissionError = new FirestorePermissionError({
@@ -582,5 +605,3 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
     </Form>
   );
 }
-
-    
