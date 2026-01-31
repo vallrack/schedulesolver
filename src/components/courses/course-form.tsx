@@ -13,7 +13,7 @@ import { addDoc, collection, doc, setDoc, writeBatch } from 'firebase/firestore'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, differenceInCalendarWeeks, startOfWeek as getStartOfWeek } from 'date-fns';
+import { format, differenceInCalendarWeeks } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { useEffect, useMemo } from 'react';
@@ -92,8 +92,14 @@ interface CourseFormProps {
 
 const safeParseDate = (dateString?: string): Date | undefined => {
   if (!dateString) return undefined;
-  const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
-  return new Date(year, month - 1, day);
+  try {
+    // Handles both ISO strings and yyyy-MM-dd.
+    // The key is to extract the UTC date parts to avoid timezone shifts.
+    const date = new Date(dateString);
+    return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  } catch (e) {
+    return undefined;
+  }
 };
 
 export function CourseForm({ course, allCourses, modules, groups, careers, onSuccess, teachers, scheduleEvents, classrooms }: CourseFormProps) {
@@ -217,8 +223,8 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
     const { teacherId, classroomId, days, startTime, endTime, ...courseRawData } = data;
     const courseData = { 
         ...courseRawData,
-        startDate: data.startDate.toISOString(),
-        endDate: data.endDate.toISOString(),
+        startDate: format(data.startDate, 'yyyy-MM-dd'),
+        endDate: format(data.endDate, 'yyyy-MM-dd'),
     };
 
     try {
@@ -576,3 +582,5 @@ export function CourseForm({ course, allCourses, modules, groups, careers, onSuc
     </Form>
   );
 }
+
+    
